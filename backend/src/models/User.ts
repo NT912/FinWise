@@ -8,6 +8,7 @@ export interface IUser extends Document {
   googleId?: string;
   facebookId?: string;
   avatar?: string;
+  totalBalance: number;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -18,6 +19,7 @@ const UserSchema = new Schema<IUser>(
     googleId: { type: String },
     facebookId: { type: String },
     avatar: { type: String },
+    totalBalance: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

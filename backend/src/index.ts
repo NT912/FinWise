@@ -3,8 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
-import chartRoutes from "./routes/chartRoutes";
-import profileRoutes from "./routes/profileRoutes";
+import homeRoutes from "./routes/homeRoutes";
 
 dotenv.config();
 
@@ -25,8 +24,7 @@ app.use(express.json());
 
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/charts", chartRoutes);
-app.use("/api", profileRoutes);
+app.use("/api/", homeRoutes);
 
 // Test route
 app.get("/api", (req, res) => {

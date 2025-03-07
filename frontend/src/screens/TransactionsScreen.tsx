@@ -1,67 +1,36 @@
 import React from "react";
-import { View, Text, FlatList, StyleSheet } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 
-const transactions = [
-  {
-    id: "1",
-    description: "Grocery Shopping",
-    amount: "-$50.00",
-    date: "Feb 25",
-  },
-  { id: "2", description: "Salary", amount: "+$2,500.00", date: "Feb 24" },
-  {
-    id: "3",
-    description: "Netflix Subscription",
-    amount: "-$12.99",
-    date: "Feb 22",
-  },
-];
-
-export default function TransactionsScreen() {
+const TransactionsScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Transactions</Text>
-      <FlatList
-        data={transactions}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <View style={styles.transactionItem}>
-            <Text style={styles.description}>{item.description}</Text>
-            <Text
-              style={[
-                styles.amount,
-                item.amount.includes("-") ? styles.expense : styles.income,
-              ]}
-            >
-              {item.amount}
-            </Text>
-            <Text style={styles.date}>{item.date}</Text>
-          </View>
-        )}
-      />
+      <Text style={styles.header}>Transactions</Text>
+      <View style={styles.transactionItem}>
+        <Text>Salary</Text>
+        <Text style={styles.income}>$4,000.00</Text>
+      </View>
+      <View style={styles.transactionItem}>
+        <Text>Groceries</Text>
+        <Text style={styles.expense}>-$100.00</Text>
+      </View>
+      <View style={styles.transactionItem}>
+        <Text>Rent</Text>
+        <Text style={styles.expense}>-$674.40</Text>
+      </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: "#E3FFF8" },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#00C897",
-    marginBottom: 20,
-  },
+  container: { padding: 20, backgroundColor: "#f0f0f0" },
+  header: { fontSize: 22, fontWeight: "bold" },
   transactionItem: {
-    padding: 15,
-    backgroundColor: "#FFF",
-    marginBottom: 10,
-    borderRadius: 8,
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingVertical: 8,
   },
-  description: { fontSize: 16, fontWeight: "bold", color: "#333" },
-  amount: { fontSize: 16 },
-  expense: { color: "#E74C3C" },
-  income: { color: "#27AE60" },
-  date: { fontSize: 12, color: "#777" },
+  income: { color: "#00C897" },
+  expense: { color: "#ff4d4d" },
 });
+
+export default TransactionsScreen;

@@ -1,27 +1,20 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export default function NotificationScreen() {
+const NotificationScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Notifications</Text>
-      <Text style={styles.message}>No new notifications</Text>
+      <Text style={styles.header}>Notifications</Text>
+      <Text>Reminder: Set up savings goal!</Text>
+      <Text>New transaction recorded: -$50</Text>
+      <Text>Budget exceeded warning!</Text>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#E3FFF8",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#00C897",
-    marginBottom: 10,
-  },
-  message: { fontSize: 16, color: "#777" },
+  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
 });
+
+export default NotificationScreen;

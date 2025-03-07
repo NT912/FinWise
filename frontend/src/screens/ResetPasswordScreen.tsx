@@ -13,7 +13,7 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { resetPassword } from "../services/apiService";
+import { resetPassword } from "../services/authService";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
 

@@ -15,7 +15,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
-import { register } from "../services/apiService";
+import { register } from "../services/authService";
 
 // Định nghĩa kiểu navigation
 type NavigationProp = StackNavigationProp<RootStackParamList, "Register">;

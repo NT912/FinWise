@@ -30,6 +30,7 @@ export type RootStackParamList = {
   ForgotPassword: undefined;
   ResetPassword: { email: string; resetCode: string };
   MainApp: undefined;
+  Charts: undefined;
 };
 
 const Stack = createStackNavigator<RootStackParamList>();

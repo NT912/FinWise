@@ -1,9 +1,9 @@
 import express from "express";
-import { getDashboardData } from "../controllers/dashboardController";
+import { getHomeData } from "../controllers/homeController";
 import { authenticateJWT } from "../middleware/authMiddleware";
 
 const router = express.Router();
 
-router.get("/dashboard", authenticateJWT, getDashboardData);
+router.get("/home", authenticateJWT, getHomeData);
 
 export default router;

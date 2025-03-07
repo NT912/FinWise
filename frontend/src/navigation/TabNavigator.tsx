@@ -1,7 +1,7 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
-import { TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View, StyleSheet } from "react-native";
 import HomeScreen from "../screens/HomeScreen";
 import TransactionsScreen from "../screens/TransactionsScreen";
 import ChartsScreen from "../screens/ChartsScreen";
@@ -10,19 +10,22 @@ import ScanReceiptScreen from "../screens/ScanReceiptScreen";
 
 const Tab = createBottomTabNavigator();
 
+const CustomCameraButton = ({ onPress }: { onPress: () => void }) => (
+  <TouchableOpacity
+    onPress={onPress}
+    activeOpacity={0.7}
+    style={styles.cameraButton}
+  >
+    <Ionicons name="camera" size={32} color="#fff" />
+  </TouchableOpacity>
+);
+
 export default function TabNavigator({ navigation }: any) {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         tabBarShowLabel: false, // Ẩn tên tab
-        tabBarStyle: {
-          position: "absolute",
-          height: 80,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          backgroundColor: "#fff",
-          elevation: 5,
-        },
+        tabBarStyle: styles.tabBarStyle,
         tabBarIcon: ({ focused, color, size }) => {
           let iconName;
 
@@ -54,25 +57,10 @@ export default function TabNavigator({ navigation }: any) {
         name="Scan"
         component={ScanReceiptScreen}
         options={{
-          tabBarButton: () => (
-            <TouchableOpacity
+          tabBarButton: (props) => (
+            <CustomCameraButton
               onPress={() => navigation.navigate("ScanReceipt")}
-              style={{
-                top: -30,
-                justifyContent: "center",
-                alignItems: "center",
-                backgroundColor: "#00C897",
-                height: 70,
-                width: 70,
-                borderRadius: 35,
-                shadowColor: "#000",
-                shadowOpacity: 0.2,
-                shadowRadius: 10,
-                elevation: 5,
-              }}
-            >
-              <Ionicons name="camera" size={32} color="#fff" />
-            </TouchableOpacity>
+            />
           ),
         }}
       />
@@ -85,3 +73,27 @@ export default function TabNavigator({ navigation }: any) {
     </Tab.Navigator>
   );
 }
+
+const styles = StyleSheet.create({
+  tabBarStyle: {
+    position: "absolute",
+    height: 80,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    backgroundColor: "#fff",
+    elevation: 5,
+  },
+  cameraButton: {
+    top: -30,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#00C897",
+    height: 70,
+    width: 70,
+    borderRadius: 35,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+});

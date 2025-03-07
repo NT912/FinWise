@@ -14,21 +14,44 @@ export const authenticateJWT = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const token = req.header("Authorization")?.split(" ")[1];
+    const authHeader = req.header("Authorization");
 
-    if (!token) {
+    if (!authHeader) {
       res.status(401).json({ message: "Unauthorized - No token provided" });
-      return;
+      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
     }
 
+    const token = authHeader.split(" ")[1]; // ✅ Lấy token từ "Bearer <token>"
+
+    if (!token) {
+      res.status(401).json({ message: "Unauthorized - Invalid token format" });
+      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+    }
+
+    // ✅ Giải mã token
     const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-      id: string;
+      userId: string;
     };
 
-    req.user = { id: decoded.id }; // ✅ Gán user vào request
+    if (!decoded) {
+      res.status(401).json({ message: "Unauthorized - Invalid token" });
+      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+    }
 
-    next(); // ✅ Gọi `next()` để tiếp tục xử lý request
+    // ✅ Tìm user trong DB
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      res.status(401).json({ message: "Unauthorized - User not found" });
+      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+    }
+
+    req.user = { id: decoded.userId }; // ✅ Gán user vào request
+    next(); // ✅ Nếu hợp lệ, tiếp tục xử lý request
   } catch (error) {
-    next(error); // ✅ Chuyển lỗi tới middleware xử lý lỗi (Express sẽ tự động trả về lỗi)
+    console.error("JWT Auth Error:", error);
+    res
+      .status(401)
+      .json({ message: "Unauthorized - Token verification failed" });
+    return; // ✅ Fix lỗi bằng cách return sau khi gửi response
   }
 };

@@ -1,22 +1,21 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 
-export default function SavingsScreen() {
+const SavingsScreen = () => {
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Savings</Text>
-      <Text style={styles.amount}>Total Savings: $2,000.00</Text>
+      <Text style={styles.header}>Savings</Text>
+      <Text>Goal: New Car</Text>
+      <Text>Saved: $3,000</Text>
+      <Text>Goal: House Down Payment</Text>
+      <Text>Saved: $20,000</Text>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: "#E3FFF8",
-  },
-  title: { fontSize: 24, fontWeight: "bold", color: "#00C897" },
-  amount: { fontSize: 20, fontWeight: "bold", color: "#333", marginTop: 10 },
+  container: { flex: 1, padding: 20, backgroundColor: "#fff" },
+  header: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
 });
+
+export default SavingsScreen;

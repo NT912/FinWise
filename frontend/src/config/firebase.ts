@@ -1,20 +1,22 @@
 import { initializeApp } from "firebase/app";
 import { getStorage } from "firebase/storage";
-import dotenv from "dotenv";
-dotenv.config();
+import {
+  REACT_APP_FIREBASE_API_KEY,
+  REACT_APP_FIREBASE_AUTH_DOMAIN,
+  REACT_APP_FIREBASE_PROJECT_ID,
+  REACT_APP_FIREBASE_STORAGE_BUCKET,
+  REACT_APP_FIREBASE_APP_ID,
+} from "@env";
 
 const firebaseConfig = {
-  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
-  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
-  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  apiKey: REACT_APP_FIREBASE_API_KEY,
+  authDomain: REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: REACT_APP_FIREBASE_STORAGE_BUCKET,
+  appId: REACT_APP_FIREBASE_APP_ID,
 };
 
-// Khởi tạo Firebase App
 const app = initializeApp(firebaseConfig);
-
-// Khởi tạo Firebase Storage
 const storage = getStorage(app);
 
-export { storage };
+export { app, storage };
