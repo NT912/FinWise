@@ -14,7 +14,11 @@ export const getHomeData = async (
       return;
     }
 
+    console.log("✅ UserID from request:", userId);
+
     const homeData = await getHomeDataService(userId);
+
+    console.log("✅ Home Data Response:", homeData);
 
     res.json(homeData);
   } catch (error) {

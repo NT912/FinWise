@@ -1,5 +1,7 @@
+import mongoose, { Document, Schema, Types } from "mongoose";
 import Transaction from "../models/Transaction";
 import User from "../models/User";
+import Saving from "../models/Saving";
 
 export const getHomeDataService = async (userId: string) => {
   if (!userId) {
@@ -36,10 +38,17 @@ export const getHomeDataService = async (userId: string) => {
   // Tính tổng số dư
   const totalBalance = totalIncome - totalExpense;
 
+  // 🔥 **Lấy danh sách mục tiêu tiết kiệm**
+  const savingsGoals = await Saving.find({
+    userId: new mongoose.Types.ObjectId(userId),
+  });
+
   return {
     userName: user.fullName,
+    userAvatar: user.avatar || "",
     totalBalance,
     totalExpense,
     recentTransactions,
+    savingsGoals, // ✅ Thêm danh sách mục tiêu tiết kiệm vào response
   };
 };

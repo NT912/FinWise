@@ -10,7 +10,6 @@ export const fetchHomeData = async () => {
     }
 
     console.log("✅ Gửi request với token:", token);
-
     const response = await api.get(`/home`, {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -18,10 +17,7 @@ export const fetchHomeData = async () => {
     console.log("✅ API /home trả về:", response.data);
     return response.data;
   } catch (error) {
-    console.error(
-      "🚨 Lỗi lấy dữ liệu Home:",
-      (error as any)?.response?.data || (error as Error)?.message || error
-    );
+    console.error("🚨 Lỗi lấy dữ liệu Home:", error);
     throw error;
   }
 };

@@ -24,6 +24,13 @@ type Transaction = {
   amount: number;
 };
 
+type SavingGoal = {
+  _id: string;
+  goalName: string;
+  targetAmount: number;
+  currentAmount: number;
+};
+
 const HomeScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const [loading, setLoading] = useState(true);
@@ -38,6 +45,7 @@ const HomeScreen = () => {
   const [revenueLastWeek, setRevenueLastWeek] = useState(0);
   const [foodLastWeek, setFoodLastWeek] = useState(0);
   const [selectedFilter, setSelectedFilter] = useState("Monthly");
+  const [savingsGoals, setSavingsGoals] = useState<SavingGoal[]>([]);
 
   useEffect(() => {
     loadHomeData();
@@ -55,11 +63,13 @@ const HomeScreen = () => {
       console.log("✅ Đang gửi request với token:", token);
       const data = await fetchHomeData();
       console.log("📥 API Response:", data);
+
       setUserName(data.userName);
       setUserAvatar(data.userAvatar || "https://via.placeholder.com/50");
       setTotalBalance(data.totalBalance ?? 0);
       setTotalExpense(data.totalExpense ?? 0);
       setRecentTransactions(data.recentTransactions ?? []);
+      setSavingsGoals(data.savingsGoals || []); // Cập nhật state savingsGoals
 
       console.log("✅ Home data fetched successfully:", data);
     } catch (error: any) {
@@ -137,26 +147,36 @@ const HomeScreen = () => {
             />
           </View>
 
-          {/* 🔥 Savings & Revenue Card */}
+          {/* 🔥 Savings On Goals - Hiển thị rõ ràng */}
           <View style={styles.savingsCard}>
-            <View style={styles.savingsItem}>
-              <Ionicons name="wallet-outline" size={32} color="white" />
-              <Text style={styles.savingsLabel}>Savings On Goals</Text>
-            </View>
-            <View style={styles.savingsDetails}>
-              <View style={styles.revenueBox}>
-                <Text style={styles.revenueTitle}>Revenue Last Week</Text>
-                <Text style={styles.revenueAmount}>
-                  ${revenueLastWeek.toFixed(2)}
-                </Text>
-              </View>
-              <View style={styles.expenseBox}>
-                <Text style={styles.expenseTitle}>Food Last Week</Text>
-                <Text style={styles.expenseLastWeek}>
-                  -${foodLastWeek.toFixed(2)}
-                </Text>
-              </View>
-            </View>
+            <Text style={styles.savingsTitle}>🎯 Savings On Goals</Text>
+            {savingsGoals.length > 0 ? (
+              savingsGoals.map((goal) => (
+                <View key={goal._id} style={styles.savingsGoalItem}>
+                  <View style={styles.savingsTextContainer}>
+                    <Text style={styles.goalName}>{goal.goalName}</Text>
+                    <Text style={styles.goalAmount}>
+                      ${goal.currentAmount.toFixed(2)} / $
+                      {goal.targetAmount.toFixed(2)}
+                    </Text>
+                  </View>
+                  <Progress.Bar
+                    progress={goal.currentAmount / goal.targetAmount}
+                    width={200}
+                    height={10}
+                    color={
+                      goal.currentAmount >= goal.targetAmount
+                        ? "#00C897"
+                        : "#FFD700"
+                    }
+                    borderRadius={5}
+                    style={styles.savingsProgressBar}
+                  />
+                </View>
+              ))
+            ) : (
+              <Text style={styles.noGoalsText}>No savings goals set.</Text>
+            )}
           </View>
 
           {/* 🔥 Filter Buttons (Daily | Weekly | Monthly) */}
@@ -226,8 +246,14 @@ const HomeScreen = () => {
 export default HomeScreen;
 
 const styles = StyleSheet.create({
-  loaderContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  // 🔄 Loading Spinner
+  loaderContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
 
+  // 🏠 Header Styles
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -257,6 +283,7 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  // 💰 Balance Overview
   balanceCard: {
     backgroundColor: "#00C897",
     borderRadius: 15,
@@ -264,21 +291,115 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     marginHorizontal: 20,
   },
-  balanceRow: { flexDirection: "row", justifyContent: "space-between" },
-  balanceLabel: { color: "white", fontSize: 14 },
-  balanceAmount: { color: "white", fontSize: 22, fontWeight: "bold" },
-  expenseAmount: { color: "#FFD700", fontSize: 22, fontWeight: "bold" },
-  progressBar: { alignSelf: "center", marginTop: 10 },
+  balanceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  balanceLabel: {
+    color: "white",
+    fontSize: 14,
+  },
+  balanceAmount: {
+    color: "white",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  expenseAmount: {
+    color: "#FFD700",
+    fontSize: 22,
+    fontWeight: "bold",
+  },
+  progressBar: {
+    alignSelf: "center",
+    marginTop: 10,
+  },
 
+  // 🎯 Savings on Goals
+  savingsCard: {
+    backgroundColor: "#00C897",
+    borderRadius: 15,
+    padding: 20,
+    marginBottom: 15,
+    marginHorizontal: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 3,
+  },
+  savingsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
+    marginBottom: 10,
+  },
+  savingsGoalItem: {
+    marginBottom: 15,
+  },
+  savingsTextContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 5,
+  },
+  goalName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  goalAmount: {
+    fontSize: 14,
+    color: "#555",
+  },
+  savingsProgressBar: {
+    alignSelf: "center",
+  },
+  noGoalsText: {
+    textAlign: "center",
+    color: "gray",
+    fontSize: 14,
+  },
+
+  // 📅 Filter Buttons (Daily | Weekly | Monthly)
+  filterContainer: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  filterButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#E0E0E0",
+    marginHorizontal: 5,
+  },
+  filterButtonActive: {
+    backgroundColor: "#00C897",
+  },
+  filterText: {
+    fontSize: 14,
+    color: "black",
+    fontWeight: "bold",
+  },
+  filterTextActive: {
+    color: "white",
+  },
+
+  // 📋 Transactions Header
   transactionsHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginHorizontal: 20,
     marginBottom: 10,
   },
-  transactionsTitle: { fontSize: 18, fontWeight: "bold" },
-  seeAllText: { color: "#00C897", fontWeight: "bold" },
+  transactionsTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  seeAllText: {
+    color: "#00C897",
+    fontWeight: "bold",
+  },
 
+  // 💳 Transaction List Items
   transactionItem: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -292,97 +413,55 @@ const styles = StyleSheet.create({
     shadowRadius: 5,
     elevation: 3,
   },
-  transactionDetails: { flexDirection: "row", alignItems: "center" },
-  transactionTextContainer: { marginLeft: 10 },
-  transactionTitle: { fontSize: 16, fontWeight: "bold" },
-  transactionTime: { fontSize: 12, color: "gray" },
-
-  transactionAmount: { fontSize: 16, fontWeight: "bold" },
-  incomeText: { color: "#00C897" },
-  expenseText: { color: "#FF4D4D" },
-
-  savingsCard: {
-    backgroundColor: "#00C897",
-    borderRadius: 15,
-    padding: 20,
-    marginHorizontal: 20,
-    marginBottom: 15,
-  },
-
-  savingsItem: {
+  transactionDetails: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
   },
-
-  savingsLabel: {
-    fontSize: 16,
-    color: "white",
+  transactionTextContainer: {
     marginLeft: 10,
+  },
+  transactionTitle: {
+    fontSize: 16,
     fontWeight: "bold",
   },
-
-  savingsDetails: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
+  transactionTime: {
+    fontSize: 12,
+    color: "gray",
+  },
+  transactionAmount: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  incomeText: {
+    color: "#00C897",
+  },
+  expenseText: {
+    color: "#FF4D4D",
   },
 
+  // 📊 Revenue and Expense Box
   revenueBox: {
     alignItems: "center",
   },
-
   expenseBox: {
     alignItems: "center",
   },
-
   revenueTitle: {
     fontSize: 14,
     color: "white",
   },
-
   revenueAmount: {
     fontSize: 18,
     fontWeight: "bold",
     color: "white",
   },
-
   expenseTitle: {
     fontSize: 14,
     color: "white",
   },
-
   expenseLastWeek: {
     fontSize: 18,
     fontWeight: "bold",
     color: "#FF4D4D",
-  },
-
-  filterContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginBottom: 10,
-  },
-
-  filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
-    borderRadius: 20,
-    backgroundColor: "#E0E0E0",
-    marginHorizontal: 5,
-  },
-
-  filterButtonActive: {
-    backgroundColor: "#00C897",
-  },
-
-  filterText: {
-    fontSize: 14,
-    color: "black",
-    fontWeight: "bold",
-  },
-
-  filterTextActive: {
-    color: "white",
   },
 });
