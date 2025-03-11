@@ -4,7 +4,7 @@ import LaunchScreen from "../screens/LaunchScreen";
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
-import HomeScreen from "../screens/HomeScreen";
+import HomeScreen from "../screens/Home/HomeScreen";
 import TransactionsScreen from "../screens/TransactionsScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
 import SavingsScreen from "../screens/SavingsScreen";
