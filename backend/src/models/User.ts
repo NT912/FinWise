@@ -9,6 +9,15 @@ export interface IUser extends Document {
   facebookId?: string;
   avatar?: string;
   totalBalance: number;
+  faceIDEnabled: boolean;
+  notifications: {
+    push: boolean;
+    email: boolean;
+    sms: boolean;
+  };
+  accountStatus: "active" | "deactivated";
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 const UserSchema = new Schema<IUser>(
@@ -20,8 +29,25 @@ const UserSchema = new Schema<IUser>(
     facebookId: { type: String },
     avatar: { type: String },
     totalBalance: { type: Number, default: 0 },
+
+    // ✅ FaceID bảo mật
+    faceIDEnabled: { type: Boolean, default: false },
+
+    // ✅ Cài đặt thông báo
+    notifications: {
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+    },
+
+    // ✅ Trạng thái tài khoản
+    accountStatus: {
+      type: String,
+      enum: ["active", "deactivated"],
+      default: "active",
+    },
   },
-  { timestamps: true }
+  { timestamps: true } // ✅ Tự động thêm `createdAt` & `updatedAt`
 );
 
 export default mongoose.model<IUser>("User", UserSchema);

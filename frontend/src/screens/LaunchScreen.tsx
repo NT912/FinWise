@@ -3,18 +3,22 @@ import { View, Text, Image, StyleSheet, Animated } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../navigation/AppNavigator";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Định nghĩa kiểu navigation
 type NavigationProp = StackNavigationProp<RootStackParamList, "Launch">;
 
 export default function LaunchScreen() {
   const navigation = useNavigation<NavigationProp>();
+  console.log("LaunchScreen rendered"); // Thêm log để debug
 
   // Tạo animation cho logo
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
 
   useEffect(() => {
+    console.log("LaunchScreen useEffect running"); // Thêm log để debug
+
     // Chạy animation khi màn hình load
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -30,9 +34,16 @@ export default function LaunchScreen() {
     ]).start();
 
     // Chuyển sang màn hình Login sau 3 giây
-    setTimeout(() => {
+    const timer = setTimeout(() => {
+      console.log("Navigating to Login after timeout"); // Thêm log để debug
       navigation.replace("Login");
     }, 3000);
+
+    // Cleanup function
+    return () => {
+      console.log("Clearing LaunchScreen timeout"); // Thêm log để debug
+      clearTimeout(timer);
+    };
   }, [navigation]);
 
   return (

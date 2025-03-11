@@ -5,7 +5,7 @@ import { TouchableOpacity, View, StyleSheet } from "react-native";
 import HomeScreen from "../screens/Home/HomeScreen";
 import TransactionsScreen from "../screens/TransactionsScreen";
 import ChartsScreen from "../screens/ChartsScreen";
-import ProfileScreen from "../screens/ProfileScreen";
+import ProfileScreen from "../screens/Profile/ProfileScreen";
 import ScanReceiptScreen from "../screens/ScanReceiptScreen";
 
 const Tab = createBottomTabNavigator();

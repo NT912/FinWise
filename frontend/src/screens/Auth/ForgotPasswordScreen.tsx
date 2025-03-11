@@ -13,9 +13,9 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { forgotPassword } from "../services/authService";
+import { forgotPassword } from "../../services/authService";
 import { StackNavigationProp } from "@react-navigation/stack";
-import { RootStackParamList } from "../navigation/AppNavigator";
+import { RootStackParamList } from "../../navigation/AppNavigator";
 
 type ForgotPasswordNavigationProp = StackNavigationProp<
   RootStackParamList,

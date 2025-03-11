@@ -15,7 +15,7 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import type { StackNavigationProp } from "@react-navigation/stack";
-import type { RootStackParamList } from "../navigation/AppNavigator";
+import type { RootStackParamList } from "../../navigation/AppNavigator";
 import * as LocalAuthentication from "expo-local-authentication";
 import * as Google from "expo-auth-session/providers/google";
 import * as Facebook from "expo-auth-session/providers/facebook";
@@ -24,7 +24,7 @@ import {
   loginUser,
   loginWithGoogle,
   loginWithFacebook,
-} from "../services/authService";
+} from "../../services/authService";
 import {
   GOOGLE_ANDROID_CLIENT_ID,
   GOOGLE_IOS_CLIENT_ID,
@@ -213,7 +213,7 @@ export default function LoginScreen() {
                 onPress={handleBiometricAuth}
               >
                 <Image
-                  source={require("../../assets/biometric-icon.png")}
+                  source={require("../../../assets/biometric-icon.png")}
                   style={styles.icon}
                 />
               </TouchableOpacity>
@@ -226,7 +226,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             <Image
-              source={require("../../assets/google-logo.png")}
+              source={require("../../../assets/google-logo.png")}
               style={styles.icon}
             />
             <Text style={styles.socialText}>Continue with Google</Text>
@@ -238,7 +238,7 @@ export default function LoginScreen() {
             disabled={loading}
           >
             <Image
-              source={require("../../assets/facebook-logo.png")}
+              source={require("../../../assets/facebook-logo.png")}
               style={styles.icon}
             />
             <Text style={[styles.socialText, { color: "white" }]}>

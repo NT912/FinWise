@@ -1,14 +1,31 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import path from "path";
+import fs from "fs";
 import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import homeRoutes from "./routes/homeRoutes";
+import userRoutes from "./routes/userRoutes";
 
 dotenv.config();
 
 // Connect to MongoDB
 connectDB();
+
+// Tạo thư mục uploads nếu chưa tồn tại
+const uploadsDir = path.join(__dirname, "../uploads");
+const avatarsDir = path.join(uploadsDir, "avatars");
+
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir);
+  console.log("Created uploads directory");
+}
+
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir);
+  console.log("Created avatars directory");
+}
 
 const app = express();
 
@@ -22,9 +39,13 @@ app.use(
 );
 app.use(express.json());
 
+// Serve static files
+app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
+
 // Routes
 app.use("/api/auth", authRoutes);
-app.use("/api/", homeRoutes);
+app.use("/api", homeRoutes);
+app.use("/api/user", userRoutes);
 
 // Test route
 app.get("/api", (req, res) => {

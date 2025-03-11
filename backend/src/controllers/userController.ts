@@ -1,0 +1,312 @@
+import { Request, Response } from "express";
+import {
+  getUserById,
+  updateUserProfile,
+  changeUserPassword,
+  toggleFaceID,
+  updateNotificationSettings,
+  deleteUserAccount,
+  updatePasswordDirectly,
+  verifyCodeAndChangePassword,
+  sendPasswordChangeVerificationCode,
+} from "../services/userService";
+import bcrypt from "bcryptjs";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+
+// Lấy thông tin profile người dùng
+export const getProfile = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    console.log(`✅ [userController] Lấy profile cho userId: ${userId}`);
+
+    const user = await getUserById(userId);
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+
+    console.log(
+      `✅ [userController] Trả về profile cho user: ${user.fullName}`
+    );
+    res.json(user);
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi lấy profile:", error);
+    res.status(500).json({ message: "Error fetching profile" });
+  }
+};
+
+// Cập nhật thông tin profile
+export const updateProfile = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    console.log(`✅ [userController] Cập nhật profile cho userId: ${userId}`);
+    console.log(`✅ [userController] Dữ liệu cập nhật:`, req.body);
+
+    const updatedUser = await updateUserProfile(userId, req.body);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi cập nhật profile:", error);
+    res.status(500).json({ message: "Error updating profile" });
+  }
+};
+
+// Thay đổi mật khẩu
+export const changePassword = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    const {
+      currentPassword,
+      newPassword,
+      verificationMethod,
+      verificationCode,
+    } = req.body;
+
+    if (!userId || !newPassword || !verificationMethod) {
+      res.status(400).json({ message: "Missing required fields" });
+      return;
+    }
+
+    console.log(
+      `✅ [userController] Thay đổi mật khẩu cho userId: ${userId} bằng phương thức: ${verificationMethod}`
+    );
+
+    let success = false;
+
+    switch (verificationMethod) {
+      case "password":
+        if (!currentPassword) {
+          res.status(400).json({ message: "Current password is required" });
+          return;
+        }
+        success = await changeUserPassword(
+          userId,
+          currentPassword,
+          newPassword
+        );
+        break;
+
+      case "faceid":
+        // FaceID đã được xác thực ở frontend, chỉ cần cập nhật mật khẩu
+        success = await updatePasswordDirectly(userId, newPassword);
+        break;
+
+      case "email":
+        if (!verificationCode) {
+          res.status(400).json({ message: "Verification code is required" });
+          return;
+        }
+        success = await verifyCodeAndChangePassword(
+          userId,
+          verificationCode,
+          newPassword
+        );
+        break;
+
+      default:
+        res.status(400).json({ message: "Invalid verification method" });
+        return;
+    }
+
+    if (!success) {
+      res.status(400).json({
+        message:
+          verificationMethod === "password"
+            ? "Invalid password"
+            : verificationMethod === "email"
+            ? "Invalid verification code"
+            : "Verification failed",
+      });
+      return;
+    }
+
+    res.json({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi thay đổi mật khẩu:", error);
+    res.status(500).json({ message: "Error changing password" });
+  }
+};
+
+// Gửi mã xác nhận đổi mật khẩu qua email
+export const sendPasswordChangeCode = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    console.log(
+      `✅ [userController] Gửi mã xác nhận đổi mật khẩu cho userId: ${userId}`
+    );
+
+    const user = await getUserById(userId);
+    if (!user || !user.email) {
+      res.status(404).json({ message: "User not found or no email set" });
+      return;
+    }
+
+    // Gọi service để gửi mã xác nhận
+    const result = await sendPasswordChangeVerificationCode(user.email);
+
+    res.json({ message: "Verification code sent to your email" });
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi gửi mã xác nhận:", error);
+    res.status(500).json({ message: "Error sending verification code" });
+  }
+};
+
+// Bật/tắt Face ID
+export const enableFaceID = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const { enable } = req.body;
+    if (enable === undefined) {
+      res.status(400).json({ message: "Missing enable parameter" });
+      return;
+    }
+
+    console.log(
+      `✅ [userController] ${
+        enable ? "Bật" : "Tắt"
+      } Face ID cho userId: ${userId}`
+    );
+
+    const updatedUser = await toggleFaceID(userId, enable);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi cập nhật Face ID:", error);
+    res.status(500).json({ message: "Error updating FaceID status" });
+  }
+};
+
+// Cập nhật cài đặt thông báo
+export const updateNotifications = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const settings = req.body;
+    if (!settings || typeof settings !== "object") {
+      res.status(400).json({ message: "Invalid notification settings" });
+      return;
+    }
+
+    console.log(`✅ [userController] Cập nhật thông báo cho userId: ${userId}`);
+    console.log(`✅ [userController] Cài đặt thông báo:`, settings);
+
+    const updatedUser = await updateNotificationSettings(userId, settings);
+    res.json(updatedUser);
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi cập nhật thông báo:", error);
+    res.status(500).json({ message: "Error updating notifications" });
+  }
+};
+
+// Xóa tài khoản
+export const deleteAccount = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    const { password } = req.body;
+    if (!password) {
+      res
+        .status(400)
+        .json({ message: "Password is required to delete account" });
+      return;
+    }
+
+    console.log(`✅ [userController] Xóa tài khoản cho userId: ${userId}`);
+
+    // Kiểm tra mật khẩu trước khi xóa tài khoản
+    const user = await getUserById(userId);
+    if (!user || !user.password) {
+      res.status(404).json({ message: "User not found or no password set" });
+      return;
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      res.status(401).json({ message: "Invalid password" });
+      return;
+    }
+
+    await deleteUserAccount(userId);
+    res.json({ message: "Account deleted successfully" });
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi xóa tài khoản:", error);
+    res.status(500).json({ message: "Error deleting account" });
+  }
+};
+
+// Upload avatar
+export const uploadAvatar = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      res.status(401).json({ message: "Unauthorized" });
+      return;
+    }
+
+    if (!req.file) {
+      res.status(400).json({ message: "No file uploaded" });
+      return;
+    }
+
+    console.log(`✅ [userController] Upload avatar cho userId: ${userId}`);
+
+    // Xử lý upload avatar (sẽ cần thêm middleware multer và logic lưu file)
+    const avatarUrl = `/uploads/avatars/${req.file.filename}`;
+
+    const updatedUser = await updateUserProfile(userId, { avatar: avatarUrl });
+    res.json({ avatarUrl, user: updatedUser });
+  } catch (error) {
+    console.error("❌ [userController] Lỗi khi upload avatar:", error);
+    res.status(500).json({ message: "Error uploading avatar" });
+  }
+};
