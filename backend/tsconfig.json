@@ -3,10 +3,11 @@
     "target": "ES6",
     "module": "CommonJS",
     "outDir": "./dist",
-    "types": ["firebase", "node", "nodemailer"],
+    "types": ["node", "nodemailer"],
     "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "skipLibCheck": true
   }
 }

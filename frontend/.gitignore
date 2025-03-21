@@ -78,3 +78,5 @@ expo-env.d.ts
 app.json
 
 google-services.json
+
+env.d.ts

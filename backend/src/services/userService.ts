@@ -6,6 +6,7 @@ import {
   generateResetToken,
 } from "../services/authService";
 import PasswordReset from "../models/PasswordReset";
+import { uploadFileToS3, getSignedFileUrl } from "../services/s3Service";
 
 /**
  * Lấy thông tin người dùng theo ID
@@ -44,6 +45,17 @@ export const updateUserProfile = async (
 ): Promise<IUser | null> => {
   try {
     console.log(`🔍 [userService] Cập nhật user với ID: ${userId}`);
+
+    // Nếu có avatar, upload lên S3
+    if (profileData.avatar && profileData.avatar.startsWith("data:image")) {
+      const buffer = Buffer.from(profileData.avatar.split(",")[1], "base64");
+      const key = await uploadFileToS3(
+        buffer,
+        `avatar-${userId}.jpg`,
+        "image/jpeg"
+      );
+      profileData.avatar = await getSignedFileUrl(key);
+    }
     console.log(`🔍 [userService] Dữ liệu cập nhật:`, profileData);
 
     // Loại bỏ các trường không được phép cập nhật

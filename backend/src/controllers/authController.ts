@@ -83,11 +83,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    console.log("Login attempt for email:", email);
+    console.log("👤 Login attempt for email:", email);
 
     // Validate input
     if (!email || !password) {
-      console.log("Missing credentials");
+      console.log("❌ Missing credentials");
       res.status(400).json({
         message: "Please provide email and password",
         success: false,
@@ -95,10 +95,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Find user
+    // Find user with detailed logging
+    console.log("🔍 Searching for user in database...");
     const user = await User.findOne({ email });
+
     if (!user) {
-      console.log("User not found:", email);
+      console.log("❌ User not found in database for email:", email);
+      console.log("📝 Request body:", req.body);
       res.status(401).json({
         message: "Invalid email or password",
         success: false,

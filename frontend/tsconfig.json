@@ -4,11 +4,5 @@
     "strict": true,
     "types": ["node"],
     "typeRoots": ["./node_modules/@types", "./src/@types"]
-  },
-  "expo": {
-    "scheme": "fb1692553208001982",
-    "facebookAppId": "1692553208001982",
-    "facebookDisplayName": "Finance Manager App",
-    "facebookScheme": "fb1692553208001982"
   }
 }
