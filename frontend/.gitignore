@@ -80,3 +80,5 @@ app.json
 google-services.json
 
 env.d.ts
+
+.env.backup
