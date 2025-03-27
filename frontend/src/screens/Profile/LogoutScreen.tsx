@@ -12,7 +12,11 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 const LogoutScreen = ({ navigation }: { navigation: any }) => {
   const handleLogout = async () => {
     try {
-      await AsyncStorage.removeItem("userToken");
+      // Xóa token đăng nhập
+      await AsyncStorage.removeItem("token");
+      console.log("✅ Đã xóa token đăng nhập");
+
+      // Chuyển về màn hình đăng nhập
       navigation.reset({
         index: 0,
         routes: [{ name: "Login" }],

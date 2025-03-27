@@ -5,7 +5,6 @@ import {
   getProfile,
   updateProfile,
   changePassword,
-  enableFaceID,
   updateNotifications,
   deleteAccount,
   uploadAvatar,
@@ -54,7 +53,6 @@ router.post(
   authenticateJWT,
   sendPasswordChangeCode
 );
-router.post("/profile/enable-faceid", authenticateJWT, enableFaceID);
 router.put("/profile/notifications", authenticateJWT, updateNotifications);
 router.delete("/profile/delete", authenticateJWT, deleteAccount);
 router.post(

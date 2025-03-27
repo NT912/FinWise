@@ -7,8 +7,8 @@ import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import userRoutes from "./routes/userRoutes";
+import categoryRoutes from "./routes/categoryRoutes";
 import { specs, swaggerUi } from "./config/swagger";
-import { initializeS3Bucket } from "./services/s3Service";
 
 dotenv.config();
 
@@ -88,6 +88,7 @@ app.use(
 app.use("/api/auth", authRoutes);
 app.use("/api", homeRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/categories", categoryRoutes);
 
 // Test route
 app.get("/api", (req, res) => {
@@ -128,8 +129,6 @@ connectDB()
       console.log(`Server URL: http://localhost:${PORT}`);
       console.log(`Local URL: http://127.0.0.1:${PORT}`);
     });
-    // Initialize S3 Bucket
-    initializeS3Bucket().catch(console.error);
   })
   .catch((error) => {
     console.error("❌ Không thể khởi động server:", error);

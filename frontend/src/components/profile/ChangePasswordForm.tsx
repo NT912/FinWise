@@ -8,8 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import * as LocalAuthentication from "expo-local-authentication";
+import { Ionicons } from "@expo/vector-icons";
 import {
   changePassword,
   sendPasswordChangeCode,
@@ -18,7 +17,6 @@ import securityStyles from "../../styles/profile/securityStyles";
 
 const VerificationMethod = {
   PASSWORD: "password",
-  FACEID: "faceid",
   EMAIL: "email",
 };
 
@@ -64,59 +62,6 @@ const ChangePasswordForm = ({
       Alert.alert("Success", "Verification code sent to your email");
     } catch (error) {
       Alert.alert("Error", "Failed to send verification code");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFaceIDAuthentication = async () => {
-    try {
-      setLoading(true);
-
-      // Kiểm tra thiết bị có hỗ trợ FaceID không
-      const hasHardware = await LocalAuthentication.hasHardwareAsync();
-      if (!hasHardware) {
-        Alert.alert("Error", "Your device doesn't support Face ID");
-        setVerificationMethod(VerificationMethod.PASSWORD);
-        setLoading(false);
-        return;
-      }
-
-      // Kiểm tra người dùng đã cấu hình FaceID chưa
-      const isEnrolled = await LocalAuthentication.isEnrolledAsync();
-      if (!isEnrolled) {
-        Alert.alert(
-          "Error",
-          "Face ID is not set up on your device. Please set up Face ID in your device settings or use another verification method."
-        );
-        setVerificationMethod(VerificationMethod.PASSWORD);
-        setLoading(false);
-        return;
-      }
-
-      // Xác thực bằng FaceID
-      const result = await LocalAuthentication.authenticateAsync({
-        promptMessage: "Authenticate to change password",
-        disableDeviceFallback: false,
-      });
-
-      if (result.success) {
-        // Nếu xác thực thành công, tiến hành đổi mật khẩu
-        if (validatePasswords()) {
-          await changePassword({
-            currentPassword: "",
-            newPassword,
-          });
-
-          Alert.alert("Success", "Password changed successfully");
-          onSuccess();
-        }
-      } else {
-        Alert.alert("Error", "Face ID authentication failed");
-      }
-    } catch (error) {
-      Alert.alert("Error", "Authentication failed");
-      console.error(error);
     } finally {
       setLoading(false);
     }
@@ -209,34 +154,6 @@ const ChangePasswordForm = ({
           <TouchableOpacity
             style={[
               styles.methodButton,
-              verificationMethod === VerificationMethod.FACEID &&
-                styles.methodButtonActive,
-            ]}
-            onPress={() => setVerificationMethod(VerificationMethod.FACEID)}
-          >
-            <MaterialCommunityIcons
-              name="face-recognition"
-              size={20}
-              color={
-                verificationMethod === VerificationMethod.FACEID
-                  ? "#fff"
-                  : "#333"
-              }
-            />
-            <Text
-              style={[
-                styles.methodButtonText,
-                verificationMethod === VerificationMethod.FACEID &&
-                  styles.methodButtonTextActive,
-              ]}
-            >
-              Face ID
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.methodButton,
               verificationMethod === VerificationMethod.EMAIL &&
                 styles.methodButtonActive,
             ]}
@@ -287,32 +204,6 @@ const ChangePasswordForm = ({
               />
             </TouchableOpacity>
           </View>
-        </View>
-      )}
-
-      {verificationMethod === VerificationMethod.FACEID && (
-        <View style={styles.faceIdContainer}>
-          <MaterialCommunityIcons
-            name="face-recognition"
-            size={80}
-            color="#00C897"
-          />
-          <Text style={styles.faceIdText}>
-            You'll be prompted to authenticate with Face ID
-          </Text>
-          <TouchableOpacity
-            style={[securityStyles.button, { marginTop: 20 }]}
-            onPress={handleFaceIDAuthentication}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={securityStyles.buttonText}>
-                Authenticate with Face ID
-              </Text>
-            )}
-          </TouchableOpacity>
         </View>
       )}
 
@@ -397,19 +288,17 @@ const ChangePasswordForm = ({
       </View>
 
       {/* Action Buttons */}
-      {verificationMethod !== VerificationMethod.FACEID && (
-        <TouchableOpacity
-          style={securityStyles.button}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={securityStyles.buttonText}>Change Password</Text>
-          )}
-        </TouchableOpacity>
-      )}
+      <TouchableOpacity
+        style={securityStyles.button}
+        onPress={handleSubmit}
+        disabled={loading}
+      >
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={securityStyles.buttonText}>Change Password</Text>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[securityStyles.button, styles.cancelButton]}
@@ -492,17 +381,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     right: 12,
     top: 12,
-  },
-  faceIdContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginVertical: 20,
-  },
-  faceIdText: {
-    textAlign: "center",
-    marginTop: 10,
-    color: "#666",
-    fontSize: 16,
   },
   emailVerificationContainer: {
     marginBottom: 16,

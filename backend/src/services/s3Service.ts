@@ -1,83 +1,88 @@
-import {
-  PutObjectCommand,
-  GetObjectCommand,
-  DeleteObjectCommand,
-  ListObjectsV2Command,
-  CreateBucketCommand,
-} from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import s3Client, { S3_BUCKET_NAME } from "../config/s3Config";
 import fs from "fs";
 import path from "path";
+import { v4 as uuidv4 } from "uuid";
 
-// Upload file lên S3
+// Thư mục uploads
+const uploadsDir = path.join(__dirname, "../../uploads");
+const avatarsDir = path.join(uploadsDir, "avatars");
+
+// Đảm bảo thư mục tồn tại
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+  console.log("✅ [s3Service] Đã tạo thư mục uploads");
+}
+
+if (!fs.existsSync(avatarsDir)) {
+  fs.mkdirSync(avatarsDir, { recursive: true });
+  console.log("✅ [s3Service] Đã tạo thư mục avatars");
+}
+
+// Upload file vào thư mục cục bộ thay vì S3
 export const uploadFileToS3 = async (
   fileBuffer: Buffer,
   fileName: string,
   contentType: string
 ): Promise<string> => {
   try {
-    console.log(`🔍 [s3Service] Đang upload file ${fileName} lên S3`);
+    console.log(`🔍 [s3Service] Đang lưu file ${fileName} vào thư mục local`);
 
-    const key = `uploads/${Date.now()}-${fileName}`;
+    // Tạo tên file duy nhất
+    const uniqueFileName = `${Date.now()}-${uuidv4()}-${fileName}`;
+    const filePath = path.join(
+      contentType.includes("image") ? avatarsDir : uploadsDir,
+      uniqueFileName
+    );
 
-    const command = new PutObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-      Body: fileBuffer,
-      ContentType: contentType,
-    });
+    // Ghi file
+    fs.writeFileSync(filePath, fileBuffer);
+    console.log(`✅ [s3Service] Lưu file thành công: ${filePath}`);
 
-    await s3Client.send(command);
-    console.log(`✅ [s3Service] Upload file thành công: ${key}`);
-
-    return key;
+    // Trả về đường dẫn tương đối để dùng làm key
+    return `uploads/${
+      contentType.includes("image") ? "avatars/" : ""
+    }${uniqueFileName}`;
   } catch (error) {
-    console.error("❌ [s3Service] Lỗi khi upload file:", error);
-    throw new Error("Không thể upload file");
+    console.error("❌ [s3Service] Lỗi khi lưu file:", error);
+    throw new Error("Không thể lưu file");
   }
 };
 
-// Lấy URL có chữ ký để truy cập file
+// Lấy URL đơn giản thay vì signed URL
 export const getSignedFileUrl = async (
   key: string,
   expiresIn = 3600
 ): Promise<string> => {
   try {
-    console.log(`🔍 [s3Service] Tạo signed URL cho file: ${key}`);
+    console.log(`🔍 [s3Service] Tạo URL cho file: ${key}`);
 
-    const command = new GetObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
-
-    const url = await getSignedUrl(s3Client, command, { expiresIn });
-    return url;
+    // Trả về URL tương đối
+    return `/uploads/${key.replace("uploads/", "")}`;
   } catch (error) {
-    console.error("❌ [s3Service] Lỗi khi tạo signed URL:", error);
+    console.error("❌ [s3Service] Lỗi khi tạo URL:", error);
     throw new Error("Không thể tạo URL truy cập file");
   }
 };
 
-// Xóa file từ S3
+// Xóa file từ thư mục cục bộ
 export const deleteFileFromS3 = async (key: string): Promise<void> => {
   try {
     console.log(`🔍 [s3Service] Xóa file: ${key}`);
 
-    const command = new DeleteObjectCommand({
-      Bucket: S3_BUCKET_NAME,
-      Key: key,
-    });
+    const filePath = path.join(__dirname, "../../", key);
 
-    await s3Client.send(command);
-    console.log(`✅ [s3Service] Xóa file thành công: ${key}`);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+      console.log(`✅ [s3Service] Xóa file thành công: ${filePath}`);
+    } else {
+      console.log(`⚠️ [s3Service] File không tồn tại: ${filePath}`);
+    }
   } catch (error) {
     console.error("❌ [s3Service] Lỗi khi xóa file:", error);
     throw new Error("Không thể xóa file");
   }
 };
 
-// Upload file từ đường dẫn local lên S3
+// Upload file từ đường dẫn local
 export const uploadLocalFileToS3 = async (
   filePath: string,
   contentType: string
@@ -98,13 +103,15 @@ export const listFilesInFolder = async (prefix: string): Promise<string[]> => {
   try {
     console.log(`🔍 [s3Service] Liệt kê files trong thư mục: ${prefix}`);
 
-    const command = new ListObjectsV2Command({
-      Bucket: S3_BUCKET_NAME,
-      Prefix: prefix,
-    });
+    const dirPath = path.join(uploadsDir, prefix);
 
-    const response = await s3Client.send(command);
-    const files = response.Contents?.map((item) => item.Key || "") || [];
+    if (!fs.existsSync(dirPath)) {
+      return [];
+    }
+
+    const files = fs
+      .readdirSync(dirPath)
+      .map((file) => `uploads/${prefix}/${file}`);
 
     return files;
   } catch (error) {
@@ -113,24 +120,10 @@ export const listFilesInFolder = async (prefix: string): Promise<string[]> => {
   }
 };
 
-// Kiểm tra và tạo bucket nếu chưa tồn tại
+// Mock function cho initializeS3Bucket
 export const initializeS3Bucket = async () => {
-  try {
-    const command = new ListObjectsV2Command({
-      Bucket: S3_BUCKET_NAME,
-      MaxKeys: 1,
-    });
-    await s3Client.send(command);
-    console.log(`✅ [s3Service] Bucket ${S3_BUCKET_NAME} đã tồn tại`);
-  } catch (error: any) {
-    if (error.name === "NoSuchBucket") {
-      console.log(`🔍 [s3Service] Tạo bucket mới: ${S3_BUCKET_NAME}`);
-      const createCommand = new CreateBucketCommand({
-        Bucket: S3_BUCKET_NAME,
-      });
-      await s3Client.send(createCommand);
-    } else {
-      throw error;
-    }
-  }
+  console.log(
+    "✅ [s3Service] Không cần khởi tạo S3 bucket - sử dụng local storage"
+  );
+  return true;
 };

@@ -147,62 +147,6 @@ const homeStyles = StyleSheet.create({
   filterTextActive: {
     color: "white",
   },
-
-  // 📋 Transactions Header
-  transactionsHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginHorizontal: 20,
-    marginBottom: 10,
-  },
-  transactionsTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  seeAllText: {
-    color: "#00C897",
-    fontWeight: "bold",
-  },
-
-  // 💳 Transaction List Items
-  transactionItem: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    backgroundColor: "white",
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    marginHorizontal: 20,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    elevation: 3,
-  },
-  transactionDetails: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  transactionTextContainer: {
-    flex: 1,
-  },
-  transactionTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  transactionTime: {
-    fontSize: 12,
-    color: "gray",
-  },
-  transactionAmount: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  incomeText: {
-    color: "#00C897",
-  },
-  expenseText: {
-    color: "#FF4D4D",
-  },
 });
 
 export default homeStyles;

@@ -3,7 +3,6 @@ import {
   getUserById,
   updateUserProfile,
   changeUserPassword,
-  toggleFaceID,
   updateNotificationSettings,
   deleteUserAccount,
   updatePasswordDirectly,
@@ -105,11 +104,6 @@ export const changePassword = async (
         );
         break;
 
-      case "faceid":
-        // FaceID đã được xác thực ở frontend, chỉ cần cập nhật mật khẩu
-        success = await updatePasswordDirectly(userId, newPassword);
-        break;
-
       case "email":
         if (!verificationCode) {
           res.status(400).json({ message: "Verification code is required" });
@@ -175,38 +169,6 @@ export const sendPasswordChangeCode = async (
   } catch (error) {
     console.error("❌ [userController] Lỗi khi gửi mã xác nhận:", error);
     res.status(500).json({ message: "Error sending verification code" });
-  }
-};
-
-// Bật/tắt Face ID
-export const enableFaceID = async (
-  req: AuthenticatedRequest,
-  res: Response
-): Promise<void> => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) {
-      res.status(401).json({ message: "Unauthorized" });
-      return;
-    }
-
-    const { enable } = req.body;
-    if (enable === undefined) {
-      res.status(400).json({ message: "Missing enable parameter" });
-      return;
-    }
-
-    console.log(
-      `✅ [userController] ${
-        enable ? "Bật" : "Tắt"
-      } Face ID cho userId: ${userId}`
-    );
-
-    const updatedUser = await toggleFaceID(userId, enable);
-    res.json(updatedUser);
-  } catch (error) {
-    console.error("❌ [userController] Lỗi khi cập nhật Face ID:", error);
-    res.status(500).json({ message: "Error updating FaceID status" });
   }
 };
 

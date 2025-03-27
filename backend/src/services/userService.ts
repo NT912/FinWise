@@ -138,7 +138,7 @@ export const changeUserPassword = async (
 };
 
 /**
- * Cập nhật mật khẩu trực tiếp (dùng cho FaceID)
+ * Cập nhật mật khẩu trực tiếp
  */
 export const updatePasswordDirectly = async (
   userId: string,
@@ -274,45 +274,6 @@ export const verifyCodeAndChangePassword = async (
       `❌ [userService] Lỗi khi xác thực mã và đổi mật khẩu:`,
       error
     );
-    throw error;
-  }
-};
-
-/**
- * Bật/tắt FaceID
- */
-export const toggleFaceID = async (
-  userId: string,
-  enable: boolean
-): Promise<IUser | null> => {
-  try {
-    console.log(
-      `🔍 [userService] ${
-        enable ? "Bật" : "Tắt"
-      } Face ID cho user ID: ${userId}`
-    );
-
-    const updatedUser = await User.findByIdAndUpdate(
-      userId,
-      { faceIDEnabled: enable },
-      { new: true }
-    ).select("-password");
-
-    if (!updatedUser) {
-      console.log(
-        `❌ [userService] Không tìm thấy user để cập nhật Face ID: ${userId}`
-      );
-      return null;
-    }
-
-    console.log(
-      `✅ [userService] Đã ${enable ? "bật" : "tắt"} Face ID cho user: ${
-        updatedUser.fullName
-      }`
-    );
-    return updatedUser;
-  } catch (error) {
-    console.error(`❌ [userService] Lỗi khi cập nhật Face ID:`, error);
     throw error;
   }
 };

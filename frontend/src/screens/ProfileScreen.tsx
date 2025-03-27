@@ -51,13 +51,13 @@ const ProfileScreen = ({
 
       console.log("✅ Đang gửi request lấy profile với token:", token);
 
-      const response = await api.get("/user/profile", {
+      const response = await api.get("/api/user/profile", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
 
-      console.log("✅ API /profile trả về:", response.data);
+      console.log("✅ API /api/user/profile trả về:", response.data);
       setUser(response.data);
     } catch (error) {
       console.error("❌ Lỗi khi lấy thông tin profile:", error);

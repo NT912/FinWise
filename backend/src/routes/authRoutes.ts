@@ -1,6 +1,8 @@
 import express from "express";
 import * as authController from "../controllers/authController";
 import { Router } from "express";
+import { authenticateJWT } from "../middleware/authMiddleware";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
 const router = express.Router();
 
@@ -77,5 +79,14 @@ router.post(
   "/reset-password",
   authController.resetPassword as express.RequestHandler
 );
+
+// Thêm route để xác thực token
+router.get("/verify", authenticateJWT, (req: AuthenticatedRequest, res) => {
+  res.status(200).json({
+    valid: true,
+    message: "Token is valid",
+    user: req.user,
+  });
+});
 
 export default router;

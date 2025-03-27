@@ -4,22 +4,24 @@ export interface User {
   email: string;
   avatar?: string;
   phone?: string; // Thêm trường phone
-  faceIDEnabled?: boolean;
   notifications?: {
     push: boolean;
     email: boolean;
     budgetAlerts: boolean;
     goalAlerts: boolean;
+    transactionAlerts?: boolean; // Để tương thích ngược
+    billReminders?: boolean; // Để tương thích ngược
   };
   // Thêm các trường khác nếu cần
 }
 
-export interface Transaction {
+export interface Category {
   _id: string;
-  title: string;
-  amount: number;
+  name: string;
+  icon: string;
+  color: string;
   type: "income" | "expense";
-  category: string;
-  date: string;
-  // Thêm các trường khác nếu cần
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

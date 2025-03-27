@@ -1,10 +1,10 @@
-import api, { enhancedDelete } from "./apiService";
+import api from "./apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-// Lấy thông tin profile người dùng
+// Get user profile information
 export const getUserProfile = async () => {
   try {
-    const response = await api.get("/user/profile");
+    const response = await api.get("/api/user/profile");
     return response.data;
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -12,10 +12,10 @@ export const getUserProfile = async () => {
   }
 };
 
-// Cập nhật thông tin profile
+// Update profile information
 export const updateUserProfile = async (profileData: any) => {
   try {
-    const response = await api.put("/user/profile/update", profileData);
+    const response = await api.put("/api/user/profile/update", profileData);
     return response.data;
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -23,7 +23,7 @@ export const updateUserProfile = async (profileData: any) => {
   }
 };
 
-// Thay đổi mật khẩu
+// Change password
 export const changePassword = async (data: {
   currentPassword: string;
   newPassword: string;
@@ -31,7 +31,7 @@ export const changePassword = async (data: {
   verificationCode?: string;
 }) => {
   try {
-    const response = await api.post("/user/profile/change-password", data);
+    const response = await api.post("/api/user/profile/change-password", data);
     return response.data;
   } catch (error) {
     console.error("Error changing password:", error);
@@ -39,10 +39,12 @@ export const changePassword = async (data: {
   }
 };
 
-// Gửi mã xác nhận đổi mật khẩu qua email
+// Send password change verification code via email
 export const sendPasswordChangeCode = async () => {
   try {
-    const response = await api.post("/user/profile/send-password-change-code");
+    const response = await api.post(
+      "/api/user/profile/send-password-change-code"
+    );
     return response.data;
   } catch (error) {
     console.error("Error sending verification code:", error);
@@ -50,37 +52,16 @@ export const sendPasswordChangeCode = async () => {
   }
 };
 
-// Bật/tắt Face ID
-export const toggleFaceID = async (enable: boolean) => {
-  try {
-    // Gọi API để cập nhật trạng thái Face ID trên server
-    const response = await api.post("/user/profile/enable-faceid", { enable });
-
-    // Lưu trạng thái Face ID vào AsyncStorage
-    await AsyncStorage.setItem("faceIDEnabled", enable.toString());
-
-    // Nếu tắt Face ID, xóa thông tin đăng nhập đã lưu
-    if (!enable) {
-      await AsyncStorage.removeItem("securedEmail");
-      await AsyncStorage.removeItem("securedPassword");
-    }
-
-    return response.data;
-  } catch (error) {
-    console.error("Error toggling Face ID:", error);
-    throw error;
-  }
-};
-
-// Cập nhật cài đặt thông báo
+// Update notification settings
 export const updateNotificationSettings = async (settings: {
   pushNotifications?: boolean;
   emailNotifications?: boolean;
   budgetAlerts?: boolean;
   goalAlerts?: boolean;
+  billReminders?: boolean;
 }) => {
   try {
-    const response = await api.put("/user/profile/notifications", settings);
+    const response = await api.put("/api/user/profile/notifications", settings);
     return response.data;
   } catch (error) {
     console.error("Error updating notification settings:", error);
@@ -91,11 +72,15 @@ export const updateNotificationSettings = async (settings: {
 // Upload avatar
 export const uploadAvatar = async (formData: FormData) => {
   try {
-    const response = await api.post("/user/profile/upload-avatar", formData, {
-      headers: {
-        "Content-Type": "multipart/form-data",
-      },
-    });
+    const response = await api.post(
+      "/api/user/profile/upload-avatar",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
     return response.data;
   } catch (error) {
     console.error("Error uploading avatar:", error);
@@ -103,18 +88,30 @@ export const uploadAvatar = async (formData: FormData) => {
   }
 };
 
-// Xóa tài khoản
+// Delete account
 export const deleteAccount = async (password: string) => {
   try {
-    console.log("🚨 Đang cố gắng xóa tài khoản...");
+    console.log("🚨 Attempting to delete account...");
 
-    // Sử dụng enhancedDelete thay vì api.delete
-    const response = await enhancedDelete("/user/profile/delete", { password });
+    // Sử dụng delete với body
+    const response = await api.delete("/api/user/profile/delete", {
+      data: { password },
+    });
 
-    console.log("✅ Xóa tài khoản thành công:", response.data);
+    console.log("✅ Account deletion successful:", response.data);
     return response.data;
   } catch (error) {
-    console.error("❌ Lỗi khi xóa tài khoản:", error);
+    console.error("❌ Error deleting account:", error);
     throw error;
   }
+};
+
+export default {
+  getUserProfile,
+  updateUserProfile,
+  changePassword,
+  sendPasswordChangeCode,
+  updateNotificationSettings,
+  uploadAvatar,
+  deleteAccount,
 };

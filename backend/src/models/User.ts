@@ -9,7 +9,6 @@ export interface IUser extends Document {
   facebookId?: string;
   avatar?: string;
   totalBalance: number;
-  faceIDEnabled: boolean;
   notifications: {
     push: boolean;
     email: boolean;
@@ -33,9 +32,6 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
-
-    // ✅ FaceID bảo mật
-    faceIDEnabled: { type: Boolean, default: false },
 
     // ✅ Cài đặt thông báo
     notifications: {

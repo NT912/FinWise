@@ -7,7 +7,6 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import commonProfileStyles from "../../styles/profile/commonProfileStyles";
@@ -27,12 +26,6 @@ const SettingsScreen = () => {
       title: "Change Password",
       description: "Update your account password",
       onPress: () => navigation.navigate("ChangePassword"),
-    },
-    {
-      icon: "ios-eye-outline",
-      title: "Face ID",
-      description: "Manage facial recognition authentication",
-      onPress: () => navigation.navigate("FaceIDScreen"),
     },
     {
       icon: "trash-outline",
@@ -70,19 +63,11 @@ const SettingsScreen = () => {
               onPress={item.onPress}
             >
               <View style={commonProfileStyles.menuIcon}>
-                {item.title === "Face ID" ? (
-                  <MaterialCommunityIcons
-                    name="face-recognition"
-                    size={24}
-                    color="#00C897"
-                  />
-                ) : (
-                  <Ionicons
-                    name={item.icon as keyof typeof Ionicons.glyphMap}
-                    size={24}
-                    color={item.isDanger ? "#FF6B6B" : "#00C897"}
-                  />
-                )}
+                <Ionicons
+                  name={item.icon as keyof typeof Ionicons.glyphMap}
+                  size={24}
+                  color={item.isDanger ? "#FF6B6B" : "#00C897"}
+                />
               </View>
               <View style={commonProfileStyles.menuContent}>
                 <Text

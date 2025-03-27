@@ -3,7 +3,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons } from "@expo/vector-icons";
 import { TouchableOpacity, View, StyleSheet } from "react-native";
 import HomeScreen from "../screens/Home/HomeScreen";
-import TransactionsScreen from "../screens/TransactionsScreen";
+import CategoryScreen from "../screens/Category/CategoryScreen";
 import ChartsScreen from "../screens/ChartsScreen";
 import ProfileScreen from "../screens/Profile/ProfileScreen";
 import ScanReceiptScreen from "../screens/ScanReceiptScreen";
@@ -31,7 +31,7 @@ export default function TabNavigator({ navigation }: any) {
 
           if (route.name === "Home") {
             iconName = focused ? "home" : "home-outline";
-          } else if (route.name === "Transactions") {
+          } else if (route.name === "Category") {
             iconName = focused ? "list" : "list-outline";
           } else if (route.name === "Charts") {
             iconName = focused ? "bar-chart" : "bar-chart-outline";
@@ -49,8 +49,8 @@ export default function TabNavigator({ navigation }: any) {
       {/* Tab 1: Home */}
       <Tab.Screen name="Home" component={HomeScreen} />
 
-      {/* Tab 2: Transactions */}
-      <Tab.Screen name="Transactions" component={TransactionsScreen} />
+      {/* Tab 2: Categories */}
+      <Tab.Screen name="Category" component={CategoryScreen} />
 
       {/* Nút Camera ở giữa */}
       <Tab.Screen
@@ -65,10 +65,10 @@ export default function TabNavigator({ navigation }: any) {
         }}
       />
 
-      {/* Tab 3: Charts */}
+      {/* Tab 4: Charts */}
       <Tab.Screen name="Charts" component={ChartsScreen} />
 
-      {/* Tab 4: Profile */}
+      {/* Tab 5: Profile */}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
   );

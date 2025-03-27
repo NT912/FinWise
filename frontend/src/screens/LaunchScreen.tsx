@@ -33,17 +33,34 @@ export default function LaunchScreen() {
       }),
     ]).start();
 
-    // Chuyển sang màn hình Login sau 3 giây
-    const timer = setTimeout(() => {
-      console.log("Navigating to Login after timeout"); // Thêm log để debug
-      navigation.replace("Login");
-    }, 3000);
+    // Kiểm tra token xác thực
+    const checkAuthAndNavigate = async () => {
+      try {
+        console.log("Checking authentication status...");
+        const token = await AsyncStorage.getItem("token");
 
-    // Cleanup function
-    return () => {
-      console.log("Clearing LaunchScreen timeout"); // Thêm log để debug
-      clearTimeout(timer);
+        // Đợi animation kết thúc (khoảng 2 giây) rồi mới chuyển màn hình
+        setTimeout(() => {
+          if (token) {
+            console.log("Token found, navigating to MainApp");
+            navigation.replace("MainApp");
+          } else {
+            console.log("No token found, navigating to Login");
+            navigation.replace("Login");
+          }
+        }, 2000);
+      } catch (error) {
+        console.error("Error checking authentication:", error);
+        // Nếu có lỗi, mặc định chuyển về màn hình đăng nhập
+        setTimeout(() => {
+          navigation.replace("Login");
+        }, 2000);
+      }
     };
+
+    checkAuthAndNavigate();
+
+    // Không cần cleanup timer vì chúng ta đã dùng setTimeout trong hàm async
   }, [navigation]);
 
   return (
