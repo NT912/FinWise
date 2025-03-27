@@ -8,18 +8,21 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import securityStyles from "../../styles/profile/securityStyles";
+import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 
 const TermsAndConditionsScreen = ({ navigation }: { navigation: any }) => {
   return (
     <SafeAreaView style={securityStyles.container}>
-      <View style={securityStyles.header}>
+      <View style={commonProfileStyles.enhancedHeader}>
         <TouchableOpacity
-          style={securityStyles.backButton}
+          style={commonProfileStyles.enhancedBackButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={securityStyles.title}>Terms And Conditions</Text>
+        <Text style={commonProfileStyles.enhancedHeaderTitle}>
+          Terms And Conditions
+        </Text>
       </View>
 
       <ScrollView style={securityStyles.content}>

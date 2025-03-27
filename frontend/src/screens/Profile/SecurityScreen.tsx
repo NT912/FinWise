@@ -8,9 +8,8 @@ import {
   RefreshControl,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { getUserProfile } from "../../services/profileService";
-import securityStyles from "../../styles/profile/securityStyles";
+import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 
 const SecurityScreen = ({ navigation }: { navigation: any }) => {
   const [refreshing, setRefreshing] = useState(false);
@@ -18,7 +17,7 @@ const SecurityScreen = ({ navigation }: { navigation: any }) => {
   const onRefresh = useCallback(async () => {
     try {
       setRefreshing(true);
-      await getUserProfile(); // Refresh user data silently
+      await getUserProfile();
     } catch (error) {
       console.error("Error refreshing data:", error);
     } finally {
@@ -26,20 +25,32 @@ const SecurityScreen = ({ navigation }: { navigation: any }) => {
     }
   }, []);
 
+  const securityItems = [
+    {
+      icon: "lock-closed",
+      title: "Change Password",
+      description: "Update your account password",
+      onPress: () => navigation.navigate("ChangePassword"),
+    },
+  ];
+
   return (
-    <SafeAreaView style={securityStyles.container}>
-      <View style={securityStyles.header}>
+    <SafeAreaView style={commonProfileStyles.container}>
+      <View style={commonProfileStyles.enhancedHeader}>
         <TouchableOpacity
-          style={securityStyles.backButton}
+          style={commonProfileStyles.enhancedBackButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={securityStyles.title}>Security</Text>
+        <Text style={commonProfileStyles.enhancedHeaderTitle}>
+          Change Password
+        </Text>
       </View>
 
       <ScrollView
-        style={securityStyles.content}
+        style={commonProfileStyles.scrollView}
+        contentContainerStyle={commonProfileStyles.scrollContent}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -49,52 +60,32 @@ const SecurityScreen = ({ navigation }: { navigation: any }) => {
           />
         }
       >
-        <View style={securityStyles.menuContainer}>
-          <TouchableOpacity
-            style={securityStyles.menuItem}
-            onPress={() => navigation.navigate("ChangePasswordScreen")}
-          >
-            <Ionicons name="lock-closed-outline" size={24} color="#00C897" />
-            <Text style={securityStyles.menuText}>Change Password</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color="#ccc"
-              style={securityStyles.chevron}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={securityStyles.menuItem}
-            onPress={() => navigation.navigate("FaceIDScreen")}
-          >
-            <MaterialCommunityIcons
-              name="face-recognition"
-              size={24}
-              color="#00C897"
-            />
-            <Text style={securityStyles.menuText}>Face ID</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color="#ccc"
-              style={securityStyles.chevron}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={securityStyles.menuItem}
-            onPress={() => navigation.navigate("TermsAndConditionsScreen")}
-          >
-            <Ionicons name="document-text-outline" size={24} color="#00C897" />
-            <Text style={securityStyles.menuText}>Terms And Conditions</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color="#ccc"
-              style={securityStyles.chevron}
-            />
-          </TouchableOpacity>
+        <View style={commonProfileStyles.section}>
+          {securityItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                commonProfileStyles.menuItem,
+                index === securityItems.length - 1 && { borderBottomWidth: 0 },
+              ]}
+              onPress={item.onPress}
+            >
+              <View style={commonProfileStyles.menuIcon}>
+                <Ionicons
+                  name={item.icon as keyof typeof Ionicons.glyphMap}
+                  size={24}
+                  color="#00C897"
+                />
+              </View>
+              <View style={commonProfileStyles.menuContent}>
+                <Text style={commonProfileStyles.menuTitle}>{item.title}</Text>
+                <Text style={commonProfileStyles.menuDescription}>
+                  {item.description}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -12,10 +12,27 @@ import axios from "axios";
 import { Ionicons } from "@expo/vector-icons";
 import ProfileHeader from "../components/profile/ProfileHeader";
 import LoadingIndicator from "../components/LoadingIndicator";
-import { API_URL } from "../config/constants";
+import api from "../services/apiService";
+import { NavigationProp, ParamListBase } from "@react-navigation/native";
 
-const ProfileScreen = ({ navigation }) => {
-  const [user, setUser] = useState(null);
+// Định nghĩa kiểu dữ liệu cho User
+interface User {
+  _id: string;
+  fullName: string;
+  email: string;
+  avatar?: string;
+  totalBalance?: number;
+  accountStatus: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+const ProfileScreen = ({
+  navigation,
+}: {
+  navigation: NavigationProp<ParamListBase>;
+}) => {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -34,7 +51,7 @@ const ProfileScreen = ({ navigation }) => {
 
       console.log("✅ Đang gửi request lấy profile với token:", token);
 
-      const response = await axios.get(`${API_URL}/api/user/profile`, {
+      const response = await api.get("/user/profile", {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -54,12 +71,16 @@ const ProfileScreen = ({ navigation }) => {
     navigation.navigate("EditProfile", { user, onUpdate: fetchUserProfile });
   };
 
-  const handleSecurity = () => {
-    navigation.navigate("Security");
+  const handleChangePassword = () => {
+    navigation.navigate("ChangePassword");
   };
 
   const handleNotifications = () => {
     navigation.navigate("NotificationSettings");
+  };
+
+  const handleTermsAndConditions = () => {
+    navigation.navigate("TermsAndConditions");
   };
 
   const handleLogout = async () => {
@@ -84,8 +105,8 @@ const ProfileScreen = ({ navigation }) => {
         <>
           <ProfileHeader
             userName={user.fullName}
+            userId={user._id}
             userAvatar={user.avatar || "https://via.placeholder.com/150"}
-            onEditProfile={handleEditProfile}
           />
 
           <View style={styles.menuContainer}>
@@ -98,9 +119,12 @@ const ProfileScreen = ({ navigation }) => {
               <Ionicons name="chevron-forward" size={24} color="#ccc" />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.menuItem} onPress={handleSecurity}>
-              <Ionicons name="shield-outline" size={24} color="#00C897" />
-              <Text style={styles.menuText}>Bảo mật</Text>
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleChangePassword}
+            >
+              <Ionicons name="key-outline" size={24} color="#00C897" />
+              <Text style={styles.menuText}>Đổi mật khẩu</Text>
               <Ionicons name="chevron-forward" size={24} color="#ccc" />
             </TouchableOpacity>
 
@@ -114,6 +138,15 @@ const ProfileScreen = ({ navigation }) => {
                 color="#00C897"
               />
               <Text style={styles.menuText}>Thông báo</Text>
+              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={handleTermsAndConditions}
+            >
+              <Ionicons name="shield-checkmark" size={24} color="#00C897" />
+              <Text style={styles.menuText}>Điều khoản sử dụng</Text>
               <Ionicons name="chevron-forward" size={24} color="#ccc" />
             </TouchableOpacity>
 

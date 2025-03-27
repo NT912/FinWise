@@ -3,11 +3,13 @@ export interface User {
   fullName: string;
   email: string;
   avatar?: string;
+  phone?: string; // Thêm trường phone
   faceIDEnabled?: boolean;
   notifications?: {
     push: boolean;
     email: boolean;
-    sms: boolean;
+    budgetAlerts: boolean;
+    goalAlerts: boolean;
   };
   // Thêm các trường khác nếu cần
 }

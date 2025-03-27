@@ -20,7 +20,7 @@ export interface IUser extends Document {
   updatedAt: Date;
 }
 
-const UserSchema = new Schema<IUser>(
+const userSchema = new Schema(
   {
     fullName: { type: String, required: true },
     email: { type: String, required: true, unique: true },
@@ -29,6 +29,10 @@ const UserSchema = new Schema<IUser>(
     facebookId: { type: String },
     avatar: { type: String },
     totalBalance: { type: Number, default: 0 },
+    phone: {
+      type: String,
+      default: null,
+    },
 
     // ✅ FaceID bảo mật
     faceIDEnabled: { type: Boolean, default: false },
@@ -50,4 +54,4 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true } // ✅ Tự động thêm `createdAt` & `updatedAt`
 );
 
-export default mongoose.model<IUser>("User", UserSchema);
+export default mongoose.model<IUser>("User", userSchema);

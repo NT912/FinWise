@@ -21,6 +21,20 @@ const faceIDStyles = StyleSheet.create({
     marginBottom: 30,
     lineHeight: 22,
   },
+  switchContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    width: "100%",
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  switchLabel: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    marginRight: 10,
+  },
   button: {
     flexDirection: "row",
     borderRadius: 12,
@@ -40,6 +54,10 @@ const faceIDStyles = StyleSheet.create({
   },
   disableButton: {
     backgroundColor: "#FF6B6B",
+  },
+  disabledButton: {
+    backgroundColor: "#cccccc",
+    opacity: 0.7,
   },
   buttonText: {
     color: "#fff",
@@ -84,6 +102,73 @@ const faceIDStyles = StyleSheet.create({
     fontWeight: "bold",
     color: "#00C897",
     marginTop: 20,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 15,
+    padding: 20,
+    width: "90%",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#00C897",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  modalText: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 20,
+    textAlign: "center",
+  },
+  modalInput: {
+    width: "100%",
+    height: 50,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    paddingHorizontal: 15,
+    marginBottom: 20,
+    fontSize: 16,
+  },
+  modalButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+  },
+  modalButton: {
+    flex: 1,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    marginHorizontal: 5,
+  },
+  confirmButton: {
+    backgroundColor: "#00C897",
+  },
+  cancelButton: {
+    backgroundColor: "#FF6B6B",
+  },
+  modalButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "bold",
   },
 });
 

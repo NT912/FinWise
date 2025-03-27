@@ -1,82 +1,97 @@
 import React, { useState, useEffect } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { getUserProfile } from "../../services/profileService";
-import faceIDStyles from "../../styles/profile/faceIDStyles";
+import { View, Text, Alert, Platform, StyleSheet } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import * as LocalAuthentication from "expo-local-authentication";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface FaceIDSetupProps {
   onToggle: (enabled: boolean) => void;
 }
 
 const FaceIDSetup: React.FC<FaceIDSetupProps> = ({ onToggle }) => {
-  const [faceIDEnabled, setFaceIDEnabled] = useState(false);
+  const [isFaceIDAvailable, setIsFaceIDAvailable] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchFaceIDStatus();
+    checkDeviceForBiometrics();
   }, []);
 
-  const fetchFaceIDStatus = async () => {
+  const checkDeviceForBiometrics = async () => {
     try {
-      const userData = await getUserProfile();
-      if (userData) {
-        setFaceIDEnabled(userData.faceIDEnabled || false);
+      const hasHardware = await LocalAuthentication.hasHardwareAsync();
+
+      if (hasHardware) {
+        const supportedTypes =
+          await LocalAuthentication.supportedAuthenticationTypesAsync();
+        // FaceID type constant is 2 in expo-local-authentication
+        const isFaceIDSupported = supportedTypes.includes(
+          LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION
+        );
+
+        setIsFaceIDAvailable(isFaceIDSupported);
+
+        if (!isFaceIDSupported && Platform.OS === "ios") {
+          Alert.alert(
+            "Face ID Not Available",
+            "Your device doesn't support Face ID. Please use a device with Face ID capability."
+          );
+        }
+      } else {
+        setIsFaceIDAvailable(false);
+        Alert.alert(
+          "Biometric Authentication Unavailable",
+          "Your device doesn't support biometric authentication."
+        );
       }
     } catch (error) {
-      console.error("Error fetching Face ID status:", error);
-    }
-  };
-
-  const handleToggleFaceID = async () => {
-    const newStatus = !faceIDEnabled;
-    setFaceIDEnabled(newStatus);
-
-    if (onToggle) {
-      onToggle(newStatus);
+      console.error("Error checking biometric availability:", error);
+      setIsFaceIDAvailable(false);
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={faceIDStyles.container}>
-      <View style={faceIDStyles.scanArea}>
-        <MaterialCommunityIcons
-          name="face-recognition"
-          size={120}
-          color="#00C897"
-          style={faceIDStyles.faceIcon}
-        />
-      </View>
-
-      <Text style={faceIDStyles.title}>
-        {faceIDEnabled ? "Face ID Enabled" : "Use Face ID To Access"}
-      </Text>
-
-      <Text style={faceIDStyles.description}>
-        {faceIDEnabled
-          ? "Your account is protected with Face ID authentication. You can disable it anytime."
-          : "Enable Face ID authentication for quick and secure access to your account."}
-      </Text>
-
-      <TouchableOpacity
-        style={[
-          faceIDStyles.button,
-          faceIDEnabled
-            ? faceIDStyles.disableButton
-            : faceIDStyles.enableButton,
-        ]}
-        onPress={handleToggleFaceID}
-      >
-        <MaterialCommunityIcons
-          name={faceIDEnabled ? "face-recognition" : "face-recognition"}
-          size={24}
-          color="#fff"
-          style={faceIDStyles.buttonIcon}
-        />
-        <Text style={faceIDStyles.buttonText}>
-          {faceIDEnabled ? "Disable Face ID" : "Enable Face ID"}
-        </Text>
-      </TouchableOpacity>
+    <View style={styles.container}>
+      {!isFaceIDAvailable && (
+        <View style={styles.warningContainer}>
+          <Ionicons
+            name="alert-circle"
+            size={24}
+            color="#FF9800"
+            style={styles.warningIcon}
+          />
+          <Text style={styles.warningText}>
+            Face ID is not available on this device. Please use a device with
+            Face ID capability.
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    width: "100%",
+  },
+  warningContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFF9C4",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 20,
+  },
+  warningIcon: {
+    marginRight: 10,
+  },
+  warningText: {
+    flex: 1,
+    fontSize: 14,
+    color: "#F57C00",
+    lineHeight: 20,
+  },
+});
 
 export default FaceIDSetup;

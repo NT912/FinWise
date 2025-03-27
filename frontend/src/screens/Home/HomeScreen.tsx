@@ -118,7 +118,10 @@ const HomeScreen = () => {
               selectedFilter={selectedFilter}
               onFilterChange={setSelectedFilter}
             />
-            <TransactionsSection transactions={userData.recentTransactions} />
+            <TransactionsSection
+              transactions={userData.recentTransactions}
+              navigation={navigation}
+            />
           </>
         }
         renderItem={({ item }) => <TransactionItem transaction={item} />}

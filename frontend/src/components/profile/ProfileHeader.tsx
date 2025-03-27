@@ -24,7 +24,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
         style={profileHeaderStyles.avatar}
       />
       <Text style={profileHeaderStyles.userName}>{userName}</Text>
-      <Text style={profileHeaderStyles.userId}>ID: {userId}</Text>
     </View>
   );
 };

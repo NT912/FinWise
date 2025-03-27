@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import helpStyles from "../../styles/profile/helpStyles";
+import TabSelector from "../../components/common/TabSelector";
+import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 
 const FAQData = [
   {
@@ -110,48 +112,25 @@ const HelpScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <SafeAreaView style={helpStyles.container}>
-      <View style={helpStyles.header}>
+      <View style={commonProfileStyles.enhancedHeader}>
         <TouchableOpacity
-          style={helpStyles.backButton}
+          style={commonProfileStyles.enhancedBackButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={helpStyles.title}>Help & FAQs</Text>
+        <Text style={commonProfileStyles.enhancedHeaderTitle}>Help Center</Text>
       </View>
 
-      <View style={helpStyles.tabContainer}>
-        <TouchableOpacity
-          style={[helpStyles.tab, activeTab === "faq" && helpStyles.activeTab]}
-          onPress={() => setActiveTab("faq")}
-        >
-          <Text
-            style={[
-              helpStyles.tabText,
-              activeTab === "faq" && helpStyles.activeTabText,
-            ]}
-          >
-            FAQ
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            helpStyles.tab,
-            activeTab === "contact" && helpStyles.activeTab,
-          ]}
-          onPress={() => setActiveTab("contact")}
-        >
-          <Text
-            style={[
-              helpStyles.tabText,
-              activeTab === "contact" && helpStyles.activeTabText,
-            ]}
-          >
-            Contact Us
-          </Text>
-        </TouchableOpacity>
-      </View>
+      <TabSelector
+        options={[
+          { key: "faq", label: "FAQ", icon: "help-circle" },
+          { key: "contact", label: "Contact", icon: "chatbubble-ellipses" },
+          { key: "terms", label: "Terms", icon: "document-text" },
+        ]}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       <View style={helpStyles.content}>
         {activeTab === "faq" ? (
@@ -175,7 +154,7 @@ const HelpScreen = ({ navigation }: { navigation: any }) => {
               ))}
             </ScrollView>
           </>
-        ) : (
+        ) : activeTab === "contact" ? (
           <View style={helpStyles.chatContainer}>
             <FlatList
               data={messages}
@@ -227,7 +206,75 @@ const HelpScreen = ({ navigation }: { navigation: any }) => {
               </TouchableOpacity>
             </View>
           </View>
-        )}
+        ) : activeTab === "terms" ? (
+          <ScrollView style={helpStyles.termsContainer}>
+            <Text style={helpStyles.termsTitle}>Terms & Conditions</Text>
+            <Text style={helpStyles.termsText}>
+              <Text style={{ fontWeight: "bold" }}>1. Acceptance of Terms</Text>
+              {"\n"}
+              By accessing and using the FinWise application, you agree to be
+              bound by these Terms and Conditions, all applicable laws and
+              regulations, and agree that you are responsible for compliance
+              with any applicable local laws.
+              {"\n\n"}
+              <Text style={{ fontWeight: "bold" }}>2. Privacy Policy</Text>
+              {"\n"}
+              Your use of FinWise is also subject to our Privacy Policy, which
+              describes how we collect, use, and share your personal
+              information.
+              {"\n\n"}
+              <Text style={{ fontWeight: "bold" }}>3. User Accounts</Text>
+              {"\n"}
+              To use certain features of FinWise, you may be required to create
+              an account. You are responsible for maintaining the
+              confidentiality of your account information and for all activities
+              that occur under your account.
+              {"\n\n"}
+              <Text style={{ fontWeight: "bold" }}>
+                4. Financial Information
+              </Text>
+              {"\n"}
+              FinWise provides tools for financial management. The information
+              provided by FinWise is for informational purposes only and should
+              not be considered financial advice.
+              {"\n\n"}
+              <Text style={{ fontWeight: "bold" }}>
+                5. Limitation of Liability
+              </Text>
+              {"\n"}
+              FinWise and its developers shall not be liable for any direct,
+              indirect, incidental, special, consequential or exemplary damages
+              resulting from your use of the application.
+              {"\n\n"}
+              <Text style={{ fontWeight: "bold" }}>6. Changes to Terms</Text>
+              {"\n"}
+              We reserve the right to modify these terms at any time. Your
+              continued use of FinWise after such changes constitutes your
+              acceptance of the new terms.
+            </Text>
+
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                marginTop: 20,
+                marginBottom: 10,
+              }}
+            >
+              <Ionicons name="checkbox-outline" size={24} color="#00C897" />
+              <Text style={{ marginLeft: 10, color: "#333" }}>
+                I accept all terms and conditions
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={helpStyles.button}
+              onPress={() => navigation.navigate("TermsAndConditionsScreen")}
+            >
+              <Text style={helpStyles.buttonText}>View Details</Text>
+            </TouchableOpacity>
+          </ScrollView>
+        ) : null}
       </View>
     </SafeAreaView>
   );

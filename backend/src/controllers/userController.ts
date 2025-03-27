@@ -12,6 +12,7 @@ import {
 } from "../services/userService";
 import bcrypt from "bcryptjs";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import User from "../models/User";
 
 // Lấy thông tin profile người dùng
 export const getProfile = async (
@@ -261,7 +262,8 @@ export const deleteAccount = async (
     console.log(`✅ [userController] Xóa tài khoản cho userId: ${userId}`);
 
     // Kiểm tra mật khẩu trước khi xóa tài khoản
-    const user = await getUserById(userId);
+    // Truyền tham số includePassword=true để lấy cả mật khẩu
+    const user = await getUserById(userId, true);
     if (!user || !user.password) {
       res.status(404).json({ message: "User not found or no password set" });
       return;

@@ -28,6 +28,8 @@ import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
 import { User } from "../types";
 import NotificationsSettingsScreen from "../screens/Profile/NotificationSettingsScreen";
 import ScanReceiptScreen from "../screens/ScanReceiptScreen";
+import BiometricAuthGate from "../components/auth/BiometricAuthGate";
+import ExampleTabScreen from "../screens/ExampleTabScreen";
 
 export type RootStackParamList = {
   Launch: undefined;
@@ -48,8 +50,7 @@ export type RootStackParamList = {
   PrivacyPolicyScreen: undefined;
   SettingsScreen: undefined;
   EditProfile: {
-    user: User | null;
-    onUpdate: () => Promise<void>;
+    user: User;
   };
   SecurityScreen: undefined;
   NotificationSettingsScreen: undefined;
@@ -58,6 +59,7 @@ export type RootStackParamList = {
   FaceIDScreen: undefined;
   DeleteAccountScreen: undefined;
   TermsAndConditionsScreen: undefined;
+  ExampleTabScreen: undefined;
   Main: undefined;
   ChangePasswordScreen: undefined;
   Security: undefined;
@@ -117,62 +119,70 @@ export default function AppNavigator() {
     return null;
   }
 
+  // Wrap the navigator with BiometricAuthGate only for authenticated routes
   return (
-    <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        cardStyle: { backgroundColor: "#fff" },
-      }}
-      initialRouteName="Launch"
-    >
-      <Stack.Screen name="Launch" component={LaunchScreen} />
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-      <Stack.Screen name="Home" component={MainTabs} />
-      <Stack.Screen name="Transactions" component={TransactionsScreen} />
-      <Stack.Screen name="Categories" component={CategoriesScreen} />
-      <Stack.Screen name="Notifications" component={NotificationScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
-      <Stack.Screen name="MainApp" component={TabNavigator} />
-      {userToken && (
-        <>
-          <Stack.Screen name="Profile" component={ProfileScreen} />
-          <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-          <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
-          <Stack.Screen name="SecurityScreen" component={SecurityScreen} />
-          <Stack.Screen
-            name="NotificationSettingsScreen"
-            component={NotificationSettingsScreen}
-          />
-          <Stack.Screen name="HelpScreen" component={HelpScreen} />
-          <Stack.Screen name="LogoutScreen" component={LogoutScreen} />
-          <Stack.Screen name="FaceIDScreen" component={FaceIDScreen} />
-          <Stack.Screen
-            name="DeleteAccountScreen"
-            component={DeleteAccountScreen}
-          />
-          <Stack.Screen
-            name="TermsAndConditionsScreen"
-            component={TermsAndConditionsScreen}
-          />
-          <Stack.Screen
-            name="ChangePasswordScreen"
-            component={ChangePasswordScreen}
-          />
-          <Stack.Screen name="Security" component={SecurityScreen} />
-          <Stack.Screen
-            name="NotificationsSettings"
-            component={NotificationsSettingsScreen}
-          />
-          <Stack.Screen
-            name="ChangePassword"
-            component={ChangePasswordScreen}
-          />
-          <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
-        </>
-      )}
-    </Stack.Navigator>
+    <BiometricAuthGate>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          cardStyle: { backgroundColor: "#fff" },
+        }}
+        initialRouteName="Launch"
+      >
+        <Stack.Screen name="Launch" component={LaunchScreen} />
+        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen name="Register" component={RegisterScreen} />
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <Stack.Screen name="Home" component={MainTabs} />
+        <Stack.Screen name="Transactions" component={TransactionsScreen} />
+        <Stack.Screen name="Categories" component={CategoriesScreen} />
+        <Stack.Screen name="Notifications" component={NotificationScreen} />
+        <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+        <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+        <Stack.Screen name="MainApp" component={TabNavigator} />
+        {userToken && (
+          <>
+            <Stack.Screen name="Profile" component={ProfileScreen} />
+            <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+            <Stack.Screen name="SettingsScreen" component={SettingsScreen} />
+            <Stack.Screen name="SecurityScreen" component={SecurityScreen} />
+            <Stack.Screen
+              name="NotificationSettingsScreen"
+              component={NotificationSettingsScreen}
+            />
+            <Stack.Screen name="HelpScreen" component={HelpScreen} />
+            <Stack.Screen name="LogoutScreen" component={LogoutScreen} />
+            <Stack.Screen name="FaceIDScreen" component={FaceIDScreen} />
+            <Stack.Screen
+              name="DeleteAccountScreen"
+              component={DeleteAccountScreen}
+            />
+            <Stack.Screen
+              name="TermsAndConditionsScreen"
+              component={TermsAndConditionsScreen}
+            />
+            <Stack.Screen
+              name="ExampleTabScreen"
+              component={ExampleTabScreen}
+            />
+            <Stack.Screen
+              name="ChangePasswordScreen"
+              component={ChangePasswordScreen}
+            />
+            <Stack.Screen name="Security" component={SecurityScreen} />
+            <Stack.Screen
+              name="NotificationsSettings"
+              component={NotificationsSettingsScreen}
+            />
+            <Stack.Screen
+              name="ChangePassword"
+              component={ChangePasswordScreen}
+              options={{ headerShown: false }}
+            />
+            <Stack.Screen name="ScanReceipt" component={ScanReceiptScreen} />
+          </>
+        )}
+      </Stack.Navigator>
+    </BiometricAuthGate>
   );
 }

@@ -21,9 +21,11 @@ import * as Google from "expo-auth-session/providers/google";
 import * as Facebook from "expo-auth-session/providers/facebook";
 import * as WebBrowser from "expo-web-browser";
 import {
-  loginUser,
+  login,
   loginWithGoogle,
   loginWithFacebook,
+  canLoginWithBiometrics,
+  loginWithBiometrics,
 } from "../../services/authService";
 import {
   GOOGLE_ANDROID_CLIENT_ID,
@@ -42,7 +44,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [isBiometricAvailable, setIsBiometricAvailable] = useState(false);
+  const [isFaceIDAvailable, setIsFaceIDAvailable] = useState(false);
 
   // Google OAuth configuration
   const [googleRequest, googleResponse, googlePromptAsync] =
@@ -62,17 +64,48 @@ export default function LoginScreen() {
     handleFacebookSignIn();
   }, [googleResponse, fbResponse]);
 
+  // Remove multiple useEffect calls and combine them
   useEffect(() => {
-    if (fbResponse?.type === "success") {
-      const { access_token } = fbResponse.params;
-      handleFacebookLogin(access_token);
-    }
-  }, [fbResponse]);
+    const initializeAuth = async () => {
+      await checkBiometricAvailability();
+
+      // Handle Google and Facebook responses only when they change
+      if (googleResponse?.type === "success" && googleResponse.authentication) {
+        const { accessToken } = googleResponse.authentication;
+        handleGoogleSuccess(accessToken);
+      }
+
+      if (fbResponse?.type === "success") {
+        const { access_token } = fbResponse.params;
+        handleFacebookLogin(access_token);
+      }
+    };
+
+    initializeAuth();
+  }, [googleResponse, fbResponse]);
+
+  // Remove the separate Facebook response useEffect
+
+  // Remove the console.log for Facebook Redirect URI
+  // Delete or comment out this section:
+  /*
+  console.log(
+    "Facebook Redirect URI:",
+    AuthSession.makeRedirectUri({
+      scheme: "finwise",
+      path: "facebook-auth",
+    })
+  );
+  */
 
   const checkBiometricAvailability = async () => {
-    const compatible = await LocalAuthentication.hasHardwareAsync();
-    const enrolled = await LocalAuthentication.isEnrolledAsync();
-    setIsBiometricAvailable(compatible && enrolled);
+    try {
+      const canUseFaceID = await canLoginWithBiometrics();
+      setIsFaceIDAvailable(canUseFaceID);
+    } catch (error) {
+      console.error("Error checking Face ID availability:", error);
+      setIsFaceIDAvailable(false);
+    }
   };
 
   // Handle normal login
@@ -84,11 +117,11 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
-      const response = await loginUser(email, password);
+      const response = await login({ email, password });
 
       if (response.success) {
-        // Token đã được lưu trong loginUser function
-        navigation.replace("MainApp"); // Sử dụng replace thay vì navigate
+        // Token đã được lưu trong login function
+        navigation.replace("MainApp");
       } else {
         Alert.alert("Error", response.message || "Login failed");
       }
@@ -140,26 +173,50 @@ export default function LoginScreen() {
     }
   };
 
-  // Handle Biometric Auth
-  const handleBiometricAuth = async () => {
-    const result = await LocalAuthentication.authenticateAsync({
-      promptMessage: "Authenticate with biometrics",
-      fallbackLabel: "Use password",
-    });
+  // Handle Face ID Auth
+  const handleFaceIDAuth = async () => {
+    try {
+      setLoading(true);
+      const result = await loginWithBiometrics();
 
-    if (result.success) {
-      // Implement your biometric login logic here
-      navigation.navigate("MainApp");
+      if (result.success) {
+        navigation.replace("MainApp");
+      } else {
+        Alert.alert(
+          "Authentication Failed",
+          result.error || "Face ID authentication failed"
+        );
+      }
+    } catch (error) {
+      console.error("Face ID login error:", error);
+      Alert.alert("Error", "Unable to login with Face ID");
+    } finally {
+      setLoading(false);
     }
   };
 
-  console.log(
-    "Facebook Redirect URI:",
-    AuthSession.makeRedirectUri({
-      scheme: "finwise",
-      path: "facebook-auth",
-    })
-  );
+  // Kiểm tra trạng thái Face ID khi ứng dụng khởi động
+  useEffect(() => {
+    const checkFaceIDStatus = async () => {
+      try {
+        // Đọc trạng thái từ AsyncStorage
+        const faceIDEnabledStr = await AsyncStorage.getItem("faceIDEnabled");
+        const canUseBiometrics = await canLoginWithBiometrics();
+
+        // Chỉ hiển thị nút Face ID nếu cả hai điều kiện đều đúng
+        setIsFaceIDAvailable(canUseBiometrics && faceIDEnabledStr === "true");
+
+        // Nếu người dùng đã bật Face ID, tự động hiển thị dialog xác thực
+        if (canUseBiometrics && faceIDEnabledStr === "true") {
+          handleFaceIDAuth();
+        }
+      } catch (error) {
+        console.error("Error checking Face ID status:", error);
+      }
+    };
+
+    checkFaceIDStatus();
+  }, []);
 
   return (
     <KeyboardAvoidingView
@@ -203,17 +260,18 @@ export default function LoginScreen() {
               {loading ? (
                 <ActivityIndicator color="white" />
               ) : (
-                <Text style={styles.buttonText}>Log In</Text>
+                <Text style={styles.buttonText}>Login</Text>
               )}
             </TouchableOpacity>
 
-            {isBiometricAvailable && (
+            {isFaceIDAvailable && (
               <TouchableOpacity
                 style={styles.biometricButton}
-                onPress={handleBiometricAuth}
+                onPress={handleFaceIDAuth}
+                disabled={loading}
               >
                 <Image
-                  source={require("../../../assets/biometric-icon.png")}
+                  source={require("../../../assets/face-id-icon.png")}
                   style={styles.icon}
                 />
               </TouchableOpacity>
@@ -249,7 +307,7 @@ export default function LoginScreen() {
           <View style={styles.bottomContainer}>
             <TouchableOpacity onPress={() => navigation.navigate("Register")}>
               <Text style={styles.linkText}>
-                Don't have an account? Sign Up
+                Don't have an account? Register now
               </Text>
             </TouchableOpacity>
           </View>

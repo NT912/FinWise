@@ -5,14 +5,18 @@ const options = {
   definition: {
     openapi: "3.0.0",
     info: {
-      title: "FinWise API",
+      title: "FinWise API Documentation",
       version: "1.0.0",
-      description: "API Documentation cho ứng dụng FinWise",
+      description: "API documentation for FinWise application",
     },
     servers: [
       {
-        url: "/api",
-        description: "API Server",
+        url: "http://localhost:3000",
+        description: "Local Development Server",
+      },
+      {
+        url: "http://3.0.248.48:3000",
+        description: "Production Server",
       },
     ],
     components: {
@@ -24,8 +28,13 @@ const options = {
         },
       },
     },
+    security: [
+      {
+        bearerAuth: [],
+      },
+    ],
   },
-  apis: ["./src/routes/*.ts", "./src/models/*.ts"],
+  apis: ["./src/routes/*.ts"], // Path to the API routes
 };
 
 const specs = swaggerJsdoc(options);

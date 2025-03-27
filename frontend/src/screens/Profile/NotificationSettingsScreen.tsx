@@ -15,18 +15,15 @@ import {
 import NotificationToggle from "../../components/profile/NotificationToggle";
 import LoadingIndicator from "../../components/LoadingIndicator";
 import notificationStyles from "../../styles/profile/notificationStyles";
+import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 
 const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState({
-    general: true,
-    sound: true,
-    soundCall: true,
-    vibrate: true,
-    transactionUpdates: true,
-    expenseReminder: false,
-    budgetNotifications: true,
-    lowBalanceAlerts: true,
+    pushNotifications: true,
+    emailNotifications: true,
+    budgetAlerts: true,
+    goalAlerts: true,
   });
 
   useEffect(() => {
@@ -39,13 +36,11 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
       const userData = await getUserProfile();
 
       if (userData && userData.notifications) {
-        // Map backend notification settings to our UI settings
-        const backendSettings = userData.notifications;
         setSettings({
-          ...settings,
-          general: backendSettings.push || false,
-          sound: backendSettings.sound || false,
-          // Map other settings as needed
+          pushNotifications: userData.notifications.push || false,
+          emailNotifications: userData.notifications.email || false,
+          budgetAlerts: userData.notifications.budgetAlerts || true,
+          goalAlerts: userData.notifications.goalAlerts || true,
         });
       }
     } catch (error) {
@@ -58,32 +53,22 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
 
   const handleToggle = async (key: string, value: boolean) => {
     try {
-      setSettings({ ...settings, [key]: value });
+      const newSettings = { ...settings, [key]: value };
+      setSettings(newSettings);
 
-      // Map UI settings back to backend format
-      const backendSettings = {
-        push: key === "general" ? value : settings.general,
-        email: true, // Set other values as needed
-        sms: false,
-        // Map other settings as needed
+      // Chuyển đổi tên key cho phù hợp với API
+      const apiSettings = {
+        pushNotifications: newSettings.pushNotifications,
+        emailNotifications: newSettings.emailNotifications,
+        budgetAlerts: newSettings.budgetAlerts,
+        goalAlerts: newSettings.goalAlerts,
       };
 
-      const formattedSettings = {
-        pushEnabled: backendSettings.push,
-        emailEnabled: backendSettings.email,
-        smsEnabled: backendSettings.sms,
-      };
-
-      await updateNotificationSettings({
-        emailNotifications: formattedSettings.emailEnabled,
-        pushNotifications: formattedSettings.pushEnabled,
-        smsNotifications: formattedSettings.smsEnabled,
-      });
+      await updateNotificationSettings(apiSettings);
     } catch (error) {
       console.error("Error updating notification settings:", error);
       Alert.alert("Error", "Failed to update notification settings");
-      // Revert the toggle if there was an error
-      setSettings({ ...settings });
+      setSettings(settings); // Restore previous settings if failed
     }
   };
 
@@ -93,74 +78,48 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
 
   return (
     <SafeAreaView style={notificationStyles.container}>
-      <View style={notificationStyles.header}>
+      <View style={commonProfileStyles.enhancedHeader}>
         <TouchableOpacity
-          style={notificationStyles.backButton}
+          style={commonProfileStyles.enhancedBackButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={notificationStyles.title}>Notification Settings</Text>
+        <Text style={commonProfileStyles.enhancedHeaderTitle}>
+          Notification Settings
+        </Text>
       </View>
 
       <ScrollView style={notificationStyles.content}>
         <View style={notificationStyles.section}>
           <Text style={notificationStyles.sectionTitle}>
-            General Notifications
+            Notification Methods
           </Text>
-
           <NotificationToggle
-            label="General Notification"
-            value={settings.general}
-            onToggle={(value) => handleToggle("general", value)}
+            label="Push Notifications"
+            value={settings.pushNotifications}
+            onToggle={(value) => handleToggle("pushNotifications", value)}
           />
-
           <NotificationToggle
-            label="Sound"
-            value={settings.sound}
-            onToggle={(value) => handleToggle("sound", value)}
-          />
-
-          <NotificationToggle
-            label="Sound Call"
-            value={settings.soundCall}
-            onToggle={(value) => handleToggle("soundCall", value)}
-          />
-
-          <NotificationToggle
-            label="Vibrate"
-            value={settings.vibrate}
-            onToggle={(value) => handleToggle("vibrate", value)}
+            label="Email Notifications"
+            value={settings.emailNotifications}
+            onToggle={(value) => handleToggle("emailNotifications", value)}
           />
         </View>
 
         <View style={notificationStyles.section}>
           <Text style={notificationStyles.sectionTitle}>
-            Financial Notifications
+            Notification Types
           </Text>
-
           <NotificationToggle
-            label="Transaction Updates"
-            value={settings.transactionUpdates}
-            onToggle={(value) => handleToggle("transactionUpdates", value)}
+            label="Budget Alerts"
+            value={settings.budgetAlerts}
+            onToggle={(value) => handleToggle("budgetAlerts", value)}
           />
-
           <NotificationToggle
-            label="Expense Reminder"
-            value={settings.expenseReminder}
-            onToggle={(value) => handleToggle("expenseReminder", value)}
-          />
-
-          <NotificationToggle
-            label="Budget Notifications"
-            value={settings.budgetNotifications}
-            onToggle={(value) => handleToggle("budgetNotifications", value)}
-          />
-
-          <NotificationToggle
-            label="Low Balance Alerts"
-            value={settings.lowBalanceAlerts}
-            onToggle={(value) => handleToggle("lowBalanceAlerts", value)}
+            label="Goal Alerts"
+            value={settings.goalAlerts}
+            onToggle={(value) => handleToggle("goalAlerts", value)}
           />
         </View>
       </ScrollView>

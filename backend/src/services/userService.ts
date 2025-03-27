@@ -11,7 +11,10 @@ import { uploadFileToS3, getSignedFileUrl } from "../services/s3Service";
 /**
  * Lấy thông tin người dùng theo ID
  */
-export const getUserById = async (userId: string): Promise<IUser | null> => {
+export const getUserById = async (
+  userId: string,
+  includePassword = false
+): Promise<IUser | null> => {
   try {
     console.log(`🔍 [userService] Tìm user với ID: ${userId}`);
 
@@ -21,7 +24,10 @@ export const getUserById = async (userId: string): Promise<IUser | null> => {
       return null;
     }
 
-    const user = await User.findById(userId).select("-password");
+    // Chỉ loại bỏ trường password nếu includePassword là false
+    const user = includePassword
+      ? await User.findById(userId)
+      : await User.findById(userId).select("-password");
 
     if (!user) {
       console.log(`❌ [userService] Không tìm thấy user với ID: ${userId}`);
@@ -59,6 +65,7 @@ export const updateUserProfile = async (
     console.log(`🔍 [userService] Dữ liệu cập nhật:`, profileData);
 
     // Loại bỏ các trường không được phép cập nhật
+    // Thêm 'phone' vào danh sách các trường được phép cập nhật
     const allowedUpdates = ["fullName", "email", "phone", "avatar"];
     const filteredData: any = {};
 
@@ -315,30 +322,19 @@ export const toggleFaceID = async (
  */
 export const updateNotificationSettings = async (
   userId: string,
-  settings: { push?: boolean; email?: boolean; sms?: boolean }
+  settings: {
+    pushNotifications?: boolean;
+    emailNotifications?: boolean;
+    budgetAlerts?: boolean;
+    goalAlerts?: boolean;
+  }
 ): Promise<IUser | null> => {
   try {
-    console.log(`🔍 [userService] Cập nhật thông báo cho user ID: ${userId}`);
-    console.log(`🔍 [userService] Cài đặt thông báo:`, settings);
-
-    // Lấy cài đặt hiện tại
-    const user = await User.findById(userId);
-    if (!user) {
-      console.log(
-        `❌ [userService] Không tìm thấy user để cập nhật thông báo: ${userId}`
-      );
-      return null;
-    }
-
-    // Cập nhật cài đặt thông báo
     const updatedSettings = {
-      push:
-        settings.push !== undefined ? settings.push : user.notifications?.push,
-      email:
-        settings.email !== undefined
-          ? settings.email
-          : user.notifications?.email,
-      sms: settings.sms !== undefined ? settings.sms : user.notifications?.sms,
+      push: settings.pushNotifications,
+      email: settings.emailNotifications,
+      budgetAlerts: settings.budgetAlerts,
+      goalAlerts: settings.goalAlerts,
     };
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -347,12 +343,9 @@ export const updateNotificationSettings = async (
       { new: true }
     ).select("-password");
 
-    console.log(
-      `✅ [userService] Đã cập nhật thông báo cho user: ${updatedUser?.fullName}`
-    );
     return updatedUser;
   } catch (error) {
-    console.error(`❌ [userService] Lỗi khi cập nhật thông báo:`, error);
+    console.error("Error updating notification settings:", error);
     throw error;
   }
 };

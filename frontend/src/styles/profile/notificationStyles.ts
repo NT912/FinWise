@@ -1,6 +1,6 @@
 import { StyleSheet } from "react-native";
 
-const notificationStyles = StyleSheet.create({
+export default StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#E3FFF8",
@@ -65,6 +65,29 @@ const notificationStyles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "bold",
   },
+  toggleContainer: {
+    width: 50,
+    height: 30,
+    justifyContent: "center",
+    overflow: "hidden", // Thêm dòng này để ẩn phần thừa
+  },
+  toggleTrack: {
+    width: "100%",
+    height: "100%", // Thay đổi từ 20px thành 100%
+    borderRadius: 15, // Thay đổi từ 10px thành 15px
+    justifyContent: "center",
+  },
+  toggleThumb: {
+    width: 26, // Tăng từ 24px lên 26px
+    height: 26, // Tăng từ 24px lên 26px
+    borderRadius: 13, // Tăng từ 12px lên 13px
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+    position: "absolute", // Thêm position absolute
+    left: 2, // Điều chỉnh vị trí
+  },
 });
-
-export default notificationStyles;

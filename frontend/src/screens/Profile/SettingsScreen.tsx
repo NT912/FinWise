@@ -7,64 +7,99 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { NavigationProp, useNavigation } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
-import settingsStyles from "../../styles/profile/settingsStyles";
+import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 
 const SettingsScreen = () => {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
 
+  const settingsItems = [
+    {
+      icon: "notifications-outline",
+      title: "Notification Settings",
+      description: "Manage your notifications",
+      onPress: () => navigation.navigate("NotificationSettingsScreen"),
+    },
+    {
+      icon: "shield-outline",
+      title: "Change Password",
+      description: "Update your account password",
+      onPress: () => navigation.navigate("ChangePassword"),
+    },
+    {
+      icon: "ios-eye-outline",
+      title: "Face ID",
+      description: "Manage facial recognition authentication",
+      onPress: () => navigation.navigate("FaceIDScreen"),
+    },
+    {
+      icon: "trash-outline",
+      title: "Delete Account",
+      description: "Permanently delete your account",
+      onPress: () => navigation.navigate("DeleteAccountScreen"),
+      isDanger: true,
+    },
+  ];
+
   return (
-    <SafeAreaView style={settingsStyles.container}>
-      <View style={settingsStyles.header}>
+    <SafeAreaView style={commonProfileStyles.container}>
+      <View style={commonProfileStyles.enhancedHeader}>
         <TouchableOpacity
-          style={{ padding: 5 }}
+          style={commonProfileStyles.enhancedBackButton}
           onPress={() => navigation.goBack()}
         >
           <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={settingsStyles.title}>Settings</Text>
+        <Text style={commonProfileStyles.enhancedHeaderTitle}>Settings</Text>
       </View>
 
-      <ScrollView>
-        <View style={settingsStyles.menuContainer}>
-          <TouchableOpacity
-            style={settingsStyles.menuItem}
-            onPress={() => navigation.navigate("NotificationSettingsScreen")}
-          >
-            <View style={settingsStyles.menuIcon}>
-              <Ionicons
-                name="notifications-outline"
-                size={24}
-                color="#00C897"
-              />
-            </View>
-            <Text style={settingsStyles.menuText}>Notification Settings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={settingsStyles.menuItem}
-            onPress={() => navigation.navigate("SecurityScreen")}
-          >
-            <View style={settingsStyles.menuIcon}>
-              <Ionicons name="shield-outline" size={24} color="#00C897" />
-            </View>
-            <Text style={settingsStyles.menuText}>Password Settings</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={settingsStyles.menuItem}
-            onPress={() => navigation.navigate("DeleteAccountScreen")}
-          >
-            <View
-              style={[settingsStyles.menuIcon, { backgroundColor: "#FFE5E5" }]}
+      <ScrollView
+        style={commonProfileStyles.scrollView}
+        contentContainerStyle={commonProfileStyles.scrollContent}
+      >
+        <View style={commonProfileStyles.section}>
+          {settingsItems.map((item, index) => (
+            <TouchableOpacity
+              key={index}
+              style={[
+                commonProfileStyles.menuItem,
+                index === settingsItems.length - 1 && { borderBottomWidth: 0 },
+              ]}
+              onPress={item.onPress}
             >
-              <Ionicons name="trash-outline" size={24} color="#FF6B6B" />
-            </View>
-            <Text style={[settingsStyles.menuText, settingsStyles.dangerText]}>
-              Delete Account
-            </Text>
-          </TouchableOpacity>
+              <View style={commonProfileStyles.menuIcon}>
+                {item.title === "Face ID" ? (
+                  <MaterialCommunityIcons
+                    name="face-recognition"
+                    size={24}
+                    color="#00C897"
+                  />
+                ) : (
+                  <Ionicons
+                    name={item.icon as keyof typeof Ionicons.glyphMap}
+                    size={24}
+                    color={item.isDanger ? "#FF6B6B" : "#00C897"}
+                  />
+                )}
+              </View>
+              <View style={commonProfileStyles.menuContent}>
+                <Text
+                  style={[
+                    commonProfileStyles.menuTitle,
+                    item.isDanger && { color: "#FF6B6B" },
+                  ]}
+                >
+                  {item.title}
+                </Text>
+                <Text style={commonProfileStyles.menuDescription}>
+                  {item.description}
+                </Text>
+              </View>
+              <Ionicons name="chevron-forward" size={24} color="#ccc" />
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
     </SafeAreaView>

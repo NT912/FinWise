@@ -7,7 +7,7 @@ import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import userRoutes from "./routes/userRoutes";
-import { specs, swaggerUi } from "./config/swagger"; // Thêm import này
+import { specs, swaggerUi } from "./config/swagger";
 import { initializeS3Bucket } from "./services/s3Service";
 
 dotenv.config();
@@ -40,11 +40,23 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
+      "http://localhost:3001",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
       "http://3.87.47.184:3000",
       "http://3.87.47.184",
-      // Thêm domain của Swagger UI
-      "http://localhost:3000/api-docs",
-      "http://3.87.47.184:3000/api-docs",
+      "http://3.0.248.48:3000",
+      "http://3.0.248.48",
+      "exp://192.168.1.3:8081",
+      "exp://192.168.1.4:8081",
+      "http://192.168.1.3:8081",
+      "http://192.168.1.4:8081",
+      "http://192.168.1.3:3000",
+      "http://192.168.1.3:3001",
+      "http://192.168.1.4:3000",
+      "http://192.168.1.4:3001",
+      "exp://192.168.1.10:3000",
+      "*",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -111,13 +123,11 @@ app.use(
 
 connectDB()
   .then(() => {
-    // Khởi động server chỉ khi đã kết nối MongoDB thành công
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on port ${PORT}`);
       console.log(`Server URL: http://localhost:${PORT}`);
-      console.log(`Swagger Documentation: http://localhost:${PORT}/api-docs`);
+      console.log(`Local URL: http://127.0.0.1:${PORT}`);
     });
-
     // Initialize S3 Bucket
     initializeS3Bucket().catch(console.error);
   })
@@ -149,12 +159,7 @@ app.use((req, res, next) => {
 // Middleware
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://192.168.1.15:3000",
-      "http://3.87.47.184:3000",
-      "exp://192.168.1.15:8081",
-    ],
+    origin: "*", // Cho phép tất cả các origin trong môi trường development
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
     allowedHeaders: ["Content-Type", "Authorization"],
     credentials: true,
