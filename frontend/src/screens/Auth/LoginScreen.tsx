@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "bold",
     marginBottom: 20,
-    color: "#00C897",
+    color: "#00D09E",
   },
   input: {
     width: "100%",
@@ -279,7 +279,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   loginButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     paddingVertical: 12,
     borderRadius: 8,
     width: "100%",
@@ -324,14 +324,14 @@ const styles = StyleSheet.create({
   },
   linkText: {
     fontSize: 16,
-    color: "#007AFF",
+    color: "#00D09E",
   },
   forgotPasswordButton: {
     alignSelf: "flex-end",
     marginBottom: 20,
   },
   forgotPasswordText: {
-    color: "#007AFF",
+    color: "#00D09E",
     fontSize: 14,
   },
 });

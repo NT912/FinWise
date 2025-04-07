@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "bold",
     marginBottom: 10,
-    color: "#00C897",
+    color: "#00D09E",
   },
   subtitle: { fontSize: 16, textAlign: "center", marginBottom: 20 },
   input: {
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   button: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     padding: 12,
     borderRadius: 8,
     width: "100%",

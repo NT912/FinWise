@@ -9,7 +9,7 @@ import {
   Alert,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
-import { scanReceipt } from "../services/apiService"; // ✅ Đảm bảo hàm này được export từ apiService.ts
+import { scanReceipt } from "../services/apiService";
 import { useNavigation } from "@react-navigation/native";
 
 export default function ScanReceiptScreen() {
@@ -89,8 +89,15 @@ export default function ScanReceiptScreen() {
 
       {imageUri && <Image source={{ uri: imageUri }} style={styles.image} />}
 
+      <View style={styles.grayText}>
+        <Text style={styles.grayTextContent}>
+          Upload your receipt images to extract transaction details
+          automatically
+        </Text>
+      </View>
+
       <TouchableOpacity
-        style={[styles.button, { backgroundColor: "#00C897" }]}
+        style={[styles.button, { backgroundColor: "#00D09E", marginTop: 20 }]}
         onPress={handleScanReceipt}
         disabled={loading}
       >
@@ -119,7 +126,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   button: {
-    backgroundColor: "#007AFF",
+    backgroundColor: "#00D09E",
     padding: 12,
     borderRadius: 8,
     width: "80%",
@@ -132,5 +139,14 @@ const styles = StyleSheet.create({
     height: 200,
     marginTop: 20,
     borderRadius: 10,
+  },
+  grayText: {
+    marginTop: 20,
+    alignItems: "center",
+  },
+  grayTextContent: {
+    color: "#666",
+    fontSize: 14,
+    textAlign: "center",
   },
 });

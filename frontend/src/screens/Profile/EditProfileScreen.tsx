@@ -131,7 +131,7 @@ const EditProfileScreen = ({ route }: EditProfileScreenProps) => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={commonProfileStyles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : "height"}
@@ -298,7 +298,7 @@ const EditProfileScreen = ({ route }: EditProfileScreenProps) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E3FFF8",
+    backgroundColor: "#00D09E",
   },
   scrollView: {
     flex: 1,
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     bottom: 0,
     right: 0,
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     width: 32,
     height: 32,
     borderRadius: 16,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#F9F9F9",
   },
   activeInputContainer: {
-    borderColor: "#00C897",
+    borderColor: "#00D09E",
     backgroundColor: "#F9FEFC",
   },
   inputIcon: {
@@ -387,7 +387,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   submitButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",

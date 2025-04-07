@@ -8,6 +8,7 @@ import authRoutes from "./routes/authRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import userRoutes from "./routes/userRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
+import transactionRoutes from "./routes/transactionRoutes";
 import { specs, swaggerUi } from "./config/swagger";
 
 dotenv.config();
@@ -89,6 +90,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api", homeRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api", transactionRoutes);
 
 // Test route
 app.get("/api", (req, res) => {

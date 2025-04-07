@@ -1,41 +1,82 @@
-import mongoose, { Document, Schema, Types } from "mongoose";
+import mongoose, { Document, Schema } from "mongoose";
 
 export interface ICategory extends Document {
-  _id: Types.ObjectId;
   name: string;
   icon: string;
   color: string;
-  type: "income" | "expense";
-  user: Types.ObjectId;
+  type: "expense" | "income";
+  budget?: number;
+  rules?: {
+    keywords: string[];
+    amount?: {
+      min?: number;
+      max?: number;
+    };
+  }[];
   isDefault: boolean;
+  userId: string;
+  transactionCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const categorySchema = new Schema(
+const CategorySchema = new Schema(
   {
-    name: { type: String, required: true },
-    icon: { type: String, required: true },
-    color: { type: String, required: true },
-    type: {
+    name: {
       type: String,
       required: true,
-      enum: ["income", "expense"],
+      trim: true,
     },
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
+    icon: {
+      type: String,
       required: true,
     },
+    color: {
+      type: String,
+      required: true,
+    },
+    type: {
+      type: String,
+      enum: ["expense", "income"],
+      required: true,
+    },
+    budget: {
+      type: Number,
+      default: 0,
+    },
+    rules: [
+      {
+        keywords: [
+          {
+            type: String,
+            trim: true,
+          },
+        ],
+        amount: {
+          min: Number,
+          max: Number,
+        },
+      },
+    ],
     isDefault: {
       type: Boolean,
       default: false,
     },
+    userId: {
+      type: String,
+      required: true,
+    },
+    transactionCount: {
+      type: Number,
+      default: 0,
+    },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+  }
 );
 
 // Create a compound index on name and user to ensure uniqueness per user
-categorySchema.index({ name: 1, user: 1 }, { unique: true });
+CategorySchema.index({ name: 1, userId: 1 }, { unique: true });
 
-export default mongoose.model<ICategory>("Category", categorySchema);
+export default mongoose.model<ICategory>("Category", CategorySchema);

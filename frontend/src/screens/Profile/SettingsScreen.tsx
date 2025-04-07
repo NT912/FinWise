@@ -66,7 +66,7 @@ const SettingsScreen = () => {
                 <Ionicons
                   name={item.icon as keyof typeof Ionicons.glyphMap}
                   size={24}
-                  color={item.isDanger ? "#FF6B6B" : "#00C897"}
+                  color={item.isDanger ? "#FF6B6B" : "#00D09E"}
                 />
               </View>
               <View style={commonProfileStyles.menuContent}>

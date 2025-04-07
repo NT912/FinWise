@@ -73,8 +73,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   activeTab: {
-    backgroundColor: "#00C897",
-    shadowColor: "#00C897",
+    backgroundColor: "#00D09E",
+    shadowColor: "#00D09E",
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.3,
     shadowRadius: 3,

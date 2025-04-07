@@ -44,7 +44,7 @@ const NotificationToggle: React.FC<NotificationToggleProps> = ({
 
   const backgroundColor = toggleAnim.interpolate({
     inputRange: [0, 1],
-    outputRange: ["#ccc", "#00C897"],
+    outputRange: ["#ccc", "#00D09E"],
   });
 
   return (

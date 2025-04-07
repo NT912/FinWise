@@ -261,7 +261,7 @@ const HelpScreen = ({ navigation }: { navigation: any }) => {
                 marginBottom: 10,
               }}
             >
-              <Ionicons name="checkbox-outline" size={24} color="#00C897" />
+              <Ionicons name="checkbox-outline" size={24} color="#00D09E" />
               <Text style={{ marginLeft: 10, color: "#333" }}>
                 I accept all terms and conditions
               </Text>

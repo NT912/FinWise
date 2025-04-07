@@ -1,59 +1,60 @@
 import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import categoryStyles from "../../styles/category/categoryStyles";
+import { Ionicons } from "@expo/vector-icons";
 
 interface EmptyCategoriesProps {
-  categoryType: string;
-  onAddPress: () => void;
+  onAddCategory: () => void;
 }
 
-const EmptyCategories = ({
-  categoryType,
-  onAddPress,
-}: EmptyCategoriesProps) => {
-  // Chọn icon phù hợp dựa vào loại danh mục
-  const iconName = categoryType === "expense" ? "cart-outline" : "cash-plus";
-
+const EmptyCategories: React.FC<EmptyCategoriesProps> = ({ onAddCategory }) => {
   return (
-    <View style={categoryStyles.emptyContainer}>
-      <View style={styles.iconContainer}>
-        <MaterialCommunityIcons
-          name={iconName}
-          size={70}
-          color="#00C897"
-          style={styles.icon}
-        />
-      </View>
-      <Text style={categoryStyles.emptyText}>
-        No {categoryType} categories found. {"\n"}
-        Would you like to add a new category?
+    <View style={styles.container}>
+      <Ionicons name="folder-open" size={64} color="#666" />
+      <Text style={styles.title}>No Categories Found</Text>
+      <Text style={styles.subtitle}>
+        Start by adding your first category to organize your transactions
       </Text>
-      <TouchableOpacity style={categoryStyles.emptyButton} onPress={onAddPress}>
-        <Ionicons name="add-circle" size={20} color="#00C897" />
-        <Text style={categoryStyles.emptyButtonText}>Add New Category</Text>
+      <TouchableOpacity style={styles.button} onPress={onAddCategory}>
+        <Ionicons name="add" size={24} color="#fff" />
+        <Text style={styles.buttonText}>Add Category</Text>
       </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  iconContainer: {
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: "rgba(0, 200, 151, 0.1)",
-    justifyContent: "center",
+  container: {
+    flex: 1,
     alignItems: "center",
-    marginBottom: 20,
-    shadowColor: "#00C897",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+    justifyContent: "center",
+    padding: 20,
   },
-  icon: {
-    opacity: 0.8,
+  title: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginTop: 16,
+    color: "#333",
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  button: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#00D09E",
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    marginLeft: 8,
   },
 });
 

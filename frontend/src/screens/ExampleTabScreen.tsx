@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#00C897",
+    color: "#00D09E",
     marginLeft: 15,
     letterSpacing: 0.5,
   },
@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#00C897",
+    color: "#00D09E",
     marginBottom: 5,
   },
   cardText: {

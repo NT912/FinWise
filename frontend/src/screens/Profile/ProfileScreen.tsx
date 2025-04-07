@@ -22,6 +22,7 @@ import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { User } from "../../types";
+import TabBar from "../../components/TabBar";
 
 // Định nghĩa kiểu cho navigation
 type ProfileScreenNavigationProp = NavigationProp<RootStackParamList>;
@@ -165,8 +166,8 @@ const ProfileScreen = () => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#00C897"]}
-            tintColor="#00C897"
+            colors={["#00D09E"]}
+            tintColor="#00D09E"
           />
         }
       >
@@ -199,7 +200,7 @@ const ProfileScreen = () => {
                 <Ionicons
                   name={item.icon as keyof typeof Ionicons.glyphMap}
                   size={24}
-                  color={item.textColor || "#00C897"}
+                  color={item.textColor || "#00D09E"}
                 />
               </View>
               <Text

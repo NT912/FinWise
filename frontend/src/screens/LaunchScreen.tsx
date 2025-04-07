@@ -87,6 +87,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#E3FFF8",
   },
   logo: { width: 150, height: 150, marginBottom: 20 }, // Logo lớn hơn
-  title: { fontSize: 24, fontWeight: "bold", color: "#00C897" },
+  title: { fontSize: 24, fontWeight: "bold", color: "#00D09E" },
   copyright: { position: "absolute", bottom: 30, fontSize: 12, color: "#666" },
 });

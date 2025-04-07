@@ -3,7 +3,7 @@ import { StyleSheet } from "react-native";
 const commonProfileStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E3FFF8",
+    backgroundColor: "#00D09E",
   },
   scrollView: {
     flex: 1,

@@ -183,4 +183,19 @@ export const tryFallbackConnections = async () => {
   return null;
 };
 
+// Thêm hàm quét biên lai
+export const scanReceipt = async (formData: FormData) => {
+  try {
+    const response = await api.post("/api/receipts/scan", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error scanning receipt:", error);
+    throw error;
+  }
+};
+
 export default api;

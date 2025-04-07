@@ -10,7 +10,7 @@ const homeStyles = StyleSheet.create({
 
   safeArea: {
     flex: 1,
-    backgroundColor: "#F5F5F5",
+    backgroundColor: "#00D09E",
   },
 
   listContainer: {

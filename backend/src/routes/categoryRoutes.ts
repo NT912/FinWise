@@ -1,39 +1,39 @@
-import express, { Request, Response, NextFunction } from "express";
+import express, { RequestHandler } from "express";
 import {
-  getAllCategories,
-  getCategoriesForType,
-  addCategory,
-  modifyCategory,
-  removeCategory,
+  getCategories,
+  getCategory,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+  updateCategoryBudget,
+  updateCategoryRules,
 } from "../controllers/categoryController";
 import { authenticateJWT } from "../middleware/authMiddleware";
-import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
 const router = express.Router();
 
 // Apply authentication middleware to all category routes
 router.use(authenticateJWT);
 
-// Giải quyết lỗi TypeScript bằng cách xác định rõ type của handler
-type RequestHandler = (
-  req: AuthenticatedRequest,
-  res: Response,
-  next: NextFunction
-) => Promise<any> | any;
+// Get all categories for a user
+router.get("/", getCategories as RequestHandler);
 
-// Get all categories for the current user
-router.get("/", getAllCategories as RequestHandler);
-
-// Get categories by type (income/expense)
-router.get("/type/:type", getCategoriesForType as RequestHandler);
+// Get a single category
+router.get("/:id", getCategory as RequestHandler);
 
 // Create a new category
-router.post("/", addCategory as RequestHandler);
+router.post("/", createCategory as RequestHandler);
 
-// Update an existing category
-router.put("/:categoryId", modifyCategory as RequestHandler);
+// Update a category
+router.put("/:id", updateCategory as RequestHandler);
 
 // Delete a category
-router.delete("/:categoryId", removeCategory as RequestHandler);
+router.delete("/:id", deleteCategory as RequestHandler);
+
+// Update category budget
+router.put("/:id/budget", updateCategoryBudget as RequestHandler);
+
+// Update category rules
+router.put("/:id/rules", updateCategoryRules as RequestHandler);
 
 export default router;

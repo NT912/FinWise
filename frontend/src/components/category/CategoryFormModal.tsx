@@ -5,150 +5,154 @@ import {
   Modal,
   TouchableOpacity,
   TextInput,
-  ScrollView,
+  StyleSheet,
+  Platform,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import categoryStyles from "../../styles/category/categoryStyles";
-import ColorPicker from "./ColorPicker";
-import IconPicker from "./IconPicker";
+import { CATEGORY_COLORS } from "../../utils/categoryColors";
+
+type IconName = keyof typeof Ionicons.glyphMap;
 
 interface CategoryFormModalProps {
   visible: boolean;
+  mode: "add" | "edit";
   onClose: () => void;
   onSave: () => void;
-  mode: "add" | "edit";
-  categoryName: string;
-  onCategoryNameChange: (text: string) => void;
-  categoryIcon: string;
-  categoryColor: string;
-  onShowIconPicker: () => void;
-  onShowColorPicker: () => void;
+  name: string;
+  onNameChange: (text: string) => void;
+  icon: IconName;
+  onIconChange: (icon: IconName) => void;
+  color: string;
+  onColorChange: (color: string) => void;
   iconPickerVisible: boolean;
+  onIconPickerToggle: () => void;
   colorPickerVisible: boolean;
-  onIconSelect: (icon: string) => void;
-  onColorSelect: (color: string) => void;
+  onColorPickerToggle: () => void;
 }
 
-const CategoryFormModal = ({
+const CategoryFormModal: React.FC<CategoryFormModalProps> = ({
   visible,
+  mode,
   onClose,
   onSave,
-  mode,
-  categoryName,
-  onCategoryNameChange,
-  categoryIcon,
-  categoryColor,
-  onShowIconPicker,
-  onShowColorPicker,
+  name,
+  onNameChange,
+  icon,
+  onIconChange,
+  color,
+  onColorChange,
   iconPickerVisible,
+  onIconPickerToggle,
   colorPickerVisible,
-  onIconSelect,
-  onColorSelect,
-}: CategoryFormModalProps) => {
+  onColorPickerToggle,
+}) => {
+  const handleClose = () => {
+    console.log("Closing form modal");
+    onClose();
+  };
+
   return (
-    <>
-      <Modal
-        visible={visible}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={onClose}
-      >
-        <View style={categoryStyles.modalOverlay}>
-          <View style={categoryStyles.modalContent}>
-            <View style={categoryStyles.modalHeader}>
-              <Text style={categoryStyles.modalTitle}>
-                {mode === "add" ? "Add New Category" : "Edit Category"}
-              </Text>
+    <Modal
+      visible={visible}
+      animationType="fade"
+      transparent={true}
+      onRequestClose={handleClose}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <Text style={styles.modalTitle}>New Category</Text>
+
+              <View style={styles.inputWrapper}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Write..."
+                  value={name}
+                  onChangeText={onNameChange}
+                  placeholderTextColor="#ADB5BD"
+                />
+              </View>
+
+              <TouchableOpacity style={styles.saveButton} onPress={onSave}>
+                <Text style={styles.saveButtonText}>Save</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
-                style={categoryStyles.closeButton}
-                onPress={onClose}
+                style={styles.cancelButton}
+                onPress={handleClose}
               >
-                <Ionicons name="close" size={24} color="#333" />
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={categoryStyles.inputLabel}>Category Name</Text>
-              <TextInput
-                style={categoryStyles.input}
-                placeholder="Enter category name"
-                value={categoryName}
-                onChangeText={onCategoryNameChange}
-                placeholderTextColor="#999"
-              />
-
-              <Text style={categoryStyles.inputLabel}>Icon</Text>
-              <TouchableOpacity
-                style={categoryStyles.pickerButton}
-                onPress={onShowIconPicker}
-              >
-                <View
-                  style={[
-                    categoryStyles.selectedIcon,
-                    { backgroundColor: categoryColor },
-                  ]}
-                >
-                  <Ionicons name={categoryIcon as any} size={24} color="#FFF" />
-                </View>
-                <Text style={categoryStyles.pickerText}>Select Icon</Text>
-                <Ionicons name="chevron-forward" size={20} color="#AAAAAA" />
-              </TouchableOpacity>
-
-              <Text style={categoryStyles.inputLabel}>Color</Text>
-              <TouchableOpacity
-                style={categoryStyles.pickerButton}
-                onPress={onShowColorPicker}
-              >
-                <View
-                  style={[
-                    categoryStyles.colorSample,
-                    { backgroundColor: categoryColor },
-                  ]}
-                />
-                <Text style={categoryStyles.pickerText}>{categoryColor}</Text>
-                <Ionicons name="chevron-forward" size={20} color="#AAAAAA" />
-              </TouchableOpacity>
-
-              {/* Save Button */}
-              <TouchableOpacity
-                style={categoryStyles.saveButton}
-                onPress={onSave}
-              >
-                <Text style={categoryStyles.saveButtonText}>
-                  {mode === "add" ? "Add Category" : "Save Changes"}
-                </Text>
-              </TouchableOpacity>
-
-              {/* Cancel Button */}
-              <TouchableOpacity
-                style={categoryStyles.cancelButton}
-                onPress={onClose}
-              >
-                <Text style={categoryStyles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
+          </TouchableWithoutFeedback>
         </View>
-      </Modal>
-
-      {/* Icon Picker Modal */}
-      <IconPicker
-        visible={iconPickerVisible}
-        onClose={onShowIconPicker}
-        onSelectIcon={onIconSelect}
-        selectedIcon={categoryIcon}
-        selectedColor={categoryColor}
-      />
-
-      {/* Color Picker Modal */}
-      <ColorPicker
-        visible={colorPickerVisible}
-        onClose={onShowColorPicker}
-        onSelectColor={onColorSelect}
-        selectedColor={categoryColor}
-      />
-    </>
+      </TouchableWithoutFeedback>
+    </Modal>
   );
 };
+
+const styles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContent: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    padding: 24,
+    width: "85%",
+    maxWidth: 350,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333333",
+    marginBottom: 24,
+    textAlign: "center",
+  },
+  inputWrapper: {
+    width: "100%",
+    backgroundColor: "#F8F9FA",
+    borderRadius: 30,
+    marginBottom: 24,
+    paddingHorizontal: 16,
+  },
+  input: {
+    width: "100%",
+    paddingVertical: 14,
+    fontSize: 16,
+    color: "#495057",
+  },
+  saveButton: {
+    padding: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#00D09E",
+  },
+  saveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  cancelButton: {
+    width: "100%",
+    backgroundColor: "#F1F8F5",
+    borderRadius: 30,
+    paddingVertical: 16,
+    alignItems: "center",
+  },
+  cancelButtonText: {
+    color: "#ADB5BD",
+    fontSize: 16,
+    fontWeight: "500",
+  },
+});
 
 export default CategoryFormModal;

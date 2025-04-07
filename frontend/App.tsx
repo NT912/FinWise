@@ -10,6 +10,7 @@ import {
 } from "./src/services/apiService";
 import { LogBox } from "react-native";
 import NetworkStatusMonitor from "./src/components/NetworkStatusMonitor";
+import AlertProvider from "./src/components/common/AlertProvider";
 
 // Bỏ qua một số warning không cần thiết
 LogBox.ignoreLogs([
@@ -57,12 +58,14 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <NavigationContainer>
-        <StatusBar style="auto" />
-        <NetworkStatusMonitor />
-        <AppNavigator />
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <AlertProvider>
+      <SafeAreaProvider>
+        <NavigationContainer>
+          <StatusBar style="auto" />
+          <NetworkStatusMonitor />
+          <AppNavigator />
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </AlertProvider>
   );
 }

@@ -9,6 +9,7 @@ import {
   deleteAccount,
   uploadAvatar,
   sendPasswordChangeCode,
+  scanReceipt,
 } from "../controllers/userController";
 import { authenticateJWT } from "../middleware/authMiddleware";
 
@@ -61,5 +62,8 @@ router.post(
   upload.single("avatar"),
   uploadAvatar
 );
+
+// Add a receipt scan route
+router.post("/receipts/scan", upload.single("receipt"), scanReceipt);
 
 export default router;

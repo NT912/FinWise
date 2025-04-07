@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     fontWeight: "bold",
     marginBottom: 20,
-    color: "#00C897",
+    color: "#00D09E",
   },
   input: {
     height: 50,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   registerButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     padding: 12,
     borderRadius: 8,
     width: "100%",
@@ -134,5 +134,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "100%",
   },
-  linkText: { fontSize: 16, color: "#007AFF", marginBottom: 15 },
+  linkText: { fontSize: 16, color: "#00D09E", marginBottom: 15 },
 });

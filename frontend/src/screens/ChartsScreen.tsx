@@ -1,12 +1,19 @@
 import React from "react";
-import { View, Text, StyleSheet, Dimensions, ScrollView } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Dimensions,
+  ScrollView,
+  SafeAreaView,
+} from "react-native";
 import { LineChart, BarChart, PieChart } from "react-native-chart-kit";
 
 const screenWidth = Dimensions.get("window").width;
 
 const ChartsScreen = () => {
   return (
-    <ScrollView style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Financial Charts</Text>
 
       {/* Biểu đồ đường: Xu hướng chi tiêu */}
@@ -76,7 +83,7 @@ const ChartsScreen = () => {
         backgroundColor={"transparent"}
         paddingLeft={"15"}
       />
-    </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -89,7 +96,7 @@ const chartConfig = {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 10, backgroundColor: "#fff" },
+  container: { flex: 1, padding: 10, backgroundColor: "#00D09E" },
   header: {
     fontSize: 22,
     fontWeight: "bold",

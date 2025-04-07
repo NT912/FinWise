@@ -1,159 +1,200 @@
-import { Response } from "express";
-import {
-  getUserCategories,
-  getCategoriesByType,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-} from "../services/categoryService";
-import { ApiError } from "../utils/ApiError";
-import { handleApiError } from "../utils/errorHandler";
-import { AuthenticatedRequest } from "../middleware/authMiddleware";
+import { Request, Response } from "express";
+import Category, { ICategory } from "../models/Category";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
-// Get all categories for the current user
-export const getAllCategories = async (
+// Get all categories for a user
+export const getCategories = async (
   req: AuthenticatedRequest,
   res: Response
 ) => {
   try {
+    const { type } = req.query;
     const userId = req.user?.id;
+
     if (!userId) {
-      throw new ApiError(401, "User not authenticated");
+      return res.status(401).json({ message: "User not authenticated" });
     }
 
-    const categories = await getUserCategories(userId);
-    return res.status(200).json({
-      success: true,
-      categories,
-    });
+    const query: any = { userId };
+
+    if (type) {
+      query.type = type;
+    }
+
+    const categories = await Category.find(query).sort({ createdAt: -1 });
+    res.json(categories);
   } catch (error) {
-    return handleApiError(error, res);
+    console.error("Error in getCategories:", error);
+    res.status(500).json({ message: "Error fetching categories", error });
   }
 };
 
-// Get categories by type (income/expense)
-export const getCategoriesForType = async (
-  req: AuthenticatedRequest,
-  res: Response
-) => {
+// Get a single category
+export const getCategory = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ApiError(401, "User not authenticated");
+    const category = await Category.findById(req.params.id);
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
     }
-
-    const { type } = req.params;
-    if (type !== "income" && type !== "expense") {
-      throw new ApiError(
-        400,
-        "Invalid category type. Must be 'income' or 'expense'"
-      );
-    }
-
-    const categories = await getCategoriesByType(userId, type);
-    return res.status(200).json({
-      success: true,
-      categories,
-    });
+    res.json(category);
   } catch (error) {
-    return handleApiError(error, res);
+    res.status(500).json({ message: "Error fetching category", error });
   }
 };
 
 // Create a new category
-export const addCategory = async (req: AuthenticatedRequest, res: Response) => {
+export const createCategory = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ApiError(401, "User not authenticated");
+    const { name, icon, color, type, budget, rules, isDefault, userId } =
+      req.body;
+
+    // Check if category with same name exists for user
+    const existingCategory = await Category.findOne({ name, userId });
+    if (existingCategory) {
+      return res.status(400).json({ message: "Category name already exists" });
     }
 
-    const { name, icon, color, type } = req.body;
-
-    // Validate required fields
-    if (!name || !icon || !color || !type) {
-      throw new ApiError(400, "Name, icon, color, and type are required");
-    }
-
-    // Validate type
-    if (type !== "income" && type !== "expense") {
-      throw new ApiError(400, "Type must be 'income' or 'expense'");
-    }
-
-    const newCategory = await createCategory(
-      { name, icon, color, type },
-      userId
-    );
-    return res.status(201).json({
-      success: true,
-      message: "Category created successfully",
-      category: newCategory,
+    const category = new Category({
+      name,
+      icon,
+      color,
+      type,
+      budget,
+      rules,
+      isDefault,
+      userId,
+      transactionCount: 0,
     });
+
+    await category.save();
+    res.status(201).json(category);
   } catch (error) {
-    return handleApiError(error, res);
+    res.status(500).json({ message: "Error creating category", error });
   }
 };
 
-// Update an existing category
-export const modifyCategory = async (
-  req: AuthenticatedRequest,
-  res: Response
-) => {
+// Update a category
+export const updateCategory = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ApiError(401, "User not authenticated");
+    const { name, icon, color, type, budget, rules } = req.body;
+    const category = await Category.findById(req.params.id);
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
     }
 
-    const { categoryId } = req.params;
-    const { name, icon, color } = req.body;
-
-    // Validate that at least one field to update is provided
-    if (!name && !icon && !color) {
-      throw new ApiError(400, "At least one field to update is required");
+    // Check if new name conflicts with existing category
+    if (name && name !== category.name) {
+      const existingCategory = await Category.findOne({
+        name,
+        userId: category.userId,
+      });
+      if (existingCategory) {
+        return res
+          .status(400)
+          .json({ message: "Category name already exists" });
+      }
     }
 
-    const updateData: any = {};
-    if (name) updateData.name = name;
-    if (icon) updateData.icon = icon;
-    if (color) updateData.color = color;
+    const updates = {
+      name: name || category.name,
+      icon: icon || category.icon,
+      color: color || category.color,
+      type: type || category.type,
+      budget: budget !== undefined ? budget : category.budget,
+      rules: rules || category.rules,
+    };
 
-    const updatedCategory = await updateCategory(
-      categoryId,
-      updateData,
-      userId
+    const updatedCategory = await Category.findByIdAndUpdate(
+      req.params.id,
+      updates,
+      { new: true }
     );
 
-    return res.status(200).json({
-      success: true,
-      message: "Category updated successfully",
-      category: updatedCategory,
-    });
+    res.json(updatedCategory);
   } catch (error) {
-    return handleApiError(error, res);
+    res.status(500).json({ message: "Error updating category", error });
   }
 };
 
 // Delete a category
-export const removeCategory = async (
-  req: AuthenticatedRequest,
-  res: Response
-) => {
+export const deleteCategory = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      throw new ApiError(401, "User not authenticated");
+    const category = await Category.findById(req.params.id);
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
     }
 
-    const { categoryId } = req.params;
+    if (category.isDefault) {
+      return res
+        .status(400)
+        .json({ message: "Cannot delete default category" });
+    }
 
-    await deleteCategory(categoryId, userId);
+    await Category.findByIdAndDelete(req.params.id);
+    res.json({ message: "Category deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error deleting category", error });
+  }
+};
 
-    return res.status(200).json({
-      success: true,
-      message: "Category deleted successfully",
+// Update category budget
+export const updateCategoryBudget = async (req: Request, res: Response) => {
+  try {
+    const { budget } = req.body;
+    const category = await Category.findById(req.params.id);
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    category.budget = budget;
+    await category.save();
+
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating category budget", error });
+  }
+};
+
+// Update category rules
+export const updateCategoryRules = async (req: Request, res: Response) => {
+  try {
+    const { rules } = req.body;
+    const category = await Category.findById(req.params.id);
+
+    if (!category) {
+      return res.status(404).json({ message: "Category not found" });
+    }
+
+    category.rules = rules;
+    await category.save();
+
+    res.json(category);
+  } catch (error) {
+    res.status(500).json({ message: "Error updating category rules", error });
+  }
+};
+
+// Increment transaction count for a category
+export const incrementTransactionCount = async (categoryId: string) => {
+  try {
+    await Category.findByIdAndUpdate(categoryId, {
+      $inc: { transactionCount: 1 },
     });
   } catch (error) {
-    return handleApiError(error, res);
+    console.error("Error incrementing transaction count:", error);
+  }
+};
+
+// Decrement transaction count for a category
+export const decrementTransactionCount = async (categoryId: string) => {
+  try {
+    await Category.findByIdAndUpdate(categoryId, {
+      $inc: { transactionCount: -1 },
+    });
+  } catch (error) {
+    console.error("Error decrementing transaction count:", error);
   }
 };

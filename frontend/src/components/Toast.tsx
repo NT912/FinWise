@@ -76,7 +76,7 @@ const Toast: React.FC<ToastProps> = ({
   const getBackgroundColor = () => {
     switch (type) {
       case "success":
-        return "#00C897";
+        return "#00D09E";
       case "error":
         return "#FF6B6B";
       case "warning":

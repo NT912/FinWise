@@ -274,3 +274,35 @@ export const uploadAvatar = async (
     res.status(500).json({ message: "Error uploading avatar" });
   }
 };
+
+// Controller cho việc quét biên lai
+export const scanReceipt = (req: any, res: any) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    // Here you would implement the OCR logic or call an OCR service
+    // For now, we'll just return a dummy success response
+
+    // Simulate processing time
+    setTimeout(() => {
+      res.status(200).json({
+        success: true,
+        message: "Receipt processed successfully",
+        data: {
+          date: new Date().toISOString().split("T")[0],
+          merchant: "Sample Store",
+          total: 1250000,
+          items: [
+            { name: "Item 1", price: 350000 },
+            { name: "Item 2", price: 900000 },
+          ],
+        },
+      });
+    }, 1000);
+  } catch (error) {
+    console.error("Error in receipt scanning:", error);
+    res.status(500).json({ message: "Error processing receipt" });
+  }
+};

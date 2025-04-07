@@ -1,5 +1,6 @@
 import api from "./apiService";
 import { Category } from "../types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Fetch all categories
 export const getAllCategories = async (): Promise<Category[]> => {
@@ -8,10 +9,10 @@ export const getAllCategories = async (): Promise<Category[]> => {
     const response = await api.get("/api/categories");
     console.log(
       "✅ Categories fetched successfully:",
-      response.data.categories.length,
+      response.data.length,
       "items"
     );
-    return response.data.categories;
+    return response.data;
   } catch (error: any) {
     console.error("❌ Error fetching categories:", error.message);
     console.error("📝 Error details:", {
@@ -50,20 +51,36 @@ export const getCategoriesByType = async (
 };
 
 // Create a new category
-export const createCategory = async (categoryData: {
-  name: string;
-  icon: string;
-  color: string;
-  type: "income" | "expense";
-}): Promise<Category> => {
+export const createCategory = async (
+  category: Omit<Category, "_id">
+): Promise<Category> => {
   try {
-    console.log("📝 Creating new category:", categoryData.name);
-    const response = await api.post("/api/categories", categoryData);
-    console.log(
-      "✅ Category created successfully:",
-      response.data.category._id
-    );
-    return response.data.category;
+    console.log("📝 Creating new category:", category.name);
+    const response = await api.post("/api/categories", category);
+    console.log("✅ Response thành công:", {
+      method: response.config.method,
+      status: response.status,
+      url: response.config.url,
+    });
+
+    // Check if response.data exists and has the expected structure
+    if (response.data && response.data.category) {
+      console.log(
+        "✅ Category created successfully:",
+        response.data.category._id
+      );
+      return response.data.category;
+    } else {
+      // If response.data doesn't have the expected structure, but the request was successful
+      // we can assume the category was created and return a minimal category object
+      console.log(
+        "⚠️ Response structure unexpected, but request was successful"
+      );
+      return {
+        _id: "temp-id", // This will be replaced when we fetch the categories
+        ...category,
+      } as Category;
+    }
   } catch (error: any) {
     console.error("❌ Error creating category:", error.message);
     console.error("📝 Error details:", {
@@ -78,16 +95,18 @@ export const createCategory = async (categoryData: {
 
 // Update an existing category
 export const updateCategory = async (
-  categoryId: string,
-  updateData: {
+  id: string,
+  category: {
     name?: string;
     icon?: string;
     color?: string;
+    budget?: number;
+    rules?: { keyword: string; isEnabled: boolean }[];
   }
 ): Promise<Category> => {
   try {
-    console.log(`📝 Updating category ${categoryId}:`, updateData);
-    const response = await api.put(`/api/categories/${categoryId}`, updateData);
+    console.log(`📝 Updating category ${id}:`, category);
+    const response = await api.put(`/api/categories/${id}`, category);
     console.log(
       "✅ Category updated successfully:",
       response.data.category._id
@@ -106,11 +125,11 @@ export const updateCategory = async (
 };
 
 // Delete a category
-export const deleteCategory = async (categoryId: string): Promise<boolean> => {
+export const deleteCategory = async (id: string): Promise<boolean> => {
   try {
-    console.log(`🗑️ Deleting category ${categoryId}...`);
-    await api.delete(`/api/categories/${categoryId}`);
-    console.log(`✅ Category ${categoryId} deleted successfully`);
+    console.log(`🗑️ Deleting category ${id}...`);
+    await api.delete(`/api/categories/${id}`);
+    console.log(`✅ Category ${id} deleted successfully`);
     return true;
   } catch (error: any) {
     console.error("❌ Error deleting category:", error.message);
@@ -124,10 +143,24 @@ export const deleteCategory = async (categoryId: string): Promise<boolean> => {
   }
 };
 
+// Lấy thông tin danh mục theo ID
+export const getCategoryById = async (
+  categoryId: string
+): Promise<Category> => {
+  try {
+    const response = await api.get(`/api/categories/${categoryId}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching category ${categoryId}:`, error);
+    throw error;
+  }
+};
+
 export default {
   getAllCategories,
   getCategoriesByType,
   createCategory,
   updateCategory,
   deleteCategory,
+  getCategoryById,
 };

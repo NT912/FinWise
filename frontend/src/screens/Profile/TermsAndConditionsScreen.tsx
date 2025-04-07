@@ -75,7 +75,7 @@ const TermsAndConditionsScreen = ({ navigation }: { navigation: any }) => {
               marginTop: 20,
             }}
           >
-            <Ionicons name="checkbox-outline" size={24} color="#00C897" />
+            <Ionicons name="checkbox-outline" size={24} color="#00D09E" />
             <Text style={{ marginLeft: 10, color: "#333" }}>
               I accept all terms and conditions
             </Text>

@@ -22,7 +22,7 @@ const COLORS = [
   "#FF9F69", // Orange
   "#FFC84E", // Yellow
   "#4CAF50", // Green
-  "#00C897", // Teal
+  "#00D09E", // Teal
   "#4DC0F5", // Light Blue
   "#2196F3", // Blue
   "#8D76E8", // Purple
@@ -38,6 +38,16 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
   onSelectColor,
   selectedColor,
 }) => {
+  const handleColorSelect = (color: string) => {
+    console.log("Color selected:", color);
+    onSelectColor(color);
+  };
+
+  const handleClose = () => {
+    console.log("Closing color picker");
+    onClose();
+  };
+
   const renderColorItem = ({ item: color }: { item: string }) => (
     <TouchableOpacity
       style={[
@@ -45,7 +55,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
         { backgroundColor: color },
         selectedColor === color && styles.selectedColorItem,
       ]}
-      onPress={() => onSelectColor(color)}
+      onPress={() => handleColorSelect(color)}
     >
       {selectedColor === color && (
         <Ionicons name="checkmark" size={24} color="#FFFFFF" />
@@ -58,13 +68,14 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={onClose}
+      onRequestClose={handleClose}
+      statusBarTranslucent={true}
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Color</Text>
-            <TouchableOpacity onPress={onClose}>
+            <TouchableOpacity onPress={handleClose}>
               <Ionicons name="close" size={24} color="#333" />
             </TouchableOpacity>
           </View>
@@ -77,7 +88,7 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
             contentContainerStyle={styles.colorGrid}
           />
 
-          <TouchableOpacity style={styles.doneButton} onPress={onClose}>
+          <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -98,20 +109,22 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: "90%",
-    backgroundColor: "#FFF",
-    borderRadius: 10,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 5,
+    maxHeight: "80%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 16,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    marginHorizontal: "5%",
+    marginBottom: 20,
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 16,
   },
   modalTitle: {
     fontSize: 20,
@@ -119,35 +132,29 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   colorGrid: {
-    alignItems: "center",
-    paddingVertical: 10,
+    padding: 8,
   },
   colorItem: {
     width: colorItemSize,
     height: colorItemSize,
     borderRadius: colorItemSize / 2,
-    margin: 8,
     justifyContent: "center",
     alignItems: "center",
+    margin: 8,
   },
   selectedColorItem: {
-    borderWidth: 3,
-    borderColor: "#FFF",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   doneButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
+    padding: 12,
     borderRadius: 8,
-    padding: 16,
     alignItems: "center",
-    marginTop: 20,
+    marginTop: 16,
   },
   doneButtonText: {
-    color: "#FFF",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "bold",
   },

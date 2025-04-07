@@ -3,7 +3,7 @@ import { StyleSheet, Platform } from "react-native";
 const editProfileStyles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F9FAFB",
+    backgroundColor: "#00D09E",
   },
   safeArea: {
     flex: 1,

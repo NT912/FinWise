@@ -133,8 +133,8 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            colors={["#00C897"]}
-            tintColor="#00C897"
+            colors={["#00D09E"]}
+            tintColor="#00D09E"
           />
         }
       >
@@ -143,7 +143,7 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
             <MaterialIcons
               name="notifications-active"
               size={22}
-              color="#00C897"
+              color="#00D09E"
             />
             <Text style={styles.sectionTitle}>Notification Methods</Text>
           </View>
@@ -167,7 +167,7 @@ const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Feather name="bell" size={22} color="#00C897" />
+            <Feather name="bell" size={22} color="#00D09E" />
             <Text style={styles.sectionTitle}>Notification Types</Text>
           </View>
           <NotificationToggle
@@ -230,13 +230,13 @@ const styles = StyleSheet.create({
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(0, 0, 0, 0.05)",
-    backgroundColor: "rgba(0, 200, 151, 0.05)",
+    backgroundColor: "rgba(0, 208, 158, 0.05)",
   },
   sectionTitle: {
     fontSize: 16,
     fontWeight: "bold",
     marginLeft: 10,
-    color: "#00C897",
+    color: "#00D09E",
   },
 });
 

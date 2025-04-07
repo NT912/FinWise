@@ -94,7 +94,7 @@ const ChangePasswordScreen = ({ navigation }: { navigation: any }) => {
   const getPasswordStrengthColor = () => {
     switch (passwordStrength) {
       case PasswordStrength.STRONG:
-        return "#00C897";
+        return "#00D09E";
       case PasswordStrength.MEDIUM:
         return "#FFB74D";
       case PasswordStrength.WEAK:
@@ -222,8 +222,8 @@ const ChangePasswordScreen = ({ navigation }: { navigation: any }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              colors={["#00C897"]}
-              tintColor="#00C897"
+              colors={["#00D09E"]}
+              tintColor="#00D09E"
             />
           }
         >
@@ -256,7 +256,7 @@ const ChangePasswordScreen = ({ navigation }: { navigation: any }) => {
                     size={18}
                     color={
                       verificationMethod === VerificationMethod.PASSWORD
-                        ? "#00C897"
+                        ? "#00D09E"
                         : "#888"
                     }
                   />
@@ -286,7 +286,7 @@ const ChangePasswordScreen = ({ navigation }: { navigation: any }) => {
                     size={18}
                     color={
                       verificationMethod === VerificationMethod.EMAIL
-                        ? "#00C897"
+                        ? "#00D09E"
                         : "#888"
                     }
                   />
@@ -529,7 +529,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   activeTabText: {
-    color: "#00C897",
+    color: "#00D09E",
     fontWeight: "600",
   },
   inputGroup: {
@@ -560,7 +560,7 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   verificationButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     borderRadius: 8,
     padding: 12,
     alignItems: "center",
@@ -595,7 +595,7 @@ const styles = StyleSheet.create({
     marginTop: 6,
   },
   submitButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     borderRadius: 10,
     flexDirection: "row",
     alignItems: "center",

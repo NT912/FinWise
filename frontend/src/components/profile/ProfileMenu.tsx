@@ -33,7 +33,7 @@ const ProfileMenu: React.FC<ProfileMenuProps> = ({ items }) => {
             <Ionicons
               name={item.icon as any}
               size={24}
-              color={item.textColor || "#00C897"}
+              color={item.textColor || "#00D09E"}
             />
           </View>
           <Text

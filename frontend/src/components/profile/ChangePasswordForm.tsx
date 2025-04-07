@@ -347,8 +347,8 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   methodButtonActive: {
-    backgroundColor: "#00C897",
-    borderColor: "#00C897",
+    backgroundColor: "#00D09E",
+    borderColor: "#00D09E",
   },
   methodButtonText: {
     marginLeft: 5,
@@ -390,7 +390,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sendCodeButton: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 8,
@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   codeSentText: {
-    color: "#00C897",
+    color: "#00D09E",
     fontSize: 12,
     marginTop: 5,
   },

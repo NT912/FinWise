@@ -5,7 +5,7 @@ import homeStyles from "../styles/home/homeStyles";
 const LoadingIndicator = () => {
   return (
     <View style={homeStyles.loaderContainer}>
-      <ActivityIndicator size="large" color="#00C897" />
+      <ActivityIndicator size="large" color="#00D09E" />
     </View>
   );
 };
