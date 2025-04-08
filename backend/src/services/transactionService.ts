@@ -92,10 +92,19 @@ export const createTransaction = async (
 
     await newTransaction.save({ session });
 
-    // Tăng số lượng giao dịch trong danh mục
+    // Tăng số lượng giao dịch trong danh mục và thêm transaction vào mảng transactions
     if (transactionData.category) {
       const categoryId = transactionData.category.toString();
       await incrementTransactionCount(categoryId);
+
+      // Thêm transaction vào mảng transactions của category
+      await mongoose
+        .model("Category")
+        .findByIdAndUpdate(
+          categoryId,
+          { $push: { transactions: newTransaction._id } },
+          { session }
+        );
     }
 
     await session.commitTransaction();
@@ -179,13 +188,26 @@ export const deleteTransaction = async (
       throw new Error("Transaction not found");
     }
 
-    // Giảm số lượng giao dịch trong danh mục
-    await decrementTransactionCount(transaction.category.toString());
+    // Lưu categoryId trước khi xóa transaction
+    const categoryId = transaction.category.toString();
 
-    await Transaction.findByIdAndDelete(transactionId).session(session);
+    // Xóa transaction
+    await Transaction.deleteOne({ _id: transactionId }, { session });
+
+    // Giảm số lượng giao dịch trong danh mục và xóa transaction khỏi mảng transactions
+    await decrementTransactionCount(categoryId);
+
+    // Xóa transaction khỏi mảng transactions của category
+    await mongoose
+      .model("Category")
+      .findByIdAndUpdate(
+        categoryId,
+        { $pull: { transactions: transactionId } },
+        { session }
+      );
 
     await session.commitTransaction();
-    return { success: true, message: "Transaction deleted successfully" };
+    return true;
   } catch (error) {
     await session.abortTransaction();
     console.error("Error in deleteTransaction service:", error);

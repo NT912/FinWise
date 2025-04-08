@@ -23,6 +23,7 @@ import { Category } from "../../types/category";
 import { formatDate } from "../../utils/dateUtils";
 import { NavigationProp, ParamListBase } from "@react-navigation/native";
 import { useMainLayout } from "../../components/MainLayout";
+import TabBar from "../../components/TabBar";
 
 type RouteParams = {
   CategoryDetail: {
@@ -46,7 +47,7 @@ const CategoryDetailScreen = () => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [category, setCategory] = useState<Category | null>(null);
   const [totalIncome, setTotalIncome] = useState(7783.0);
-  const [totalExpense, setTotalExpense] = useState(1197.4);
+  const [totalExpense, setTotalExpense] = useState(1187.4);
   const [budgetLimit, setBudgetLimit] = useState(20000); // Default 20K
   const [expensePercentage, setExpensePercentage] = useState(30);
 
@@ -88,7 +89,7 @@ const CategoryDetailScreen = () => {
         .reduce((sum: number, t: Transaction) => sum + t.amount, 0);
 
       setTotalIncome(income || 7783.0);
-      setTotalExpense(expense || 1197.4);
+      setTotalExpense(expense || 1187.4);
 
       // Calculate expense percentage
       const percentage = Math.min(
@@ -127,19 +128,19 @@ const CategoryDetailScreen = () => {
     } catch (error) {
       console.error("Error loading transactions:", error);
 
-      // Dữ liệu mẫu đơn giản hơn để tránh lỗi TypeScript
+      // Sample data for demonstration
       setTotalIncome(7783.0);
-      setTotalExpense(1197.4);
+      setTotalExpense(1187.4);
       setExpensePercentage(30);
 
-      // Tạo dữ liệu mẫu đơn giản hơn
+      // Create sample data
       const mockData: Transaction[] = [
         {
           _id: "1",
           title: "Dinner",
-          amount: 526,
+          amount: 26.0,
           type: "expense",
-          date: "2023-04-30T18:37:00.000Z",
+          date: "2024-04-30T18:27:00.000Z",
           category: category || {
             _id: "food-123",
             name: "Food",
@@ -156,7 +157,7 @@ const CategoryDetailScreen = () => {
           title: "Delivery Pizza",
           amount: 18.35,
           type: "expense",
-          date: "2023-04-24T19:00:00.000Z",
+          date: "2024-04-24T15:00:00.000Z",
           category: category || {
             _id: "food-123",
             name: "Food",
@@ -173,7 +174,7 @@ const CategoryDetailScreen = () => {
           title: "Lunch",
           amount: 15.4,
           type: "expense",
-          date: "2023-04-15T12:30:00.000Z",
+          date: "2024-04-15T12:30:00.000Z",
           category: category || {
             _id: "food-123",
             name: "Food",
@@ -190,7 +191,7 @@ const CategoryDetailScreen = () => {
           title: "Brunch",
           amount: 12.13,
           type: "expense",
-          date: "2023-04-08T09:30:00.000Z",
+          date: "2024-04-08T09:30:00.000Z",
           category: category || {
             _id: "food-123",
             name: "Food",
@@ -207,7 +208,7 @@ const CategoryDetailScreen = () => {
           title: "Dinner",
           amount: 27.2,
           type: "expense",
-          date: "2023-03-31T20:45:00.000Z",
+          date: "2024-03-31T20:50:00.000Z",
           category: category || {
             _id: "food-123",
             name: "Food",
@@ -221,7 +222,7 @@ const CategoryDetailScreen = () => {
         } as Transaction,
       ];
 
-      // Nhóm dữ liệu mẫu theo tháng
+      // Group sample data by month
       const grouped = mockData.reduce(
         (acc: { [key: string]: Transaction[] }, transaction: Transaction) => {
           const date = new Date(transaction.date);
@@ -265,10 +266,10 @@ const CategoryDetailScreen = () => {
     } as never);
   };
 
-  // Xử lý quay lại màn hình trước
+  // Handle going back
   const handleGoBack = () => {
     if (mainLayout) {
-      // Đảm bảo tab Category được chọn khi quay về
+      // Ensure Category tab is selected when going back
       mainLayout.setActiveTab("Category");
     }
     navigation.goBack();
@@ -280,7 +281,6 @@ const CategoryDetailScreen = () => {
     const amount = isExpense
       ? `-$${item.amount.toFixed(2)}`
       : `+$${item.amount.toFixed(2)}`;
-    const amountColor = isExpense ? "#FF5252" : "#4CAF50";
 
     // Format the date
     const transactionDate = new Date(item.date);
@@ -305,31 +305,18 @@ const CategoryDetailScreen = () => {
           } as never)
         }
       >
-        <View
-          style={[
-            styles.transactionIconContainer,
-            { backgroundColor: "#4A89F3" },
-          ]}
-        >
-          <Ionicons
-            name={item.category?.icon || "restaurant-outline"}
-            size={20}
-            color="#FFFFFF"
-          />
+        <View style={styles.transactionIconContainer}>
+          <Ionicons name="restaurant-outline" size={24} color="#FFFFFF" />
         </View>
 
         <View style={styles.transactionInfo}>
           <Text style={styles.transactionTitle}>{transactionTitle}</Text>
           <Text style={styles.transactionDate}>
-            {`${formattedTime.split(":")[0]}:${
-              formattedTime.split(":")[1]
-            } - ${formattedDate}`}
+            {`${formattedTime} - ${formattedDate}`}
           </Text>
         </View>
 
-        <Text style={[styles.transactionAmount, { color: amountColor }]}>
-          {amount}
-        </Text>
+        <Text style={styles.transactionAmount}>{amount}</Text>
       </TouchableOpacity>
     );
   };
@@ -341,63 +328,11 @@ const CategoryDetailScreen = () => {
     return (
       <View style={styles.monthSection}>
         <Text style={styles.monthTitle}>{item}</Text>
-
         {monthTransactions.map((transaction) => (
           <View key={transaction._id}>
             {renderTransactionItem({ item: transaction })}
           </View>
         ))}
-      </View>
-    );
-  };
-
-  // Render header with financial summary
-  const renderHeader = () => {
-    return (
-      <View style={[styles.headerContent, { backgroundColor: "#00D09E" }]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity onPress={handleGoBack}>
-            <Ionicons name="chevron-back" size={24} color="white" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>{categoryName}</Text>
-          <TouchableOpacity>
-            <Ionicons name="notifications-outline" size={24} color="white" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.balanceSection}>
-          <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>Total Income</Text>
-            <Text style={styles.balanceValue}>${totalIncome.toFixed(2)}</Text>
-          </View>
-
-          <View style={styles.balanceItem}>
-            <Text style={styles.balanceLabel}>Total Expense</Text>
-            <Text style={styles.balanceValue}>-${totalExpense.toFixed(2)}</Text>
-          </View>
-        </View>
-
-        <View style={styles.budgetSection}>
-          <Text style={styles.budgetPercentage}>{expensePercentage}%</Text>
-
-          <View style={styles.progressBarContainer}>
-            <View
-              style={[
-                styles.progressBar,
-                { width: `${expensePercentage}%` as unknown as number },
-              ]}
-            />
-          </View>
-
-          <Text style={styles.budgetLimit}>${budgetLimit.toFixed(2)}</Text>
-        </View>
-
-        <View style={styles.statusContainer}>
-          <Ionicons name="checkmark-circle" size={20} color="#00D09E" />
-          <Text style={styles.statusText}>
-            30% Of Your Expenses. Looks Good.
-          </Text>
-        </View>
       </View>
     );
   };
@@ -425,31 +360,108 @@ const CategoryDetailScreen = () => {
     }
 
     return (
-      <FlatList
-        data={Object.keys(groupedTransactions)}
-        keyExtractor={(item) => item}
-        renderItem={renderMonthSection}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
-        }
-        ListFooterComponent={
-          <TouchableOpacity
-            style={styles.addExpenseButton}
-            onPress={handleAddExpense}
-          >
-            <Text style={styles.addExpenseButtonText}>Add Expenses</Text>
-          </TouchableOpacity>
-        }
-      />
+      <View style={styles.contentContainer}>
+        <FlatList
+          data={Object.keys(groupedTransactions)}
+          keyExtractor={(item) => item}
+          renderItem={renderMonthSection}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          }
+        />
+
+        <TouchableOpacity
+          style={styles.addExpenseButton}
+          onPress={handleAddExpense}
+        >
+          <Text style={styles.addExpenseButtonText}>Add Expenses</Text>
+        </TouchableOpacity>
+      </View>
     );
+  };
+
+  // Handle tab change
+  const handleTabChange = (tabName: string) => {
+    if (mainLayout) {
+      mainLayout.setActiveTab(tabName as any);
+
+      // Navigate to the corresponding screen based on the tab
+      switch (tabName) {
+        case "Home":
+          navigation.navigate("Home" as never);
+          break;
+        case "Category":
+          navigation.navigate("Category" as never);
+          break;
+        case "Charts":
+          navigation.navigate("Charts" as never);
+          break;
+        case "Profile":
+          navigation.navigate("Profile" as never);
+          break;
+      }
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
-      {renderHeader()}
+
+      {/* Header section */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>{categoryName}</Text>
+        <TouchableOpacity style={styles.notificationButton}>
+          <Ionicons name="notifications-outline" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Financial summary */}
+      <View style={styles.financialSummary}>
+        <View style={styles.balanceRow}>
+          <View style={styles.balanceItem}>
+            <View style={styles.balanceLabel}>
+              <Ionicons name="checkmark-circle" size={16} color="white" />
+              <Text style={styles.balanceLabelText}>Total Balance</Text>
+            </View>
+            <Text style={styles.balanceValue}>${totalIncome.toFixed(2)}</Text>
+          </View>
+
+          <View style={styles.balanceItem}>
+            <View style={styles.balanceLabel}>
+              <Ionicons name="arrow-down" size={16} color="white" />
+              <Text style={styles.balanceLabelText}>Total Expense</Text>
+            </View>
+            <Text style={styles.expenseValue}>-${totalExpense.toFixed(2)}</Text>
+          </View>
+        </View>
+
+        <View style={styles.budgetSection}>
+          <Text style={styles.budgetPercentage}>{expensePercentage}%</Text>
+          <View style={styles.progressBarContainer}>
+            <View
+              style={[
+                styles.progressBar,
+                { width: `${expensePercentage}%` as unknown as number },
+              ]}
+            />
+          </View>
+          <Text style={styles.budgetLimit}>${budgetLimit.toFixed(2)}</Text>
+        </View>
+
+        <View style={styles.statusContainer}>
+          <Ionicons name="checkmark-circle" size={16} color="#00D09E" />
+          <Text style={styles.statusText}>
+            {expensePercentage}% Of Your Expenses, Looks Good.
+          </Text>
+        </View>
+      </View>
+
+      {/* Content container */}
       <View style={styles.content}>{renderContent()}</View>
     </SafeAreaView>
   );
@@ -458,43 +470,58 @@ const CategoryDetailScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#00D09E",
   },
-  headerContent: {
-    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 0,
-    paddingHorizontal: 16,
-    paddingBottom: 16,
-    borderBottomLeftRadius: 25,
-    borderBottomRightRadius: 25,
-  },
-  headerTop: {
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 20,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 10,
+    paddingBottom: 10,
+  },
+  backButton: {
+    padding: 4,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: "white",
+    textAlign: "center",
   },
-  balanceSection: {
+  notificationButton: {
+    padding: 4,
+  },
+  financialSummary: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+  },
+  balanceRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginBottom: 20,
   },
   balanceItem: {
-    alignItems: "center",
+    alignItems: "flex-start",
   },
   balanceLabel: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 4,
+  },
+  balanceLabelText: {
     fontSize: 14,
     color: "rgba(255, 255, 255, 0.8)",
-    marginBottom: 8,
+    marginLeft: 4,
   },
   balanceValue: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "600",
+    color: "white",
+  },
+  expenseValue: {
+    fontSize: 20,
+    fontWeight: "600",
     color: "white",
   },
   budgetSection: {
@@ -510,8 +537,8 @@ const styles = StyleSheet.create({
   },
   progressBarContainer: {
     flex: 1,
-    height: 8,
-    backgroundColor: "rgba(255,255,255,0.3)",
+    height: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
     borderRadius: 4,
     marginHorizontal: 12,
     overflow: "hidden",
@@ -529,25 +556,33 @@ const styles = StyleSheet.create({
   statusContainer: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "rgba(255,255,255,0.9)",
+    backgroundColor: "rgba(255, 255, 255, 0.9)",
     borderRadius: 20,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    alignSelf: "center",
+    alignSelf: "flex-start",
   },
   statusText: {
-    fontSize: 14,
-    color: "#333",
-    marginLeft: 8,
-    fontWeight: "600",
+    fontSize: 13,
+    color: "#666",
+    marginLeft: 6,
+    fontWeight: "500",
   },
   content: {
     flex: 1,
-    backgroundColor: "#F8F8F8",
+    backgroundColor: "#F5F7FA",
+    borderTopLeftRadius: 25,
+    borderTopRightRadius: 25,
+    paddingTop: 20,
+    paddingBottom: 80, // Add padding to make room for tab bar
+  },
+  contentContainer: {
+    flex: 1,
+    position: "relative",
   },
   listContent: {
     padding: 16,
-    paddingBottom: 100, // Thêm padding-bottom để tránh bị thanh tab bar che mất nội dung
+    paddingBottom: 80,
   },
   monthSection: {
     marginBottom: 20,
@@ -556,7 +591,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginBottom: 12,
-    color: "#333",
+    color: "#000",
   },
   transactionItem: {
     flexDirection: "row",
@@ -572,29 +607,31 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   transactionIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 12,
+    backgroundColor: "#69BCFF",
   },
   transactionInfo: {
     flex: 1,
   },
   transactionTitle: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#333",
+    fontWeight: "500",
+    color: "#000",
     marginBottom: 4,
   },
   transactionDate: {
-    fontSize: 12,
-    color: "#888",
+    fontSize: 13,
+    color: "#666",
   },
   transactionAmount: {
     fontSize: 15,
     fontWeight: "600",
+    color: "#00D09E",
   },
   loadingContainer: {
     flex: 1,
@@ -617,7 +654,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 24,
     backgroundColor: "#00D09E",
-    borderRadius: 8,
+    borderRadius: 25,
   },
   addButtonText: {
     fontSize: 16,
@@ -632,8 +669,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     alignSelf: "center",
-    marginTop: 16,
-    marginBottom: 16,
+    position: "absolute",
+    bottom: 20,
+    width: 150,
   },
   addExpenseButtonText: {
     color: "white",

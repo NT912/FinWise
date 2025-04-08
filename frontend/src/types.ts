@@ -4,7 +4,7 @@ export type IconName = keyof typeof Ionicons.glyphMap;
 
 export interface User {
   _id: string;
-  name: string;
+  fullName: string;
   email: string;
   avatar?: string;
   phone?: string; // Thêm trường phone

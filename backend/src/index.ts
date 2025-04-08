@@ -36,7 +36,10 @@ console.log(`📅 Thời gian khởi động: ${new Date().toLocaleString()}`);
 console.log(`🌍 Môi trường: ${process.env.NODE_ENV || "development"}`);
 console.log(`🔗 API Base URL: ${process.env.API_BASE_URL}`);
 
-// Middleware
+// Middleware cơ bản
+app.use(express.json());
+
+// Cấu hình CORS
 app.use(
   cors({
     origin: [
@@ -65,7 +68,6 @@ app.use(
     exposedHeaders: ["Content-Range", "X-Content-Range"],
   })
 );
-app.use(express.json());
 
 // Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -85,19 +87,7 @@ app.use(
   })
 );
 
-// Routes
-app.use("/api/auth", authRoutes);
-app.use("/api", homeRoutes);
-app.use("/api/user", userRoutes);
-app.use("/api/categories", categoryRoutes);
-app.use("/api", transactionRoutes);
-
-// Test route
-app.get("/api", (req, res) => {
-  res.json({ message: "API is running..." });
-});
-
-// Add health check route before other routes
+// Public routes - không yêu cầu xác thực
 app.get("/api/health", (req, res) => {
   res.status(200).json({
     status: "OK",
@@ -107,6 +97,17 @@ app.get("/api/health", (req, res) => {
     version: process.env.npm_package_version || "1.0.0",
   });
 });
+
+app.get("/api", (req, res) => {
+  res.json({ message: "API is running..." });
+});
+
+// Protected routes - yêu cầu xác thực
+app.use("/api/auth", authRoutes);
+app.use("/api", homeRoutes);
+app.use("/api/user", userRoutes);
+app.use("/api/categories", categoryRoutes);
+app.use("/api", transactionRoutes);
 
 // Error handling middleware
 app.use(

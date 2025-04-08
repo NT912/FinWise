@@ -148,8 +148,20 @@ const CategoryScreen = () => {
 
   // Load categories and user data on mount
   useEffect(() => {
-    loadUserData();
-    loadCategories();
+    const loadInitialData = async () => {
+      try {
+        setLoading(true);
+        await Promise.all([loadUserData(), loadCategories()]);
+        startContentAnimation();
+      } catch (error) {
+        console.error("Error loading initial data:", error);
+        showError("Error", "Failed to load data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadInitialData();
   }, []);
 
   // Filter and sort categories
@@ -243,40 +255,41 @@ const CategoryScreen = () => {
         totalExpensePercentage: expensePercentage,
         budgetLimit: budgetLimit,
       });
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error loading user data:", error);
-      // Fallback default values
-      setUserData({
-        userName: "User",
-        userAvatar: "https://via.placeholder.com/50",
-        totalBalance: 7783000,
-        totalExpense: 1187400,
-        totalExpensePercentage: 30,
-        budgetLimit: 20000000,
-      });
+      if (error.response?.status === 401) {
+        navigation.navigate("Login" as never);
+      } else {
+        showError("Error", "Failed to load user data. Please try again.");
+      }
     }
   };
 
-  // Fetch categories from API
+  // Load categories from API
   const loadCategories = async () => {
     try {
-      setLoading(true);
-      const hasToken = await checkCurrentToken();
-      const result = await getAllCategories();
-      setCategories(result);
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        navigation.navigate("Login" as never);
+        return;
+      }
 
-      const expenseResult = result.filter((cat) => cat.type === "expense");
-      const incomeResult = result.filter((cat) => cat.type === "income");
+      const data = await getAllCategories();
 
-      setExpenseCategories(expenseResult);
-      setIncomeCategories(incomeResult);
+      // Split categories by type
+      const expenseCats = data.filter((cat) => cat.type === "expense");
+      const incomeCats = data.filter((cat) => cat.type === "income");
 
-      startContentAnimation();
+      setCategories(data);
+      setExpenseCategories(expenseCats);
+      setIncomeCategories(incomeCats);
     } catch (error: any) {
       console.error("Error loading categories:", error);
-      showError("Error", `Failed to load categories: ${error.message}`);
-    } finally {
-      setLoading(false);
+      if (error.response?.status === 401) {
+        navigation.navigate("Login" as never);
+      } else {
+        showError("Error", "Failed to load categories. Please try again.");
+      }
     }
   };
 
@@ -301,11 +314,17 @@ const CategoryScreen = () => {
     ]).start();
   };
 
-  // Pull to refresh handler
+  // Handle refresh
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadUserData(), loadCategories()]);
-    setRefreshing(false);
+    try {
+      await Promise.all([loadUserData(), loadCategories()]);
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+      showError("Error", "Failed to refresh data. Please try again.");
+    } finally {
+      setRefreshing(false);
+    }
   }, []);
 
   // Category form handlers
@@ -710,13 +729,15 @@ const CategoryScreen = () => {
         <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
 
         <View style={categoryStyles.categoryHeader}>
-          <TouchableOpacity
-            style={categoryStyles.backButton}
-            onPress={() => navigation.goBack()}
+          <View style={{ width: 40 }} />
+          <Text
+            style={[
+              categoryStyles.headerText,
+              { flex: 1, textAlign: "center", color: "#000000" },
+            ]}
           >
-            <Ionicons name="arrow-back" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-          <Text style={categoryStyles.headerText}>Categories</Text>
+            Categories
+          </Text>
           <TouchableOpacity style={categoryStyles.notificationButton}>
             <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -733,36 +754,25 @@ const CategoryScreen = () => {
               borderTopRightRadius: 25,
               paddingHorizontal: 12,
               paddingTop: 20,
-              paddingBottom: 90, // Tăng padding bottom để không bị tab bar che mất
-              marginTop: 10,
+              paddingBottom: 0,
+              marginTop: 0,
+              flex: 1,
+              justifyContent: "flex-start",
             },
           ]}
         >
-          <View style={categoryStyles.toolbarContainer}>
-            <View style={categoryStyles.searchAndFilterContainer}>
-              <TextInput
-                style={categoryStyles.compactSearchInput}
-                placeholder="Search..."
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
-              <TouchableOpacity
-                style={categoryStyles.iconButton}
-                onPress={() => {
-                  setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-                }}
-              >
-                <Ionicons
-                  name={sortOrder === "asc" ? "arrow-up" : "arrow-down"}
-                  size={16}
-                  color="#666"
-                />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <View style={[categoryStyles.mainContainer, { paddingBottom: 20 }]}>
-            <View style={categoryStyles.sectionHeader}>
+          <View
+            style={[
+              categoryStyles.mainContainer,
+              { flex: 1, justifyContent: "flex-start", paddingBottom: 0 },
+            ]}
+          >
+            <View
+              style={[
+                categoryStyles.sectionHeader,
+                { marginBottom: 0, paddingBottom: 0 },
+              ]}
+            >
               <Text style={categoryStyles.sectionTitle}>Categories</Text>
               <Text style={categoryStyles.sectionDescription}>
                 {
@@ -783,6 +793,10 @@ const CategoryScreen = () => {
                   {
                     opacity: fadeAnim,
                     transform: [{ scale: scaleAnim }, { translateY }],
+                    flex: 1,
+                    marginTop: 0,
+                    justifyContent: "flex-start",
+                    paddingBottom: 0,
                   },
                 ]}
               >
@@ -799,7 +813,15 @@ const CategoryScreen = () => {
                   ListEmptyComponent={
                     <EmptyCategories onAddCategory={handleAddCategory} />
                   }
-                  contentContainerStyle={categoryStyles.listContent}
+                  contentContainerStyle={[
+                    categoryStyles.listContent,
+                    {
+                      flexGrow: 1,
+                      paddingBottom: 0,
+                      paddingTop: 0,
+                      justifyContent: "flex-start",
+                    },
+                  ]}
                   numColumns={3}
                   columnWrapperStyle={{ justifyContent: "flex-start" }}
                   showsVerticalScrollIndicator={false}

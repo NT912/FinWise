@@ -33,25 +33,25 @@ export default function LaunchScreen() {
       }),
     ]).start();
 
-    // Kiểm tra token xác thực
+    // Kiểm tra token và chuyển hướng phù hợp
     const checkAuthAndNavigate = async () => {
       try {
-        console.log("Checking authentication status...");
         const token = await AsyncStorage.getItem("token");
+        console.log("Token status:", token ? "Found" : "Not found");
 
         // Đợi animation kết thúc (khoảng 2 giây) rồi mới chuyển màn hình
         setTimeout(() => {
           if (token) {
-            console.log("Token found, navigating to MainApp");
-            navigation.replace("MainApp");
+            console.log("Navigating to TabNavigator screen");
+            navigation.replace("TabNavigator");
           } else {
-            console.log("No token found, navigating to Login");
+            console.log("Navigating to Login screen");
             navigation.replace("Login");
           }
         }, 2000);
       } catch (error) {
-        console.error("Error checking authentication:", error);
-        // Nếu có lỗi, mặc định chuyển về màn hình đăng nhập
+        console.error("Error checking token:", error);
+        // Nếu có lỗi, mặc định chuyển đến màn hình Login
         setTimeout(() => {
           navigation.replace("Login");
         }, 2000);
@@ -59,9 +59,7 @@ export default function LaunchScreen() {
     };
 
     checkAuthAndNavigate();
-
-    // Không cần cleanup timer vì chúng ta đã dùng setTimeout trong hàm async
-  }, [navigation]);
+  }, [navigation, fadeAnim, scaleAnim]);
 
   return (
     <View style={styles.container}>

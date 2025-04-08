@@ -334,11 +334,12 @@ const AddTransactionScreen: React.FC = () => {
       <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
 
       <AppHeader
-        title="Thêm Giao Dịch"
+        headerTitle="Thêm Giao Dịch"
         showBackButton={true}
         showAvatar={false}
         backgroundColor="#00D09E"
         textColor="#FFFFFF"
+        onBackPress={() => navigation.goBack()}
       />
 
       <View style={styles.backgroundLayer} />
@@ -618,7 +619,6 @@ const AddTransactionScreen: React.FC = () => {
           </View>
         </View>
       </Modal>
-      <TabBar activeTab="Category" />
     </SafeAreaView>
   );
 };

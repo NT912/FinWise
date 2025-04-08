@@ -83,7 +83,7 @@ const TabBar = ({ activeTab = "Home", onChangeTab }: TabBarProps) => {
 const styles = StyleSheet.create({
   tabBarContainer: {
     flexDirection: "row",
-    height: 80,
+    height: 60,
     backgroundColor: "#DFF7E2",
     borderTopLeftRadius: 30,
     borderTopRightRadius: 30,
@@ -96,27 +96,27 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    paddingBottom: 20,
+    paddingBottom: 10,
     zIndex: 1000,
   },
   tabItem: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 12,
+    paddingTop: 8,
   },
   tabItemActive: {
     borderTopColor: "#00D09E",
-    borderTopWidth: 3,
+    borderTopWidth: 2,
   },
   tabItemActiveLeft: {
     borderTopColor: "#00D09E",
-    borderTopWidth: 3,
+    borderTopWidth: 2,
     borderTopLeftRadius: 30,
   },
   tabItemActiveRight: {
     borderTopColor: "#00D09E",
-    borderTopWidth: 3,
+    borderTopWidth: 2,
     borderTopRightRadius: 30,
   },
 });

@@ -1,7 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { formatVND } from "../../utils/formatters";
 
 // Định nghĩa kiểu dữ liệu cho props
 type BalanceOverviewProps = {
@@ -22,15 +21,15 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
       <View style={styles.balanceSection}>
         <View style={styles.balanceItem}>
           <View style={styles.balanceHeader}>
-            <Ionicons name="wallet-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="wallet-outline" size={16} color="#000000" />
             <Text style={styles.balanceLabel}>Total Balance</Text>
           </View>
           <Text style={styles.balanceAmount}>${totalBalance.toFixed(2)}</Text>
         </View>
-        <View style={styles.separator} />
+
         <View style={styles.balanceItem}>
           <View style={styles.balanceHeader}>
-            <Ionicons name="trending-down-outline" size={20} color="#FFFFFF" />
+            <Ionicons name="trending-down-outline" size={16} color="#000000" />
             <Text style={styles.balanceLabel}>Total Expense</Text>
           </View>
           <Text style={styles.expenseAmount}>-${totalExpense.toFixed(2)}</Text>
@@ -38,34 +37,46 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
       </View>
 
       <View style={styles.progressContainer}>
-        <View style={styles.progressBar}>
+        <View style={styles.progressBackground}>
           <View
             style={[styles.progressFill, { width: `${expensePercentage}%` }]}
-          />
+          >
+            <Text style={styles.progressPercentage}>
+              {expensePercentage.toFixed(0)}%
+            </Text>
+          </View>
+          <View
+            style={[
+              styles.progressRemaining,
+              { width: `${100 - expensePercentage}%` },
+            ]}
+          >
+            <Text style={styles.remainingPercentage}>
+              {(100 - expensePercentage).toFixed(0)}%
+            </Text>
+          </View>
         </View>
         <Text style={styles.progressText}>${targetAmount.toFixed(2)}</Text>
       </View>
 
-      <Text style={styles.statusText}>
-        <Text style={styles.percentageText}>
-          {expensePercentage.toFixed(0)}%
-        </Text>{" "}
-        Of Your Expenses. Looks Good.
-      </Text>
+      <Text style={styles.statusText}>Of Your Expenses, Looks Good</Text>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
+    backgroundColor: "#00D09E",
     paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingTop: 4,
+    paddingBottom: 20,
+    margin: 16,
+    marginBottom: 18,
   },
   balanceSection: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
   },
   balanceItem: {
     flex: 1,
@@ -77,9 +88,9 @@ const styles = StyleSheet.create({
   },
   balanceLabel: {
     fontSize: 14,
-    color: "#FFFFFF",
+    color: "#000000",
     marginLeft: 8,
-    opacity: 0.8,
+    opacity: 0.7,
   },
   balanceAmount: {
     fontSize: 24,
@@ -89,45 +100,53 @@ const styles = StyleSheet.create({
   expenseAmount: {
     fontSize: 24,
     fontWeight: "600",
-    color: "#FFFFFF",
-  },
-  separator: {
-    width: 1,
-    height: "100%",
-    backgroundColor: "#FFFFFF",
-    marginHorizontal: 20,
-    opacity: 0.2,
+    color: "#0068FF",
   },
   progressContainer: {
-    marginBottom: 8,
+    marginBottom: 6,
   },
-  progressBar: {
-    height: 8,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
-    borderRadius: 4,
+  progressBackground: {
+    height: 30,
+    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    borderRadius: 15,
+    flexDirection: "row",
     overflow: "hidden",
-    marginBottom: 4,
   },
   progressFill: {
     height: "100%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 4,
+    justifyContent: "center",
+    alignItems: "flex-start",
+    paddingLeft: 10,
+    borderTopRightRadius: 20,
+    borderBottomRightRadius: 20,
+  },
+  progressRemaining: {
+    height: "100%",
+    justifyContent: "center",
+    paddingLeft: 10,
+  },
+  progressPercentage: {
+    color: "#000000",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  remainingPercentage: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "600",
   },
   progressText: {
     fontSize: 12,
-    color: "#FFFFFF",
+    color: "#000000",
     textAlign: "right",
-    opacity: 0.8,
+    marginTop: 2,
+    opacity: 0.7,
   },
   statusText: {
     fontSize: 14,
-    color: "#FFFFFF",
-    opacity: 0.8,
-  },
-  percentageText: {
-    color: "#FFFFFF",
-    fontWeight: "600",
-    opacity: 1,
+    color: "#000000",
+    opacity: 0.7,
   },
 });
 

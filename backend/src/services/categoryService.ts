@@ -4,38 +4,83 @@ import { ApiError } from "../utils/ApiError";
 
 // Default categories for new users
 export const DEFAULT_CATEGORIES = [
-  // Expense categories
   {
     name: "Food & Drink",
     icon: "restaurant",
     color: "#FF6B6B",
     type: "expense",
   },
-  { name: "Shopping", icon: "cart", color: "#FB9468", type: "expense" },
-  { name: "Transportation", icon: "car", color: "#4DC0F5", type: "expense" },
-  { name: "Housing", icon: "home", color: "#8D76E8", type: "expense" },
-  { name: "Entertainment", icon: "film", color: "#4EA5D9", type: "expense" },
-  { name: "Health", icon: "medkit", color: "#43AA8B", type: "expense" },
-  { name: "Education", icon: "book", color: "#4D8076", type: "expense" },
-  { name: "Personal", icon: "person", color: "#F78764", type: "expense" },
-  { name: "Gifts", icon: "gift", color: "#F94144", type: "expense" },
+  {
+    name: "Shopping",
+    icon: "cart",
+    color: "#FB9468",
+    type: "expense",
+  },
+  {
+    name: "Transportation",
+    icon: "car",
+    color: "#4DC0F5",
+    type: "expense",
+  },
+  {
+    name: "Housing",
+    icon: "home",
+    color: "#8D76E8",
+    type: "expense",
+  },
+  {
+    name: "Entertainment",
+    icon: "film",
+    color: "#4EA5D9",
+    type: "expense",
+  },
+  {
+    name: "Health",
+    icon: "medkit",
+    color: "#43AA8B",
+    type: "expense",
+  },
+  {
+    name: "Education",
+    icon: "book",
+    color: "#4D8076",
+    type: "expense",
+  },
+  {
+    name: "Personal",
+    icon: "person",
+    color: "#F78764",
+    type: "expense",
+  },
+  {
+    name: "Gifts",
+    icon: "gift",
+    color: "#F94144",
+    type: "expense",
+  },
+  {
+    name: "Salary",
+    icon: "cash",
+    color: "#4CAF50",
+    type: "income",
+  },
+  {
+    name: "Business",
+    icon: "briefcase",
+    color: "#E6A919",
+    type: "income",
+  },
+  {
+    name: "Investment",
+    icon: "trending-up",
+    color: "#2196F3",
+    type: "income",
+  },
   {
     name: "Other",
     icon: "ellipsis-horizontal",
     color: "#9c9c9c",
     type: "expense",
-  },
-
-  // Income categories
-  { name: "Salary", icon: "cash", color: "#4CAF50", type: "income" },
-  { name: "Business", icon: "briefcase", color: "#E6A919", type: "income" },
-  { name: "Investment", icon: "trending-up", color: "#2196F3", type: "income" },
-  { name: "Gifts", icon: "gift", color: "#E91E63", type: "income" },
-  {
-    name: "Other Income",
-    icon: "ellipsis-horizontal",
-    color: "#9c9c9c",
-    type: "income",
   },
 ];
 

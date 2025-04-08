@@ -1,9 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ReactNode } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { Ionicons } from "@expo/vector-icons";
 
-const NetworkStatusMonitor: React.FC = () => {
+interface NetworkStatusMonitorProps {
+  children?: ReactNode;
+}
+
+const NetworkStatusMonitor: React.FC<NetworkStatusMonitorProps> = ({
+  children,
+}) => {
   const [isConnected, setIsConnected] = useState(true);
   const [attemptingReconnect, setAttemptingReconnect] = useState(false);
   const translateY = useState(new Animated.Value(-100))[0];
@@ -66,28 +72,31 @@ const NetworkStatusMonitor: React.FC = () => {
   };
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        {
-          transform: [{ translateY }],
-          backgroundColor: attemptingReconnect ? "#FFB946" : "#FF6B6B",
-        },
-      ]}
-    >
-      <View style={styles.content}>
-        <Ionicons
-          name={attemptingReconnect ? "cellular" : "cellular-outline"}
-          size={24}
-          color="white"
-        />
-        <Text style={styles.text}>
-          {attemptingReconnect
-            ? "Đang thử kết nối lại..."
-            : "Không có kết nối mạng"}
-        </Text>
-      </View>
-    </Animated.View>
+    <>
+      <Animated.View
+        style={[
+          styles.container,
+          {
+            transform: [{ translateY }],
+            backgroundColor: attemptingReconnect ? "#FFB946" : "#FF6B6B",
+          },
+        ]}
+      >
+        <View style={styles.content}>
+          <Ionicons
+            name={attemptingReconnect ? "cellular" : "cellular-outline"}
+            size={24}
+            color="white"
+          />
+          <Text style={styles.text}>
+            {attemptingReconnect
+              ? "Đang thử kết nối lại..."
+              : "Không có kết nối mạng"}
+          </Text>
+        </View>
+      </Animated.View>
+      {children}
+    </>
   );
 };
 

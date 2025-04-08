@@ -31,13 +31,13 @@ export const getCategoriesByType = async (
 ): Promise<Category[]> => {
   try {
     console.log(`📊 Fetching ${type} categories...`);
-    const response = await api.get(`/api/categories/type/${type}`);
+    const response = await api.get(`/api/categories?type=${type}`);
     console.log(
       `✅ ${type} categories fetched successfully:`,
-      response.data.categories.length,
+      response.data.length,
       "items"
     );
-    return response.data.categories;
+    return response.data;
   } catch (error: any) {
     console.error(`❌ Error fetching ${type} categories:`, error.message);
     console.error("📝 Error details:", {

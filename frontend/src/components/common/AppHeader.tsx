@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  Platform,
-  StatusBar,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 
@@ -20,6 +12,8 @@ interface AppHeaderProps {
   customRightComponent?: React.ReactNode;
   onBackPress?: () => void;
   onNotificationPress?: () => void;
+  userName?: string;
+  headerTitle?: string;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -31,6 +25,8 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   customRightComponent,
   onBackPress,
   onNotificationPress,
+  userName = "",
+  headerTitle,
 }) => {
   const navigation = useNavigation();
 
@@ -48,24 +44,45 @@ const AppHeader: React.FC<AppHeaderProps> = ({
     }
   };
 
-  const currentHour = new Date().getHours();
-  let greeting = "Good Morning";
-  if (currentHour >= 12 && currentHour < 17) {
-    greeting = "Good Afternoon";
-  } else if (currentHour >= 17) {
-    greeting = "Good Evening";
-  }
+  const getGreeting = () => {
+    const currentHour = new Date().getHours();
+    if (currentHour >= 5 && currentHour < 12) {
+      return "Good Morning";
+    } else if (currentHour >= 12 && currentHour < 17) {
+      return "Good Afternoon";
+    } else if (currentHour >= 17 && currentHour < 22) {
+      return "Good Evening";
+    } else {
+      return "Good Night";
+    }
+  };
 
   return (
     <View style={[styles.header, { backgroundColor }]}>
       <View style={styles.headerContent}>
-        <View style={styles.titleContainer}>
-          <Text style={[styles.welcomeText, { color: textColor }]}>
-            Hi, Welcome Back
-          </Text>
-          <Text style={[styles.greetingText, { color: textColor }]}>
-            {greeting}
-          </Text>
+        {showBackButton ? (
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress}>
+            <Ionicons name="arrow-back" size={24} color={textColor} />
+          </TouchableOpacity>
+        ) : null}
+
+        <View
+          style={[styles.titleContainer, showBackButton && { marginLeft: 10 }]}
+        >
+          {headerTitle ? (
+            <Text style={[styles.headerTitleText, { color: textColor }]}>
+              {headerTitle}
+            </Text>
+          ) : (
+            <>
+              <Text style={[styles.greetingText, { color: textColor }]}>
+                {getGreeting()}
+              </Text>
+              <Text style={[styles.welcomeText, { color: textColor }]}>
+                {userName || "User"}
+              </Text>
+            </>
+          )}
         </View>
 
         <TouchableOpacity
@@ -95,22 +112,22 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   titleContainer: {
     flex: 1,
   },
-  welcomeText: {
-    fontSize: 24,
-    fontWeight: "600",
-    color: "#FFFFFF",
-    lineHeight: 28,
-  },
   greetingText: {
     fontSize: 14,
     fontWeight: "400",
-    color: "#FFFFFF",
+    color: "#000000",
     opacity: 0.7,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: "600",
+    color: "#000000",
+    lineHeight: 28,
     marginTop: 2,
   },
   notificationButton: {
@@ -123,6 +140,18 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(255, 255, 255, 0.2)",
     justifyContent: "center",
     alignItems: "center",
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  headerTitleText: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000000",
   },
 });
 

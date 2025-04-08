@@ -21,7 +21,14 @@ export const getCategories = async (
       query.type = type;
     }
 
-    const categories = await Category.find(query).sort({ createdAt: -1 });
+    const categories = await Category.find(query)
+      .sort({ createdAt: -1 })
+      .populate({
+        path: "transactions",
+        select: "amount date description",
+        options: { sort: { date: -1 }, limit: 5 },
+      });
+
     res.json(categories);
   } catch (error) {
     console.error("Error in getCategories:", error);

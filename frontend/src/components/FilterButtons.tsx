@@ -11,6 +11,11 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
   selectedFilter,
   onFilterChange,
 }) => {
+  // Validate that selectedFilter is one of the allowed values
+  const validFilter = ["Daily", "Weekly", "Monthly"].includes(selectedFilter)
+    ? selectedFilter
+    : "Monthly"; // Default to Monthly if invalid
+
   return (
     <View style={styles.filterContainer}>
       {["Daily", "Weekly", "Monthly"].map((filter) => (
@@ -18,7 +23,7 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
           key={filter}
           style={[
             styles.filterButton,
-            selectedFilter === filter && styles.filterButtonActive,
+            validFilter === filter && styles.filterButtonActive,
           ]}
           onPress={() =>
             onFilterChange(filter as "Daily" | "Weekly" | "Monthly")
@@ -27,7 +32,7 @@ const FilterButtons: React.FC<FilterButtonsProps> = ({
           <Text
             style={[
               styles.filterText,
-              selectedFilter === filter && styles.filterTextActive,
+              validFilter === filter && styles.filterTextActive,
             ]}
           >
             {filter}

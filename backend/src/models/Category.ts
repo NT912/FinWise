@@ -16,6 +16,7 @@ export interface ICategory extends Document {
   isDefault: boolean;
   userId: string;
   transactionCount?: number;
+  transactions?: mongoose.Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -70,6 +71,12 @@ const CategorySchema = new Schema(
       type: Number,
       default: 0,
     },
+    transactions: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Transaction",
+      },
+    ],
   },
   {
     timestamps: true,

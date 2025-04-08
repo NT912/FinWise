@@ -43,6 +43,23 @@ export type IconName =
   | "pricetag-outline"
   | "school-outline";
 
+export interface User {
+  _id: string;
+  fullName: string;
+  email: string;
+  avatar?: string;
+  phone?: string;
+  totalBalance?: number;
+  notifications?: {
+    push: boolean;
+    email: boolean;
+    sms: boolean;
+  };
+  accountStatus?: "active" | "deactivated";
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Transaction {
   _id: string;
   title: string;

@@ -31,10 +31,6 @@ const categoryStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-  backButton: {
-    padding: 8,
-    marginRight: 8,
-  },
   avatar: {
     width: 40,
     height: 40,
@@ -112,7 +108,7 @@ const categoryStyles = StyleSheet.create({
     zIndex: 1,
   },
   listContent: {
-    paddingBottom: 70,
+    paddingBottom: 200,
     paddingHorizontal: 5,
   },
   addButton: {

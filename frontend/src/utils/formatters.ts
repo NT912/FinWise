@@ -3,7 +3,12 @@
  * @param amount - The amount to format
  * @returns Formatted string with VND currency symbol
  */
-export const formatVND = (amount: number): string => {
+export const formatVND = (amount: number | null | undefined): string => {
+  // Handle null, undefined, or NaN inputs
+  if (amount === null || amount === undefined || isNaN(amount)) {
+    amount = 0;
+  }
+
   return new Intl.NumberFormat("vi-VN", {
     style: "currency",
     currency: "VND",

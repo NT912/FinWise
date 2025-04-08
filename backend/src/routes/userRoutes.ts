@@ -12,6 +12,7 @@ import {
   scanReceipt,
 } from "../controllers/userController";
 import { authenticateJWT } from "../middleware/authMiddleware";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
 const router = express.Router();
 
@@ -65,5 +66,18 @@ router.post(
 
 // Add a receipt scan route
 router.post("/receipts/scan", upload.single("receipt"), scanReceipt);
+
+// Thêm validate-token endpoint
+router.get(
+  "/validate-token",
+  authenticateJWT,
+  (req: AuthenticatedRequest, res) => {
+    res.status(200).json({
+      valid: true,
+      message: "Token is valid",
+      user: req.user,
+    });
+  }
+);
 
 export default router;
