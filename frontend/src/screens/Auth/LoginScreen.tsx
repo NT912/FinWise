@@ -1,337 +1,404 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
-  Alert,
+  SafeAreaView,
   KeyboardAvoidingView,
   Platform,
+  Image,
+  Animated,
   TouchableWithoutFeedback,
   Keyboard,
-  ActivityIndicator,
-  ScrollView,
-  SafeAreaView,
+  Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import type { StackNavigationProp } from "@react-navigation/stack";
-import type { RootStackParamList } from "../../navigation/AppNavigator";
-import * as Google from "expo-auth-session/providers/google";
-import * as Facebook from "expo-auth-session/providers/facebook";
-import * as WebBrowser from "expo-web-browser";
-import {
-  login,
-  loginWithGoogle,
-  loginWithFacebook,
-} from "../../services/authService";
-import {
-  GOOGLE_ANDROID_CLIENT_ID,
-  GOOGLE_IOS_CLIENT_ID,
-  FACEBOOK_APP_ID,
-} from "@env";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as AuthSession from "expo-auth-session";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../../hooks/useAuth";
+import { RootStackParamList } from "../../types/navigation";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
-WebBrowser.maybeCompleteAuthSession();
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList>;
-
-export default function LoginScreen() {
+const LoginScreen = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
+  const { login, loading, error } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Google OAuth configuration
-  const [googleRequest, googleResponse, googlePromptAsync] =
-    Google.useAuthRequest({
-      androidClientId: GOOGLE_ANDROID_CLIENT_ID,
-      iosClientId: GOOGLE_IOS_CLIENT_ID,
-    });
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
 
-  // Facebook OAuth configuration
-  const [fbRequest, fbResponse, fbPromptAsync] = Facebook.useAuthRequest({
-    clientId: FACEBOOK_APP_ID,
-  });
-
-  // Handle Google and Facebook responses when they change
   useEffect(() => {
-    const initializeAuth = async () => {
-      // Handle Google and Facebook responses only when they change
-      if (googleResponse?.type === "success" && googleResponse.authentication) {
-        const { accessToken } = googleResponse.authentication;
-        handleGoogleSuccess(accessToken);
-      }
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 1000,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
 
-      if (fbResponse?.type === "success") {
-        const { access_token } = fbResponse.params;
-        handleFacebookLogin(access_token);
-      }
-    };
-
-    initializeAuth();
-  }, [googleResponse, fbResponse]);
-
-  // Login handling function
   const handleLogin = async () => {
+    if (!email || !password) {
+      setErrorMessage("Email and password are required");
+      return;
+    }
+
+    setErrorMessage(null);
+    setIsLoading(true);
+
     try {
-      if (!email || !password) {
-        Alert.alert("Warning", "Please fill in all fields");
-        return;
-      }
-
-      setLoading(true);
-      console.log("Attempting login with email and password...");
-
-      const response = await login({ email, password });
-      console.log("Login API response received");
-
-      if (response.token) {
-        console.log("Login successful, saving token for this session only");
-        await AsyncStorage.setItem("token", response.token);
-        console.log("Navigating to MainApp");
-        navigation.replace("MainApp");
+      const result = await login(email, password);
+      if (!result.success && result.error) {
+        setErrorMessage(result.error);
       }
     } catch (error: any) {
-      console.error("Login error:", {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-      });
-
-      let errorMessage = "Login failed. Please check your credentials.";
-
-      if (error.response?.status === 401) {
-        errorMessage = "Email or password is incorrect.";
-      } else if (error.code === "ERR_NETWORK") {
-        errorMessage = "Network error. Please check your connection.";
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-
-      Alert.alert("Login Failed", errorMessage);
+      // Only log to console, don't show on screen
+      console.error("Unexpected login error:", error);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  // Handle Google Success
-  const handleGoogleSuccess = async (token: string) => {
-    try {
-      console.log("Google sign in successful, getting server token");
-      const serverToken = await loginWithGoogle(token);
-      console.log("Server token received, saving for this session only");
-      await AsyncStorage.setItem("token", serverToken);
-      console.log("Navigating to MainApp");
-      navigation.replace("MainApp");
-    } catch (error) {
-      console.error("Google sign in error:", error);
-      Alert.alert("Error", "Google sign in failed");
-    }
-  };
-
-  // Handle Facebook Login
-  const handleFacebookLogin = async (access_token: string) => {
-    try {
-      console.log("Facebook sign in successful, getting server token");
-      const serverToken = await loginWithFacebook(access_token);
-      console.log("Server token received, saving for this session only");
-      await AsyncStorage.setItem("token", serverToken);
-      console.log("Navigating to MainApp");
-      navigation.replace("MainApp");
-    } catch (error) {
-      console.error("Facebook sign in error:", error);
-      Alert.alert("Error", "Facebook sign in failed");
-    }
+  const dismissKeyboard = () => {
+    Keyboard.dismiss();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.container}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 0 : 20}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-            <View style={styles.innerContainer}>
-              <Text style={styles.title}>Welcome to FinWise</Text>
-
-              <TextInput
-                placeholder="Email"
-                value={email}
-                onChangeText={setEmail}
-                style={styles.input}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-
-              <TextInput
-                placeholder="Password"
-                value={password}
-                onChangeText={setPassword}
-                style={styles.input}
-                secureTextEntry
-              />
-
-              <TouchableOpacity
-                style={styles.forgotPasswordButton}
-                onPress={() => navigation.navigate("ForgotPassword")}
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
+      <View style={styles.container}>
+        <View style={styles.greenBackground}>
+          <SafeAreaView style={styles.topSafeArea}>
+            <View style={styles.header}>
+              <Animated.Text
+                style={[
+                  styles.titleText,
+                  {
+                    opacity: fadeAnim,
+                    transform: [{ translateY: slideAnim }],
+                  },
+                ]}
               >
-                <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-              </TouchableOpacity>
+                Welcome
+              </Animated.Text>
+            </View>
+          </SafeAreaView>
+        </View>
 
-              <TouchableOpacity
-                style={styles.loginButton}
-                onPress={handleLogin}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text style={styles.buttonText}>Login</Text>
-                )}
-              </TouchableOpacity>
+        <View style={styles.whiteContainer}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.content}
+          >
+            <View style={styles.form}>
+              {errorMessage ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{errorMessage}</Text>
+                </View>
+              ) : null}
 
-              <TouchableOpacity
-                style={[styles.socialButton, styles.googleButton]}
-                onPress={() => googlePromptAsync()}
-                disabled={loading}
-              >
-                <Image
-                  source={require("../../../assets/google-logo.png")}
-                  style={styles.icon}
-                />
-                <Text style={styles.socialText}>Continue with Google</Text>
-              </TouchableOpacity>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Email</Text>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="example@example.com"
+                    placeholderTextColor="#999999"
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      setErrorMessage(null);
+                    }}
+                    autoCapitalize="none"
+                    keyboardType="email-address"
+                  />
+                </View>
+              </View>
 
-              <TouchableOpacity
-                style={[styles.socialButton, styles.facebookButton]}
-                onPress={() => fbPromptAsync()}
-                disabled={loading}
-              >
-                <Image
-                  source={require("../../../assets/facebook-logo.png")}
-                  style={styles.icon}
-                />
-                <Text style={[styles.socialText, { color: "white" }]}>
-                  Continue with Facebook
-                </Text>
-              </TouchableOpacity>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Password</Text>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="• • • • • • • •"
+                    placeholderTextColor="#999999"
+                    value={password}
+                    onChangeText={(text) => {
+                      setPassword(text);
+                      setErrorMessage(null);
+                    }}
+                    secureTextEntry={!showPassword}
+                  />
+                  <TouchableOpacity
+                    style={styles.eyeIcon}
+                    onPress={() => setShowPassword(!showPassword)}
+                  >
+                    <Ionicons
+                      name={showPassword ? "eye-outline" : "eye-off-outline"}
+                      size={24}
+                      color="#999999"
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
-              <View style={styles.registerContainer}>
+              <View style={styles.buttonContainer}>
                 <TouchableOpacity
+                  style={[
+                    styles.loginButton,
+                    isLoading && styles.disabledButton,
+                  ]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  <Text style={styles.loginButtonText}>
+                    {isLoading ? "Logging in..." : "Log In"}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => navigation.navigate("ForgotPassword")}
+                >
+                  <Text style={styles.forgotPasswordText}>
+                    Forgot Password?
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.signUpButton}
                   onPress={() => navigation.navigate("Register")}
                 >
-                  <Text style={styles.linkText}>
-                    Don't have an account? Register now
-                  </Text>
+                  <Text style={styles.signUpButtonText}>Sign Up</Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.dividerContainer}>
+                <View style={styles.divider} />
+                <Text style={styles.dividerText}>or sign up with</Text>
+                <View style={styles.divider} />
+              </View>
+
+              <View style={styles.socialButtons}>
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image
+                    source={require("../../../assets/facebook-logo.png")}
+                    style={styles.socialIcon}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.socialButton}>
+                  <Image
+                    source={require("../../../assets/google-logo.png")}
+                    style={styles.socialIcon}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableWithoutFeedback>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+          </KeyboardAvoidingView>
+        </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
-}
+};
 
-// 🖌️ Thiết lập CSS
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#E3FFF8",
-  },
   container: {
     flex: 1,
+    backgroundColor: "#FFFFFF",
   },
-  scrollContent: {
-    flexGrow: 1,
+  greenBackground: {
+    backgroundColor: "#00D09E",
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 280,
+  },
+  topSafeArea: {
+    flex: 0,
+  },
+  header: {
+    paddingHorizontal: 24,
+    paddingTop: 30,
     paddingBottom: 20,
-  },
-  innerContainer: {
-    flex: 1,
-    justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#E3FFF8",
-    paddingHorizontal: 20,
-    paddingTop: 40,
-    paddingBottom: 30,
   },
-  title: {
-    fontSize: 26,
-    fontWeight: "bold",
+  whiteContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: 220,
+  },
+  content: {
+    flex: 1,
+  },
+  titleText: {
+    fontSize: 32,
+    fontWeight: "600",
+    color: "#000000",
+    marginTop: 40,
+  },
+  form: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 30,
+    paddingBottom: 24,
+  },
+  inputGroup: {
     marginBottom: 20,
-    color: "#00D09E",
+  },
+  label: {
+    fontSize: 16,
+    color: "#000000",
+    marginBottom: 8,
+  },
+  inputContainer: {
+    backgroundColor: "#E8F8F2",
+    borderRadius: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
   },
   input: {
-    width: "100%",
+    flex: 1,
     height: 50,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    marginBottom: 10,
+    fontSize: 16,
+    color: "#000000",
+  },
+  eyeIcon: {
+    padding: 8,
+  },
+  buttonContainer: {
+    marginTop: 24,
+    paddingHorizontal: 16,
   },
   loginButton: {
     backgroundColor: "#00D09E",
-    paddingVertical: 12,
-    borderRadius: 8,
-    width: "100%",
-    alignItems: "center",
-    marginTop: 10,
-    marginBottom: 15,
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 16,
-  },
-  socialButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding: 12,
-    borderRadius: 8,
-    width: "100%",
+    borderRadius: 25,
+    height: 45,
     justifyContent: "center",
-    marginTop: 10,
-  },
-  googleButton: {
-    backgroundColor: "#FFFFFF",
-    borderColor: "#DD4B39",
-    borderWidth: 1,
-  },
-  facebookButton: {
-    backgroundColor: "#1877F2",
-  },
-  socialText: {
-    color: "#333",
-    fontSize: 16,
-    marginLeft: 10,
-  },
-  icon: {
-    width: 30,
-    height: 30,
-  },
-  registerContainer: {
-    width: "100%",
     alignItems: "center",
-    marginTop: 30,
+    shadowColor: "#00D09E",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
-  linkText: {
+  loginButtonText: {
+    color: "#FFFFFF",
     fontSize: 16,
-    color: "#00D09E",
-  },
-  forgotPasswordButton: {
-    alignSelf: "flex-end",
-    marginBottom: 20,
+    fontWeight: "600",
   },
   forgotPasswordText: {
+    color: "#000000",
+    fontSize: 14,
+    textAlign: "center",
+    marginVertical: 12,
+  },
+  signUpButton: {
+    backgroundColor: "#E8F8F2",
+    borderRadius: 25,
+    height: 45,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  signUpButtonText: {
+    color: "#00D09E",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  dividerContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 24,
+    marginBottom: 24,
+  },
+  divider: {
+    flex: 1,
+    height: 1,
+    backgroundColor: "#E5E5E5",
+  },
+  dividerText: {
+    color: "#666666",
+    paddingHorizontal: 16,
+    fontSize: 14,
+  },
+  socialButtons: {
+    flexDirection: "row",
+    justifyContent: "center",
+    gap: 16,
+  },
+  socialButton: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  socialIcon: {
+    width: 24,
+    height: 24,
+  },
+  signUpPrompt: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 24,
+  },
+  signUpPromptText: {
+    color: "#666666",
+    fontSize: 14,
+  },
+  signUpLink: {
     color: "#00D09E",
     fontSize: 14,
   },
+  errorContainer: {
+    backgroundColor: "#FFE8E8",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+    borderLeftWidth: 4,
+    borderLeftColor: "#FF3B30",
+  },
+  errorText: {
+    color: "#FF3B30",
+    fontSize: 14,
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
 });
+
+export default LoginScreen;

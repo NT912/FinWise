@@ -1,6 +1,8 @@
 import api from "./apiService";
 import { Transaction } from "../types";
 
+const API_URL = "http://192.168.1.8:3002";
+
 /**
  * Fetch all transactions for the current user
  * @returns Array of transactions

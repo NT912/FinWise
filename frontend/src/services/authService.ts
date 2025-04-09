@@ -1,17 +1,23 @@
 import api from "./apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import axios from "axios";
+import { API_URL } from "../config/api";
 
 interface LoginCredentials {
   email: string;
   password: string;
 }
 
-// Đăng ký tài khoản
-export const register = async (userData: {
+interface RegisterData {
   email: string;
   password: string;
   fullName: string;
-}) => {
+  phoneNumber?: string;
+  dateOfBirth?: string;
+}
+
+// Đăng ký tài khoản
+export const register = async (userData: RegisterData) => {
   try {
     const response = await api.post("/api/auth/register", userData);
     return response.data;
@@ -30,12 +36,30 @@ export const login = async (credentials: LoginCredentials) => {
       console.log(
         "✅ Đăng nhập thành công, token đã được lưu cho phiên hiện tại"
       );
+      return { success: true, token: response.data.token };
     }
 
-    return response.data;
-  } catch (error) {
+    return {
+      success: false,
+      message: "Login failed. No token received from server.",
+    };
+  } catch (error: any) {
     console.error("Login error:", error);
-    throw error;
+
+    let errorMessage = "Login failed. Please check your credentials.";
+
+    if (error.response?.status === 401) {
+      errorMessage = "Email or password is incorrect.";
+    } else if (error.code === "ERR_NETWORK") {
+      errorMessage = "Network error. Please check your connection.";
+    } else if (error.response?.data?.message) {
+      errorMessage = error.response.data.message;
+    }
+
+    return {
+      success: false,
+      message: errorMessage,
+    };
   }
 };
 
@@ -66,24 +90,74 @@ export const loginWithFacebook = async (accessToken: string) => {
   }
 };
 
-// Quên mật khẩu
+// Forgot password - request reset code
 export const forgotPassword = async (email: string) => {
-  const response = await api.post("/api/auth/forgot-password", { email });
-  return response.data;
+  try {
+    console.log("📤 Sending forgot password request for:", email);
+    const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
+      email,
+    });
+    console.log("✅ Forgot password response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "❌ Forgot password error:",
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.message || "Failed to send reset code"
+    );
+  }
 };
 
-// Đặt lại mật khẩu
-export const resetPassword = async (
+// Reset password with code
+export const resetPassword = async (email: string, resetCode: string) => {
+  try {
+    console.log("📤 Verifying reset code for:", email);
+    console.log("Reset code:", resetCode);
+
+    const response = await axios.post(`${API_URL}/api/auth/verify-reset-code`, {
+      email,
+      resetCode,
+    });
+
+    console.log("✅ Reset code verification response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    // Trả về response data từ server nếu có
+    if (error.response?.data) {
+      return error.response.data;
+    }
+
+    // Nếu không có response data, throw error
+    throw new Error("Failed to verify code. Please try again.");
+  }
+};
+
+// Update password with new password
+export const updatePassword = async (
   email: string,
   resetCode: string,
   newPassword: string
 ) => {
-  const response = await api.post("/api/auth/reset-password", {
-    email,
-    resetCode,
-    newPassword,
-  });
-  return response.data;
+  try {
+    console.log("📤 Updating password for:", email);
+    const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
+      email,
+      resetCode,
+      newPassword,
+    });
+    console.log("✅ Password update response:", response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error(
+      "❌ Password update error:",
+      error.response?.data || error.message
+    );
+    throw new Error(
+      error.response?.data?.message || "Failed to update password"
+    );
+  }
 };
 
 // Đăng xuất
@@ -123,6 +197,7 @@ export default {
   loginWithFacebook,
   forgotPassword,
   resetPassword,
+  updatePassword,
   getUserData,
   isAuthenticated,
 };

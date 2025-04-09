@@ -9,7 +9,8 @@ import LoginScreen from "../screens/Auth/LoginScreen";
 import RegisterScreen from "../screens/Auth/RegisterScreen";
 import OnboardingScreen from "../screens/OnboardingScreen";
 import ForgotPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
-import ResetPasswordScreen from "../screens/ResetPasswordScreen";
+import SecurityPinScreen from "../screens/Auth/SecurityPinScreen";
+import ResetPasswordScreen from "../screens/Auth/ResetPasswordScreen";
 import HomeScreen from "../screens/Home/HomeScreen";
 import CategoryScreen from "../screens/Category/CategoryScreen";
 import ChartsScreen from "../screens/ChartsScreen";
@@ -18,17 +19,18 @@ import CategoriesScreen from "../screens/CategoriesScreen";
 import SettingsScreen from "../screens/Profile/SettingsScreen";
 import NotificationScreen from "../screens/NotificationScreen";
 import EditProfileScreen from "../screens/Profile/EditProfileScreen";
-import SecurityScreen from "../screens/Profile/SecurityScreen";
+import SecurityScreen from "../screens/Security/SecurityScreen";
 import NotificationSettingsScreen from "../screens/Profile/NotificationSettingsScreen";
 import HelpScreen from "../screens/Profile/HelpScreen";
 import DeleteAccountScreen from "../screens/Profile/DeleteAccountScreen";
-import TermsAndConditionsScreen from "../screens/Profile/TermsAndConditionsScreen";
+import TermsAndConditionsScreen from "../screens/Security/TermsAndConditionsScreen";
 import LogoutScreen from "../screens/Profile/LogoutScreen";
 import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
 import CategoryDetailScreen from "../screens/Category/CategoryDetailScreen";
 import AddTransactionScreen from "../screens/Transaction/AddTransactionScreen";
 import { User } from "../types";
 import CustomTabBar from "../components/CustomTabBar";
+import ChangePinScreen from "../screens/Security/ChangePinScreen";
 
 export type RootStackParamList = {
   Launch: undefined;
@@ -40,6 +42,7 @@ export type RootStackParamList = {
   Settings: undefined;
   Notifications: undefined;
   ForgotPassword: undefined;
+  SecurityPin: { email: string };
   ResetPassword: { email: string; resetCode: string };
   PrivacyPolicyScreen: undefined;
   SettingsScreen: undefined;
@@ -51,6 +54,11 @@ export type RootStackParamList = {
   DeleteAccountScreen: undefined;
   TermsAndConditionsScreen: undefined;
   ChangePasswordScreen: undefined;
+  Security: undefined;
+  ChangePin: undefined;
+  TermsAndConditions: undefined;
+  TermsOfUse: undefined;
+  PrivacyPolicy: undefined;
 };
 
 export type HomeStackParamList = {
@@ -225,6 +233,7 @@ export default function AppNavigator({
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen name="SecurityPin" component={SecurityPinScreen} />
       <Stack.Screen name="ResetPassword" component={ResetPasswordScreen} />
 
       {/* Main tab navigator that contains the TabBar */}
@@ -237,6 +246,31 @@ export default function AppNavigator({
       {/* Other screens not directly accessible through tabs */}
       <Stack.Screen name="Categories" component={CategoriesScreen} />
       <Stack.Screen name="Notifications" component={NotificationScreen} />
+      <Stack.Screen
+        name="Security"
+        component={SecurityScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ChangePin"
+        component={ChangePinScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TermsAndConditions"
+        component={TermsAndConditionsScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="TermsOfUse"
+        component={require("../screens/Auth/TermsOfUseScreen").default}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="PrivacyPolicy"
+        component={require("../screens/Auth/PrivacyPolicyScreen").default}
+        options={{ headerShown: false }}
+      />
     </Stack.Navigator>
   );
 }

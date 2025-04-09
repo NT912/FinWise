@@ -11,7 +11,7 @@ const getApiUrl = () => {
   }
 
   // URL mặc định cho thiết bị di động - đảm bảo trùng với apiService.ts
-  return "http://192.168.1.4:3002";
+  return "http://192.168.1.8:3002";
 };
 
 const API_URL = getApiUrl();

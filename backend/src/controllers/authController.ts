@@ -12,75 +12,98 @@ import PasswordReset from "../models/PasswordReset";
 import User from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { validateEmail } from "../utils/validation";
 
-// 📌 Đăng ký tài khoản
-export const register = async (req: Request, res: Response): Promise<void> => {
+// �� Đăng ký tài khoản
+const register = async (req: Request, res: Response) => {
   try {
-    console.log("Registration request body:", req.body);
-    const { email, password, fullName } = req.body;
+    const { fullName, email, password, phoneNumber, dateOfBirth } = req.body;
 
-    // Validate input
-    if (!email || !password || !fullName) {
-      console.log("Missing fields:", { email, password, fullName });
-      res.status(400).json({
-        message: "Please provide all required fields",
+    // Validate required fields
+    if (!fullName || !email || !password) {
+      return res.status(400).json({
         success: false,
+        message: "Please provide all required fields",
       });
-      return;
+    }
+
+    // Validate email format
+    if (!validateEmail(email)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
     }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
     if (existingUser) {
-      console.log("User already exists:", email);
-      res.status(400).json({
-        message: "User already exists",
+      return res.status(400).json({
         success: false,
+        message: "Email already registered",
       });
-      return;
     }
 
     // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
-    console.log("Creating new user with data:", {
-      email,
-      fullName,
-      hashedPassword: "hidden",
-    });
-
-    // Create new user
+    // Create new user with all fields
     const user = new User({
+      fullName,
       email,
       password: hashedPassword,
-      fullName,
+      phoneNumber: phoneNumber || undefined,
+      dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
     });
 
+    // Save user to database
     await user.save();
-    console.log("User saved successfully:", user._id);
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { userId: user._id },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "7d" }
+    );
+
+    // Return success response with token and user data (excluding password)
+    const userResponse = {
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      phoneNumber: user.phoneNumber,
+      dateOfBirth: user.dateOfBirth,
+      avatar: user.avatar,
+      notifications: user.notifications,
+      accountStatus: user.accountStatus,
+    };
 
     res.status(201).json({
-      message: "User registered successfully",
       success: true,
-      user: {
-        id: user._id,
-        email: user.email,
-        fullName: user.fullName,
-      },
+      message: "Registration successful",
+      token,
+      user: userResponse,
     });
-  } catch (error) {
-    console.error("Detailed registration error:", error);
+  } catch (error: any) {
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: Object.values(error.errors).map((err: any) => err.message),
+      });
+    }
+
+    console.error("Registration error:", error);
     res.status(500).json({
-      message:
-        error instanceof Error ? error.message : "Error registering user",
       success: false,
+      message: "An error occurred during registration",
     });
   }
 };
 
 // 📌 Đăng nhập tài khoản
-export const login = async (req: Request, res: Response): Promise<void> => {
+const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
     console.log("👤 Login attempt for email:", email);
@@ -157,10 +180,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 };
 
 // 📌 Đăng nhập bằng Google
-export const googleLogin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const googleLogin = async (req: Request, res: Response): Promise<void> => {
   try {
     console.log("🔍 Google login request body:", req.body);
     const { idToken } = req.body;
@@ -175,152 +195,115 @@ export const googleLogin = async (
   } catch (error) {
     console.error("❌ Google login error:", error);
     res.status(400).json({
-      error: error instanceof Error ? error.message : "Google login failed!",
+      error:
+        error instanceof Error ? error.message : "Google authentication failed",
     });
   }
 };
 
 // 📌 Đăng nhập bằng Facebook
-export const facebookLogin = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
+const facebookLogin = async (req: Request, res: Response): Promise<void> => {
   try {
-    console.log("🔍 Facebook login request body:", req.body);
-    const { idToken } = req.body;
-
-    if (!idToken) {
-      res.status(400).json({ error: "Facebook ID token is required!" });
-      return;
-    }
-
-    const token = await loginWithFacebook(idToken);
+    const { accessToken } = req.body;
+    const token = await loginWithFacebook(accessToken);
     res.json({ token });
   } catch (error) {
     console.error("❌ Facebook login error:", error);
     res.status(400).json({
-      error: error instanceof Error ? error.message : "Facebook login failed!",
+      error:
+        error instanceof Error
+          ? error.message
+          : "Facebook authentication failed",
     });
   }
 };
 
-export const forgotPassword = async (req: Request, res: Response) => {
+// 📌 Quên mật khẩu
+const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ message: "Email is required!" });
-    }
-
-    // ✅ Tạo mã reset ngẫu nhiên (Không truyền tham số)
-    const resetToken = generateResetToken();
-
-    // ✅ Xóa reset code cũ trước khi tạo mới
-    await PasswordReset.deleteMany({ email });
-
-    // ✅ Lưu reset code mới vào database
-    await new PasswordReset({
-      email,
-      resetCode: resetToken,
-      createdAt: new Date(),
-    }).save();
-
-    console.log(`📤 Reset Code: ${resetToken} for email: ${email}`);
-
-    // ✅ Gửi email chứa mã xác nhận
     await sendResetPasswordEmail(email);
-
-    res.json({
-      message: "Verification code has been sent via email!",
-      success: true,
-    });
+    res.json({ message: "Reset password email sent" });
   } catch (error) {
-    console.error("Lỗi khi gửi ResetPassword", error);
-    res.status(500).json({
-      message: "Error sending reset code!",
-      success: false,
+    console.error("❌ Forgot password error:", error);
+    res.status(400).json({
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to send reset password email",
     });
   }
 };
 
-export const resetPassword = async (req: Request, res: Response) => {
-  console.log("🔍 Reset Password API Request Body:", req.body);
-
+// 📌 Đặt lại mật khẩu
+const resetPassword = async (req: Request, res: Response) => {
   try {
     const { email, resetCode, newPassword } = req.body;
 
-    if (!email || !resetCode || !newPassword) {
-      console.log("Lỗi: Thiếu thông tin!", {
-        email,
-        resetCode,
-        newPassword,
-      });
-      return res.status(400).json({
-        message: "Missing necessary information!",
-        success: false,
-      });
+    const result = await resetUserPassword(email, resetCode, newPassword);
+
+    if (!result.success) {
+      res.status(400).json(result);
+      return;
     }
 
-    // ✅ Tìm mã reset mới nhất trong bảng PasswordReset
-    const resetRecord = await PasswordReset.findOne({ email })
-      .sort({ createdAt: -1 }) // Sắp xếp theo thời gian mới nhất
-      .exec();
-
-    if (!resetRecord) {
-      console.log("Không tìm thấy reset code trong DB!");
-      return res.status(400).json({
-        message: "Reset code not issued yet!",
-        success: false,
-      });
-    }
-
-    console.log(
-      "📌 Reset Code trong DB:",
-      resetRecord.resetCode,
-      "| Reset Code nhận được:",
-      resetCode
-    );
-
-    // ✅ Kiểm tra reset code có khớp không
-    if (resetRecord.resetCode !== resetCode) {
-      console.log("Mã xác nhận không hợp lệ!");
-      return res.status(400).json({
-        message: "Invalid confirmation code!",
-        success: false,
-      });
-    }
-
-    // ✅ Kiểm tra reset code có hết hạn không (Giả sử có thời gian hết hạn)
-    if (
-      resetRecord.createdAt &&
-      Date.now() - resetRecord.createdAt.getTime() > 3600000
-    ) {
-      console.log("Mã xác nhận đã hết hạn!");
-      return res.status(400).json({
-        message: "The verification code has expired!",
-        success: false,
-      });
-    }
-
-    // ✅ Cập nhật mật khẩu mới cho user
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await User.updateOne({ email }, { password: hashedPassword });
-
-    // ✅ Xóa reset code khỏi DB sau khi sử dụng
-    await PasswordReset.deleteMany({ email });
-
-    console.log("Mật khẩu đặt lại thành công cho:", email);
-
-    res.json({
-      message: "Password reset successfully!",
-      success: true,
-    });
+    res.status(200).json(result);
   } catch (error: any) {
-    console.error("Reset password error:", error);
-
-    res.status(500).json({
-      message: error.message || "Error resetting password",
+    console.error("❌ Reset password error:", error);
+    res.status(400).json({
       success: false,
+      message: "Invalid reset code",
     });
   }
+};
+
+// 📌 Xác thực mã reset
+const verifyResetCode = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, resetCode } = req.body;
+
+    console.log("🔍 Verifying reset code for:", email);
+    console.log("Reset code:", resetCode);
+
+    // Tìm user với email và mã reset
+    const user = await User.findOne({
+      email,
+      resetPasswordCode: resetCode,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    console.log("Found user:", user ? "Yes" : "No");
+
+    if (!user) {
+      console.log("❌ Invalid or expired reset code");
+      res.status(400).json({
+        success: false,
+        message: "Invalid or expired reset code",
+      });
+      return;
+    }
+
+    console.log("✅ Reset code is valid");
+    res.json({
+      success: true,
+      message: "Reset code is valid",
+    });
+  } catch (error) {
+    console.error("❌ Verify reset code error:", error);
+    res.status(400).json({
+      success: false,
+      message:
+        error instanceof Error ? error.message : "Failed to verify reset code",
+    });
+  }
+};
+
+export {
+  register,
+  login,
+  googleLogin,
+  facebookLogin,
+  forgotPassword,
+  resetPassword,
+  verifyResetCode,
 };

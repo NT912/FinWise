@@ -211,14 +211,20 @@ const ProfileScreen = () => {
       {/* Header với tiêu đề giữa và nút thông báo bên phải */}
       <View style={styles.header}>
         <View style={styles.placeholder} />
-        <Text
-          style={[
-            categoryStyles.headerText,
-            { flex: 1, textAlign: "center", color: "#000000" },
-          ]}
-        >
-          Profile
-        </Text>
+        <View style={styles.titleContainer}>
+          <Text
+            style={[
+              categoryStyles.headerText,
+              {
+                color: "#000000",
+                fontSize: 20,
+                fontWeight: "600",
+              },
+            ]}
+          >
+            Profile
+          </Text>
+        </View>
         <TouchableOpacity style={categoryStyles.notificationButton}>
           <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
@@ -323,13 +329,14 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     paddingTop: 11,
     backgroundColor: "#00D09E",
+    position: "relative",
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#000000",
-    textAlign: "center",
-    flex: 1,
+  titleContainer: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
   },
   notificationButton: {
     padding: 8,

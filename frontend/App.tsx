@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, ErrorInfo } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppNavigator from "./src/navigation/AppNavigator";
@@ -20,7 +20,28 @@ LogBox.ignoreLogs([
   "ViewPropTypes will be removed from React Native",
   "AsyncStorage has been extracted from react-native",
   "Sending `onAnimatedValueUpdate` with no listeners registered",
+  // Thêm lỗi phiên đăng nhập để ngăn nó hiển thị
+  "Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại.",
 ]);
+
+// Đặt global error handler để ngăn chặn lỗi không mong muốn
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  // Filter out specific error messages
+  const errorMessage = args[0]?.toString() || "";
+
+  if (
+    errorMessage.includes("Phiên đăng nhập hết hạn hoặc không hợp lệ") ||
+    errorMessage.includes("Login error") ||
+    (args[0] === "Login error:" && args[1]?.response?.status === 401)
+  ) {
+    // Chỉ ghi log cho mục đích debug, không hiển thị trên UI
+    return;
+  }
+
+  // Chuyển tiếp các lỗi khác đến hàm console.error gốc
+  originalConsoleError(...args);
+};
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);

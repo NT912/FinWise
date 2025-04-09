@@ -1,12 +1,20 @@
-import express from "express";
-import * as authController from "../controllers/authController";
+import express, { RequestHandler } from "express";
+import {
+  register,
+  login,
+  googleLogin,
+  facebookLogin,
+  forgotPassword,
+  resetPassword,
+  verifyResetCode,
+} from "../controllers/authController";
 import { Router } from "express";
 import { authenticateJWT } from "../middleware/authMiddleware";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
 const router = express.Router();
 
-router.post("/register", authController.register);
+router.post("/register", register as RequestHandler);
 
 /**
  * @swagger
@@ -65,20 +73,12 @@ router.post("/register", authController.register);
  *       500:
  *         description: Server error
  */
-router.post("/login", authController.login);
-router.post("/google", authController.googleLogin as express.RequestHandler);
-router.post(
-  "/facebook",
-  authController.facebookLogin as express.RequestHandler
-);
-router.post(
-  "/forgot-password",
-  authController.forgotPassword as express.RequestHandler
-);
-router.post(
-  "/reset-password",
-  authController.resetPassword as express.RequestHandler
-);
+router.post("/login", login as RequestHandler);
+router.post("/google", googleLogin as RequestHandler);
+router.post("/facebook", facebookLogin as RequestHandler);
+router.post("/forgot-password", forgotPassword as RequestHandler);
+router.post("/reset-password", resetPassword as RequestHandler);
+router.post("/verify-reset-code", verifyResetCode as RequestHandler);
 
 // Thêm route để xác thực token
 router.get("/verify", authenticateJWT, (req: AuthenticatedRequest, res) => {

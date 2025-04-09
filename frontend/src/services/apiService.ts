@@ -11,10 +11,10 @@ const getBaseUrl = () => {
       return "http://10.0.2.2:3002";
     }
     // Android Device
-    return "http://192.168.1.4:3002"; // IP Wifi của nhà phát triển
+    return "http://192.168.1.8:3002"; // IP Wifi của nhà phát triển
   }
   // iOS
-  return "http://192.168.1.4:3002"; // Sử dụng IP thay vì localhost để tránh lỗi
+  return "http://192.168.1.8:3002"; // Sử dụng IP thay vì localhost để tránh lỗi
 };
 
 const api = axios.create({
@@ -95,13 +95,13 @@ export const checkServerConnection = async () => {
       // Request được gửi nhưng không nhận được response
       console.error(`❌ Lỗi kết nối server: Không nhận được response`);
 
-      // Thử kết nối đến IP 192.168.1.4:3002 nếu đang dùng localhost hoặc 127.0.0.1
+      // Thử kết nối đến IP 192.168.1.8:3002 nếu đang dùng localhost hoặc 127.0.0.1
       if (
         api.defaults.baseURL &&
         (api.defaults.baseURL.includes("localhost") ||
           api.defaults.baseURL.includes("127.0.0.1"))
       ) {
-        const alternativeUrl = "http://192.168.1.4:3002";
+        const alternativeUrl = "http://192.168.1.8:3002";
         console.log(`🔄 Thử tự động chuyển sang ${alternativeUrl}`);
 
         try {
@@ -265,9 +265,8 @@ api.interceptors.response.use(
         }
       }
 
-      throw new Error(
-        "Phiên đăng nhập hết hạn hoặc không hợp lệ. Vui lòng đăng nhập lại."
-      );
+      // Chỉ log lỗi thay vì throw error
+      console.error("Phiên đăng nhập hết hạn hoặc không hợp lệ");
     }
 
     return Promise.reject(error);

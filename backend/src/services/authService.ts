@@ -10,12 +10,24 @@ import { Transporter } from "nodemailer";
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // 📌 Cấu hình email sender
-const transporter: Transporter = nodemailer.createTransport({
-  service: "gmail",
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_APP_PASSWORD,
   },
+  debug: true,
+});
+
+// Verify email configuration
+transporter.verify((error, success) => {
+  if (error) {
+    console.error("❌ Email configuration error:", error);
+  } else {
+    console.log("✅ Email server is ready to send messages");
+  }
 });
 
 // 📌 Tạo JWT token
@@ -119,74 +131,81 @@ export const loginWithFacebook = async (accessToken: string) => {
   }
 };
 
-// 📌 Gửi email chứa mã reset mật khẩu
+// 📌 Tạo mã xác nhận ngẫu nhiên (6 chữ số)
+export const generateResetToken = (): string => {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+};
+
+// 📌 Gửi email đặt lại mật khẩu
 export const sendResetPasswordEmail = async (email: string) => {
   try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return { success: false, message: "Invalid reset code" };
+    }
+
     const resetCode = generateResetToken();
+    const expirationTime = new Date(Date.now() + 10 * 60 * 1000);
 
-    // ✅ Xóa các mã cũ nếu có
-    await PasswordReset.deleteMany({ email });
+    user.resetPasswordCode = resetCode;
+    user.resetPasswordExpires = expirationTime;
+    await user.save();
 
-    // ✅ Lưu resetCode vào DB
-    await new PasswordReset({ email, resetCode }).save();
-    console.log(`📤 Saved resetCode: ${resetCode} for email: ${email}`);
-
-    // ✅ Gửi email cho user
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+    const mailOptions = {
+      from: {
+        name: "FinWise Support",
+        address: process.env.EMAIL_USER as string,
+      },
       to: email,
-      subject: "Your Password Reset Code",
+      subject: "Reset Your Password - FinWise",
       html: `
-        <h1>Reset Password</h1>
-        <p>Your verification code is:</p>
-        <h2 style="background: #f4f4f4; padding: 10px; text-align: center; font-size: 24px; letter-spacing: 5px;">
-          ${resetCode}
-        </h2>
-        <p>This code is valid for 1 hour.</p>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h1 style="color: #00875F;">Reset Your Password</h1>
+          <p>Hello,</p>
+          <p>You have requested to reset your password for your FinWise account.</p>
+          <p>Your password reset code is: <strong style="font-size: 24px; color: #00875F;">${resetCode}</strong></p>
+          <p>This code will expire in 10 minutes.</p>
+          <p>If you did not request this, please ignore this email and ensure your account is secure.</p>
+          <p>Best regards,<br>The FinWise Team</p>
+        </div>
       `,
-    });
+    };
 
-    return { success: true, message: "Reset code sent via email!" };
-  } catch (error) {
-    console.error("❌ Error sending reset password email:", error);
-    throw new Error("Cannot send verification code!");
+    await transporter.sendMail(mailOptions);
+    return { success: true, message: "Reset code sent successfully!" };
+  } catch {
+    return { success: false, message: "Invalid reset code" };
   }
 };
 
-// 📌 Xác nhận mã reset & đặt lại mật khẩu
+// 📌 Đặt lại mật khẩu
 export const resetUserPassword = async (
   email: string,
   resetCode: string,
   newPassword: string
 ) => {
   try {
-    const resetRecord = await PasswordReset.findOne({ email, resetCode });
-
-    if (!resetRecord) {
-      throw new Error("Invalid or expired reset code!");
-    }
-
-    const user = await User.findOne({ email }).lean();
+    const user = await User.findOne({ email });
     if (!user) {
-      throw new Error("User not found!");
+      return { success: false, message: "Invalid reset code" };
     }
 
-    // ✅ Hash mật khẩu mới
+    if (!user.resetPasswordCode || user.resetPasswordCode !== resetCode) {
+      return { success: false, message: "Invalid reset code" };
+    }
+
+    if (!user.resetPasswordExpires || user.resetPasswordExpires < new Date()) {
+      return { success: false, message: "Invalid reset code" };
+    }
+
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = hashedPassword;
+    user.resetPasswordCode = undefined;
+    user.resetPasswordExpires = undefined;
     await user.save();
 
-    // ✅ Xóa reset code sau khi đặt lại thành công
-    await PasswordReset.deleteMany({ email });
-
     return { success: true, message: "Password reset successfully!" };
-  } catch (error: any) {
-    console.error("❌ Error resetting password:", error);
-    throw new Error(error.message || "Unknown error resetting password.");
+  } catch {
+    return { success: false, message: "Invalid reset code" };
   }
-};
-
-// 📌 Tạo mã xác nhận ngẫu nhiên
-export const generateResetToken = (): string => {
-  return Math.random().toString(36).substring(2, 8).toUpperCase();
 };

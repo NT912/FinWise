@@ -1,21 +1,9 @@
 import React from "react";
 import { View, TouchableOpacity, StyleSheet, Animated } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
-import { RootStackParamList } from "../navigation/AppNavigator";
+import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 
-type TabBarProps = {
-  state: {
-    index: number;
-    routes: { name: string }[];
-  };
-  navigation: BottomTabNavigationProp<
-    RootStackParamList,
-    keyof RootStackParamList
-  >;
-};
-
-const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
+const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => {
   const currentRoute = state.routes[state.index].name;
 
   const tabs = [
@@ -23,7 +11,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
     { name: "CategoryTab", icon: "list" as const },
     { name: "ChartsTab", icon: "bar-chart" as const },
     { name: "ProfileTab", icon: "person" as const },
-  ];
+  ] as const;
 
   return (
     <View style={styles.container}>
@@ -33,7 +21,7 @@ const CustomTabBar: React.FC<TabBarProps> = ({ state, navigation }) => {
           <TouchableOpacity
             key={index}
             style={styles.tab}
-            onPress={() => navigation.navigate(tab.name as any)}
+            onPress={() => navigation.navigate(tab.name)}
           >
             <View style={styles.tabContent}>
               <Ionicons
