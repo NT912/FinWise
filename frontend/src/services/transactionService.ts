@@ -1,7 +1,10 @@
 import api from "./apiService";
 import { Transaction } from "../types";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-const API_URL = "http://192.168.1.8:3002";
+const API_URL = "http://192.168.1.7:3002";
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 500; // ms
 
 /**
  * Fetch all transactions for the current user
@@ -62,26 +65,57 @@ export const getTransactionById = async (
   }
 };
 
-/**
- * Create a new transaction
- * @param transactionData The data for the new transaction
- * @returns Created transaction
- */
-export const createTransaction = async (
-  transactionData: any
-): Promise<Transaction> => {
-  try {
-    console.log("🔄 Đang tạo giao dịch mới...", transactionData);
-    const response = await api.post("/api/transactions", transactionData);
+// Helper function to wait for a specified time
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Xử lý phản hồi có thể có cấu trúc khác nhau
-    const result = response.data.transaction || response.data;
-    console.log("✅ Đã tạo giao dịch mới:", result._id);
-    return result;
-  } catch (error) {
-    console.error("❌ Lỗi khi tạo giao dịch:", error);
-    throw error;
+// Function to create a new transaction with retry mechanism
+export const createTransaction = async (transactionData: any): Promise<any> => {
+  let retries = 0;
+
+  while (retries < MAX_RETRIES) {
+    try {
+      const token = await AsyncStorage.getItem("token");
+
+      console.log("🔄 Đang tạo giao dịch mới...", transactionData);
+      console.log("🔄 Request: /api/transactions");
+
+      const response = await api.post("/api/transactions", transactionData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("✅ Đã tạo giao dịch mới:", response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error("❌ Lỗi khi tạo giao dịch:", error);
+
+      // Check if it's a WriteConflict error
+      if (
+        error.response?.status === 500 &&
+        (error.response?.data?.retryable ||
+          (error.response?.data?.error &&
+            error.response?.data?.error.includes("WriteConflict")))
+      ) {
+        retries++;
+        console.log(
+          `⚠️ Lỗi WriteConflict, thử lại lần ${retries}/${MAX_RETRIES}`
+        );
+
+        if (retries < MAX_RETRIES) {
+          // Wait a bit before retrying (exponential backoff)
+          const delay = RETRY_DELAY * Math.pow(2, retries - 1);
+          await wait(delay);
+          continue;
+        }
+      }
+
+      // If it's not a WriteConflict error or we've reached max retries, throw the error
+      throw error;
+    }
   }
+
+  throw new Error("Exceeded maximum retry attempts");
 };
 
 /**
@@ -101,7 +135,7 @@ export const updateTransaction = async (
       transactionData
     );
 
-    // Xử lý phản hồi có thể có cấu trúc khác nhau
+    // Xử lý phản hồi có thể cấu trúc khác nhau
     const result = response.data.transaction || response.data;
     console.log(`✅ Đã cập nhật giao dịch: ${transactionId}`);
     return result;
@@ -118,15 +152,113 @@ export const updateTransaction = async (
  */
 export const deleteTransaction = async (
   transactionId: string
-): Promise<void> => {
-  try {
-    console.log(`🔄 Đang xóa giao dịch: ${transactionId}`);
-    await api.delete(`/api/transactions/${transactionId}`);
-    console.log(`✅ Đã xóa giao dịch: ${transactionId}`);
-  } catch (error) {
-    console.error(`❌ Lỗi khi xóa giao dịch ${transactionId}:`, error);
-    throw error;
-  }
+): Promise<{ success: boolean; message: string }> => {
+  let retryCount = 0;
+  const maxRetries = 5; // Tăng số lần thử
+
+  const performDelete = async (): Promise<{
+    success: boolean;
+    message: string;
+  }> => {
+    try {
+      // Thêm timeout dài hơn
+      const timeout = 15000; // 15 seconds
+
+      console.log(
+        `🔄 Đang xóa giao dịch: ${transactionId} (Lần thử ${retryCount + 1}/${
+          maxRetries + 1
+        })`
+      );
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+      try {
+        const response = await api.delete(
+          `/api/transactions/${transactionId}`,
+          {
+            signal: controller.signal,
+          }
+        );
+        clearTimeout(timeoutId);
+
+        console.log(`✅ Đã xóa giao dịch: ${transactionId}`);
+
+        // Trả về kết quả từ server nếu có
+        if (response.data && typeof response.data === "object") {
+          return response.data;
+        }
+
+        // Nếu server không trả về đúng định dạng, tạo một response chuẩn
+        return { success: true, message: "Transaction deleted successfully" };
+      } catch (e) {
+        clearTimeout(timeoutId);
+        throw e; // Re-throw để xử lý ở catch bên ngoài
+      }
+    } catch (error: any) {
+      // Chỉ ghi log lỗi ở lần cuối hoặc khi cần debug
+      if (retryCount === maxRetries) {
+        console.error(`❌ Lỗi khi xóa giao dịch ${transactionId}:`, error);
+      }
+
+      // Xử lý response lỗi từ server
+      if (error.response && error.response.data) {
+        // Giảm số lượng log
+        if (retryCount === maxRetries) {
+          console.error("Server error response:", error.response.data);
+        }
+
+        // Kiểm tra xem có phải lỗi xung đột ghi không
+        const errorMessage = error.response.data.message || "";
+        if (
+          (errorMessage.includes("Write conflict") ||
+            errorMessage.includes("Caused by") ||
+            error.response.status === 500) &&
+          retryCount < maxRetries
+        ) {
+          retryCount++;
+          // Đợi một khoảng thời gian dài hơn trước khi thử lại
+          const delay = Math.floor(Math.random() * 2000) + 1000; // 1000-3000ms
+          console.log(
+            `⚠️ Xung đột khi lưu, thử lại lần ${retryCount} sau ${delay}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return performDelete(); // Thử lại
+        }
+
+        throw new Error(errorMessage || "Failed to delete transaction");
+      }
+
+      // Xử lý timeout
+      if (error.name === "AbortError") {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          console.log(`⏱️ Hết thời gian chờ, thử lại lần ${retryCount}...`);
+          return performDelete(); // Thử lại
+        }
+        throw new Error("Connection timeout. Please try again later.");
+      }
+
+      // Xử lý lỗi network hoặc không có response
+      if (error.request) {
+        if (retryCount < maxRetries) {
+          retryCount++;
+          const delay = Math.floor(Math.random() * 1000) + 500;
+          console.log(
+            `🔄 Lỗi kết nối, thử lại lần ${retryCount} sau ${delay}ms...`
+          );
+          await new Promise((resolve) => setTimeout(resolve, delay));
+          return performDelete(); // Thử lại
+        }
+        throw new Error(
+          "Network error. Please check your connection and try again."
+        );
+      }
+
+      throw new Error(error.message || "Failed to delete transaction");
+    }
+  };
+
+  return performDelete();
 };
 
 /**

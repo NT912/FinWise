@@ -15,8 +15,13 @@ import {
   NavigationProp,
   useNavigation,
   useIsFocused,
+  useRoute,
+  RouteProp,
 } from "@react-navigation/native";
-import { RootStackParamList } from "../../navigation/AppNavigator";
+import {
+  RootStackParamList,
+  HomeStackParamList,
+} from "../../navigation/AppNavigator";
 import { fetchHomeData, fetchTransactions } from "../../services/homeService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "../../components/common/AppHeader";
@@ -27,10 +32,12 @@ import LoadingIndicator from "../../components/LoadingIndicator";
 import TransactionList from "./TransactionList";
 import api from "../../services/apiService";
 import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../../theme";
 
 const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const route = useRoute<RouteProp<HomeStackParamList, "Home">>();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedFilter, setSelectedFilter] = useState<
@@ -51,7 +58,7 @@ const HomeScreen = () => {
     savingsOnGoals: 0,
     goalPercentage: 0,
     revenueLostWeek: 0,
-    foodLastWeek: 0,
+    expenseLastWeek: 0,
   });
 
   const [transactions, setTransactions] = useState<any[]>([]);
@@ -86,13 +93,14 @@ const HomeScreen = () => {
       scaleAnim.setValue(0.9);
       translateY.setValue(20);
     }
-  }, [isFocused]); // Remove selectedFilter from dependency array
+  }, [isFocused, selectedFilter]);
 
   // Handle filter change - show loading only in transactions section
   const handleFilterChange = useCallback(
     (filter: "Daily" | "Weekly" | "Monthly") => {
       setSelectedFilter(filter);
       setTransactionsLoading(true);
+      setRefreshing(true);
       loadHomeDataWithoutOverlay(filter);
     },
     []
@@ -117,6 +125,12 @@ const HomeScreen = () => {
       ]);
 
       console.log("Home data received:", homeData);
+      console.log("Statistics data:", {
+        savingsOnGoals: homeData.savingsOnGoals,
+        revenueLostWeek: homeData.revenueLostWeek,
+        expenseLastWeek: homeData.expenseLastWeek,
+        goalPercentage: homeData.goalPercentage,
+      });
       console.log("Transactions data received:", transactionsData.length);
 
       // Update user data state
@@ -128,7 +142,7 @@ const HomeScreen = () => {
         savingsOnGoals: homeData.savingsOnGoals || 0,
         goalPercentage: homeData.goalPercentage || 0,
         revenueLostWeek: homeData.revenueLostWeek || 0,
-        foodLastWeek: homeData.foodLastWeek || 0,
+        expenseLastWeek: homeData.expenseLastWeek || 0,
       });
 
       // Update transactions
@@ -176,7 +190,7 @@ const HomeScreen = () => {
         savingsOnGoals: homeData.savingsOnGoals || prev.savingsOnGoals,
         goalPercentage: homeData.goalPercentage || prev.goalPercentage,
         revenueLostWeek: homeData.revenueLostWeek || prev.revenueLostWeek,
-        foodLastWeek: homeData.foodLastWeek || prev.foodLastWeek,
+        expenseLastWeek: homeData.expenseLastWeek || prev.expenseLastWeek,
       }));
 
       // Update transactions
@@ -209,14 +223,23 @@ const HomeScreen = () => {
       {/* Loading overlay - shown only when initial loading is happening */}
       {loading && (
         <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color="#00D09E" />
+          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       )}
 
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
-      <SafeAreaView style={styles.safeArea}>
-        <AppHeader textColor="#000000" userName={userData.userName} />
-      </SafeAreaView>
+      <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+
+      {/* Green header section */}
+      <View style={styles.headerSection}>
+        <SafeAreaView style={styles.safeArea}>
+          <AppHeader textColor="#000000" userName={userData.userName} />
+        </SafeAreaView>
+
+        <BalanceOverview
+          totalBalance={userData.totalBalance}
+          totalExpense={userData.totalExpense}
+        />
+      </View>
 
       {error ? (
         <View style={styles.errorContainer}>
@@ -231,76 +254,39 @@ const HomeScreen = () => {
         </View>
       ) : (
         <View style={styles.mainContent}>
-          <BalanceOverview
-            totalBalance={userData.totalBalance}
-            totalExpense={userData.totalExpense}
+          <StatisticsOverview
+            savingsOnGoals={userData.savingsOnGoals}
+            revenueLostWeek={userData.revenueLostWeek}
+            expenseLastWeek={userData.expenseLastWeek}
+            goalPercentage={userData.goalPercentage}
+            isLoading={refreshing}
           />
 
-          <View style={styles.whiteBackground}>
-            {/* Static content - not scrollable */}
-            <View style={styles.staticContent}>
-              <StatisticsOverview
-                savingsOnGoals={userData.savingsOnGoals}
-                revenueLostWeek={userData.revenueLostWeek}
-                foodLastWeek={userData.foodLastWeek}
-                goalPercentage={userData.goalPercentage}
-                isLoading={loading}
-              />
-
-              <View style={styles.filterContainer}>
-                <FilterButtons
-                  selectedFilter={selectedFilter}
-                  onFilterChange={handleFilterChange}
-                />
-              </View>
-            </View>
-
-            {/* Scrollable transaction list only */}
-            <Animated.ScrollView
-              style={[
-                styles.scrollView,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ scale: scaleAnim }, { translateY: translateY }],
-                },
-              ]}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={onRefresh}
-                  colors={["#00D09E"]}
-                  tintColor="#00D09E"
-                  progressBackgroundColor="transparent"
-                  progressViewOffset={20}
-                />
-              }
-            >
-              {transactionsLoading ? (
-                <View style={styles.transactionLoadingContainer}>
-                  <ActivityIndicator size="large" color="#00D09E" />
-                </View>
-              ) : transactions && transactions.length > 0 ? (
-                transactions.map((group, index) => (
-                  <TransactionList
-                    key={index}
-                    transactions={group.transactions}
-                    title={group.date}
-                  />
-                ))
-              ) : (
-                <View style={styles.emptyTransactionsContainer}>
-                  <Ionicons name="wallet-outline" size={50} color="#DDDDDD" />
-                  <Text style={styles.emptyTransactionsText}>
-                    No transactions yet
-                  </Text>
-                  <Text style={styles.emptyTransactionsSubText}>
-                    Your transactions will appear here
-                  </Text>
-                </View>
-              )}
-            </Animated.ScrollView>
+          <View style={styles.filterContainer}>
+            <FilterButtons
+              selectedFilter={selectedFilter}
+              onFilterChange={handleFilterChange}
+            />
           </View>
+
+          <ScrollView
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scrollContent}
+          >
+            {transactionsLoading ? (
+              <View style={styles.transactionLoadingContainer}>
+                <ActivityIndicator size="large" color={colors.primary} />
+              </View>
+            ) : (
+              <TransactionList
+                transactions={transactions}
+                navigation={navigation}
+              />
+            )}
+          </ScrollView>
         </View>
       )}
     </View>
@@ -310,105 +296,32 @@ const HomeScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#00D09E",
+    backgroundColor: colors.primary,
   },
   safeArea: {
-    backgroundColor: "#00D09E",
+    backgroundColor: "transparent",
+  },
+  headerSection: {
+    backgroundColor: colors.primary,
+    paddingBottom: 10,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333333",
+    marginVertical: 8,
+  },
+  scrollContent: {
+    paddingTop: 8,
+    paddingBottom: 20,
   },
   mainContent: {
     flex: 1,
-    backgroundColor: "#00D09E",
-  },
-  whiteBackground: {
-    flex: 1,
     backgroundColor: "#FFFFFF",
-    marginTop: -12,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 20,
-  },
-  staticContent: {
-    backgroundColor: "#FFFFFF",
-  },
-  scrollView: {
-    flex: 1,
-  },
-  filterContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  transactionSection: {
-    padding: 20,
-    paddingTop: 0, // Reduced top padding since heading is removed
-  },
-  simpleLoaderContainer: {
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    height: 100,
-  },
-  errorContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-    backgroundColor: "#FFFFFF",
-  },
-  errorText: {
-    fontSize: 16,
-    color: "#555555",
-    textAlign: "center",
-    marginTop: 20,
-    marginBottom: 20,
-  },
-  retryButton: {
-    backgroundColor: "#00D09E",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  errorMessageContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  errorMessageText: {
-    color: "#555555",
-    fontSize: 16,
-    textAlign: "center",
-    marginBottom: 20,
-  },
-  retryButtonSmall: {
-    backgroundColor: "#00D09E",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  retryButtonTextSmall: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "600",
-  },
-  emptyTransactionsContainer: {
-    padding: 40,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  emptyTransactionsText: {
-    color: "#DDDDDD",
-    fontSize: 16,
-    fontWeight: "600",
-    marginTop: 20,
-  },
-  emptyTransactionsSubText: {
-    color: "#DDDDDD",
-    fontSize: 14,
-    textAlign: "center",
+    overflow: "hidden",
+    marginTop: -20,
   },
   loadingOverlay: {
     position: "absolute",
@@ -416,16 +329,47 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: "rgba(255, 255, 255, 0.7)",
+    backgroundColor: "rgba(255, 255, 255, 0.85)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
+  },
+  filterContainer: {
+    flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
-    zIndex: 1000,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginBottom: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: "#666",
+    textAlign: "center",
+    marginTop: 16,
+    marginBottom: 24,
+  },
+  retryButton: {
+    backgroundColor: colors.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
   },
   transactionLoadingContainer: {
-    marginTop: 20,
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    height: 100,
   },
 });
 

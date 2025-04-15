@@ -9,7 +9,7 @@ const CustomTabBar = ({ state, navigation }: BottomTabBarProps) => {
   const tabs = [
     { name: "HomeTab", icon: "home" as const },
     { name: "CategoryTab", icon: "list" as const },
-    { name: "ChartsTab", icon: "bar-chart" as const },
+    { name: "SavingTab", icon: "wallet" as const },
     { name: "ProfileTab", icon: "person" as const },
   ] as const;
 

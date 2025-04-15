@@ -79,7 +79,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 {getGreeting()}
               </Text>
               <Text style={[styles.welcomeText, { color: textColor }]}>
-                {userName || "User"}
+                Hi, Welcome Back
               </Text>
             </>
           )}
@@ -110,9 +110,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 10,
   },
   titleContainer: {
     flex: 1,
@@ -121,14 +121,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "400",
     color: "#000000",
-    opacity: 0.7,
+    opacity: 0.9,
+    marginTop: 4,
   },
   welcomeText: {
     fontSize: 24,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#000000",
-    lineHeight: 28,
-    marginTop: 2,
+    lineHeight: 32,
   },
   notificationButton: {
     marginLeft: 16,

@@ -28,8 +28,14 @@ export const fetchHomeData = async (filter = "monthly") => {
 
     // Trả về dữ liệu từ API home
     return {
-      ...homeResponse.data,
-      userName: homeResponse.data.userName || "User", // Sử dụng userName từ homeResponse hoặc mặc định là "User"
+      userName: homeResponse.data.userName || "User",
+      userAvatar: homeResponse.data.userAvatar || "",
+      totalBalance: homeResponse.data.totalBalance || 0,
+      totalExpense: homeResponse.data.totalExpense || 0,
+      savingsOnGoals: homeResponse.data.savingsOnGoals || 0,
+      goalPercentage: homeResponse.data.goalPercentage || 0,
+      revenueLostWeek: homeResponse.data.revenueLostWeek || 0,
+      foodLastWeek: homeResponse.data.foodLastWeek || 0,
     };
   } catch (error: any) {
     // ✅ Xử lý lỗi đúng cách
@@ -55,10 +61,10 @@ export const fetchHomeData = async (filter = "monthly") => {
       userAvatar: "",
       totalBalance: 0,
       totalExpense: 0,
-      savingsOnGoals: 0,
-      goalPercentage: 0,
-      revenueLostWeek: 0,
-      foodLastWeek: 0,
+      savingsOnGoals: 1500000,
+      goalPercentage: 45,
+      revenueLostWeek: 2500000,
+      foodLastWeek: 750000,
       transactions: [],
     };
   }
@@ -114,51 +120,36 @@ export const fetchTransactions = async (filter = "monthly") => {
     // Return sample data in case of error
     return [
       {
-        date: new Date().toLocaleDateString(),
+        date: "Today",
         transactions: [
           {
             id: "1",
             title: "Salary",
             type: "income",
-            amount: 3500000,
+            amount: 15000000,
             date: new Date(),
-            category: {
-              name: "Salary",
-              type: "income",
-              icon: "cash-outline",
-              color: "#4CAF50",
-            },
+            category: "Salary",
           },
           {
             id: "2",
             title: "Restaurant",
             type: "expense",
-            amount: 150000,
+            amount: 350000,
             date: new Date(Date.now() - 86400000), // Yesterday
-            category: {
-              name: "Food & Drink",
-              type: "expense",
-              icon: "restaurant-outline",
-              color: "#FF6B6B",
-            },
+            category: "Food & Drink",
           },
         ],
       },
       {
-        date: new Date(Date.now() - 86400000 * 2).toLocaleDateString(), // 2 days ago
+        date: "Yesterday",
         transactions: [
           {
             id: "3",
             title: "Transportation",
             type: "expense",
-            amount: 55000,
+            amount: 85000,
             date: new Date(Date.now() - 86400000 * 2),
-            category: {
-              name: "Transportation",
-              type: "expense",
-              icon: "car-outline",
-              color: "#4DC0F5",
-            },
+            category: "Transportation",
           },
         ],
       },

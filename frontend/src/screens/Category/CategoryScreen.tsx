@@ -15,9 +15,13 @@ import {
   StyleSheet,
   TouchableWithoutFeedback,
   Keyboard,
+  Modal,
+  KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { NavigationProp } from "@react-navigation/native";
+import { CategoryStackParamList } from "../../navigation/AppNavigator";
 import {
   getAllCategories,
   createCategory,
@@ -94,8 +98,146 @@ const styles = StyleSheet.create({
   },
 });
 
+// Add modal styles
+const modalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingBottom: 0,
+  },
+  modalContent: {
+    backgroundColor: "white",
+    borderRadius: 20,
+    width: "90%",
+    maxWidth: 400,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    maxHeight: "80%",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 20,
+    paddingBottom: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#f0f0f0",
+  },
+  modalTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#333",
+  },
+  closeButton: {
+    padding: 5,
+  },
+  modalBody: {
+    marginBottom: 20,
+  },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  inputLabel: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 8,
+  },
+  amountInputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#ddd",
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    backgroundColor: "#f9f9f9",
+  },
+  currencySymbol: {
+    fontSize: 20,
+    color: "#333",
+    marginRight: 8,
+  },
+  budgetInput: {
+    flex: 1,
+    fontSize: 24,
+    color: "#333",
+    fontWeight: "600",
+    padding: 0,
+  },
+  formattedPreview: {
+    fontSize: 16,
+    color: "#00D09E",
+    marginTop: 8,
+    fontWeight: "600",
+    textAlign: "right",
+  },
+  inputHelper: {
+    fontSize: 13,
+    color: "#999",
+    marginTop: 8,
+  },
+  modalFooter: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    gap: 10,
+    marginTop: 15,
+    marginBottom: 15,
+  },
+  cancelButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: "#f0f0f0",
+    flex: 1,
+    alignItems: "center",
+    minWidth: 100,
+  },
+  cancelButtonText: {
+    color: "#666",
+    fontSize: 16,
+    fontWeight: "500",
+    textAlign: "center",
+  },
+  saveButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 10,
+    backgroundColor: "#00D09E",
+    shadowColor: "#00D09E",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    flex: 1.5,
+    alignItems: "center",
+    minWidth: 140,
+  },
+  saveButtonText: {
+    color: "white",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+});
+
 const CategoryScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp<CategoryStackParamList>>();
 
   // Data states
   const [loading, setLoading] = useState(true);
@@ -108,6 +250,10 @@ const CategoryScreen = () => {
     "name"
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+
+  // Global budget edit states
+  const [isEditingGlobalBudget, setIsEditingGlobalBudget] = useState(false);
+  const [newGlobalBudget, setNewGlobalBudget] = useState("");
 
   // User data state
   const [userData, setUserData] = useState({
@@ -537,6 +683,53 @@ const CategoryScreen = () => {
     setColorPickerVisible(false);
   }, []);
 
+  // Handle global budget edit
+  const handleGlobalBudgetEdit = () => {
+    console.log("Handling global budget edit");
+    setIsEditingGlobalBudget(true);
+    setNewGlobalBudget(userData.budgetLimit.toString());
+  };
+
+  const handleSaveGlobalBudget = async () => {
+    try {
+      const numericBudget = parseInt(newGlobalBudget.replace(/\D/g, "")) || 0;
+
+      // Update user data with new budget
+      setUserData({
+        ...userData,
+        budgetLimit: numericBudget,
+        totalExpensePercentage: Math.min(
+          Math.round((userData.totalExpense / numericBudget) * 100),
+          100
+        ),
+      });
+
+      // TODO: Add API call to update budget in backend once implemented
+      // await userService.updateBudgetLimit(numericBudget);
+
+      setIsEditingGlobalBudget(false);
+      showSuccess("Success", "Total budget updated successfully");
+    } catch (error) {
+      console.error("Error updating global budget:", error);
+      showError("Error", "Failed to update budget. Please try again.");
+    }
+  };
+
+  // Handle currency input formatting
+  const handleBudgetInputChange = (text: string) => {
+    // Remove all non-numeric characters
+    const numericValue = text.replace(/\D/g, "");
+    // Format as currency
+    setNewGlobalBudget(numericValue);
+  };
+
+  // Format number as VND for display
+  const formatInputValue = (value: string) => {
+    if (!value) return "";
+    const numericValue = parseInt(value);
+    return formatVND(numericValue).replace("₫", "").trim();
+  };
+
   // Render category item
   const renderCategoryItem = ({ item }: { item: Category }) => {
     if (item.isAddButton) {
@@ -698,9 +891,27 @@ const CategoryScreen = () => {
             <Text style={categoryStyles.progressLabel}>
               {userData.totalExpensePercentage}%
             </Text>
-            <Text style={categoryStyles.progressMaxLabel}>
-              {formatVND(userData.budgetLimit)}
-            </Text>
+            <TouchableOpacity
+              onPress={handleGlobalBudgetEdit}
+              style={{ padding: 8, backgroundColor: "transparent" }}
+            >
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text
+                  style={[
+                    categoryStyles.progressMaxLabel,
+                    { color: "#00D09E" },
+                  ]}
+                >
+                  {formatVND(userData.budgetLimit)}
+                </Text>
+                <Ionicons
+                  name="create-outline"
+                  size={14}
+                  color="#00D09E"
+                  style={{ marginLeft: 3 }}
+                />
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -834,6 +1045,83 @@ const CategoryScreen = () => {
         </View>
 
         {renderModals()}
+
+        {/* Global Budget Edit Modal */}
+        <Modal
+          visible={isEditingGlobalBudget}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setIsEditingGlobalBudget(false)}
+          statusBarTranslucent={true}
+        >
+          <View style={modalStyles.modalOverlay}>
+            <KeyboardAvoidingView
+              behavior={Platform.OS === "ios" ? "padding" : "height"}
+              style={modalStyles.modalContent}
+              keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 20}
+            >
+              <View style={modalStyles.modalHeader}>
+                <View style={modalStyles.modalTitleContainer}>
+                  <Ionicons name="wallet-outline" size={24} color="#00D09E" />
+                  <Text style={modalStyles.modalTitle}>
+                    Update Total Budget
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  style={modalStyles.closeButton}
+                  onPress={() => setIsEditingGlobalBudget(false)}
+                >
+                  <Ionicons name="close" size={24} color="#666" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={modalStyles.modalBody}>
+                <View style={modalStyles.inputContainer}>
+                  <Text style={modalStyles.inputLabel}>
+                    Total Budget Amount
+                  </Text>
+                  <View style={modalStyles.amountInputContainer}>
+                    <Text style={modalStyles.currencySymbol}>₫</Text>
+                    <TextInput
+                      style={modalStyles.budgetInput}
+                      value={formatInputValue(newGlobalBudget)}
+                      onChangeText={handleBudgetInputChange}
+                      keyboardType="numeric"
+                      placeholder="0"
+                      placeholderTextColor="#999"
+                      autoFocus={true}
+                    />
+                  </View>
+
+                  <Text style={modalStyles.formattedPreview}>
+                    {formatVND(parseInt(newGlobalBudget) || 0)}
+                  </Text>
+                  <Text style={modalStyles.inputHelper}>
+                    Enter the amount you want to set as the total budget for all
+                    categories
+                  </Text>
+
+                  <View style={[modalStyles.modalFooter, { marginTop: 30 }]}>
+                    <TouchableOpacity
+                      style={modalStyles.cancelButton}
+                      onPress={() => setIsEditingGlobalBudget(false)}
+                    >
+                      <Text style={modalStyles.cancelButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={modalStyles.saveButton}
+                      onPress={handleSaveGlobalBudget}
+                    >
+                      <Text style={modalStyles.saveButtonText}>
+                        Save Budget
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </View>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

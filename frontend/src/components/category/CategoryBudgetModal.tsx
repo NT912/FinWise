@@ -11,7 +11,7 @@ import {
   Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Category } from "../../types";
+import { Category } from "../../types/category";
 import {
   formatVND,
   formatNumberWithCommas,
@@ -83,7 +83,7 @@ const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
               </View>
 
               <View style={styles.inputContainer}>
-                <Text style={styles.label}>Monthly Budget</Text>
+                <Text style={styles.label}>Ngân sách hàng tháng</Text>
                 <View style={styles.amountInput}>
                   <Text style={styles.currencySymbol}>₫</Text>
                   <TextInput
@@ -93,8 +93,15 @@ const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
                     keyboardType="numeric"
                     placeholder="0"
                     placeholderTextColor="#999"
+                    autoFocus={true}
                   />
                 </View>
+                <Text style={styles.formattedValue}>
+                  {formatVND(parseFormattedNumber(budget))}
+                </Text>
+                <Text style={styles.helperText}>
+                  Nhập số tiền bạn muốn đặt làm ngân sách cho danh mục này
+                </Text>
               </View>
 
               <View style={styles.buttonContainer}>
@@ -102,13 +109,13 @@ const CategoryBudgetModal: React.FC<CategoryBudgetModalProps> = ({
                   style={[styles.button, styles.cancelButton]}
                   onPress={onClose}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>Hủy</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[styles.button, styles.saveButton]}
                   onPress={handleSave}
                 >
-                  <Text style={styles.saveButtonText}>Save</Text>
+                  <Text style={styles.saveButtonText}>Lưu ngân sách</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -228,6 +235,18 @@ const styles = StyleSheet.create({
   saveButtonText: {
     color: "#FFF",
     fontWeight: "600",
+  },
+  formattedValue: {
+    fontSize: 18,
+    color: "#00D09E",
+    fontWeight: "600",
+    marginTop: 8,
+    textAlign: "right",
+  },
+  helperText: {
+    fontSize: 13,
+    color: "#999",
+    marginTop: 4,
   },
 });
 

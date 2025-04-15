@@ -1,21 +1,42 @@
 import React from "react";
-import { View, Text, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { formatVND } from "../../utils/formatters";
+import { NavigationProp } from "@react-navigation/native";
+import {
+  HomeStackParamList,
+  RootStackParamList,
+} from "../../navigation/AppNavigator";
+import { colors } from "../../theme";
 
 interface Transaction {
   id?: string;
   _id?: string;
+  title?: string;
   type: string;
   icon?: string;
   amount: number;
+  date: string | Date;
+  category: string | { _id: string; name: string; icon: string; color: string };
+}
+
+interface TransactionGroup {
   date: string;
-  category: string;
+  transactions: Transaction[];
 }
 
 interface TransactionListProps {
-  transactions: Transaction[];
+  transactions: Transaction[] | TransactionGroup[];
   title?: string;
+  loading?: boolean;
+  onRefresh?: () => void;
+  navigation: any; // Changed to any to avoid TypeScript errors
 }
 
 const EmptyTransactions = () => (
@@ -33,120 +54,219 @@ const EmptyTransactions = () => (
 
 const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
-  title = "Transaction History",
+  title = "",
+  loading = false,
+  navigation,
 }) => {
-  const getIconName = (type: string) => {
-    switch (type.toLowerCase()) {
+  // Get the Ionicons name based on category
+  const getCategoryIcon = (
+    category: string | { name: string; icon?: string }
+  ) => {
+    if (typeof category === "object" && category !== null && category.icon) {
+      // If category is an object with icon property, use that icon with type assertion
+      return category.icon as any;
+    }
+
+    // Default icons based on category name
+    const categoryName =
+      typeof category === "object" ? category.name : category;
+
+    switch (categoryName.toLowerCase()) {
       case "salary":
       case "income":
         return "cash-outline";
       case "groceries":
       case "food":
-        return "basket-outline";
+      case "restaurant":
+      case "dining":
+        return "restaurant-outline";
       case "rent":
       case "housing":
+      case "mortgage":
         return "home-outline";
       case "utilities":
+      case "bills":
         return "flash-outline";
       case "transport":
       case "transportation":
+      case "travel":
         return "car-outline";
       case "entertainment":
+      case "leisure":
         return "film-outline";
       case "shopping":
+      case "clothes":
         return "cart-outline";
       case "healthcare":
+      case "medical":
         return "medkit-outline";
+      case "education":
+        return "school-outline";
+      case "savings":
+      case "investment":
+        return "trending-up-outline";
+      case "debt":
+      case "loan":
+        return "cash-outline";
+      case "other":
       default:
-        return "card-outline";
+        return "ellipsis-horizontal-outline";
     }
   };
 
-  const formatAmount = (amount: number) => {
-    const isPositive = amount > 0;
+  const formatAmount = (amount: number, type: string) => {
+    const isIncome = type.toLowerCase() === "income";
     return {
-      text: isPositive ? formatVND(amount) : `-${formatVND(Math.abs(amount))}`,
-      color: isPositive ? "#00D09E" : "#FF6B6B",
+      text: isIncome ? formatVND(amount) : `-${formatVND(Math.abs(amount))}`,
+      color: isIncome ? colors.primary : "#FF6B6B",
     };
   };
 
-  return (
-    <View style={styles.container}>
-      <Text style={styles.sectionTitle}>{title}</Text>
+  const handleTransactionPress = (transaction: Transaction) => {
+    // Navigate to edit transaction screen with transaction id
+    const transactionId = transaction.id || transaction._id;
+    if (transactionId) {
+      navigation.navigate(
+        "EditTransaction" as never,
+        { transactionId } as never
+      );
+    }
+  };
 
-      {transactions && transactions.length > 0 ? (
-        transactions.map((transaction) => (
-          <View
-            key={transaction.id || transaction._id || Math.random().toString()}
-            style={styles.transactionItem}
-          >
-            <View
+  const getCategoryName = (
+    category:
+      | string
+      | { name: string; _id: string; icon?: string; color?: string }
+  ) => {
+    if (typeof category === "object" && category !== null) {
+      return category.name;
+    }
+    return category;
+  };
+
+  const getCategoryColor = (
+    category:
+      | string
+      | { name: string; _id: string; icon?: string; color?: string },
+    type: string
+  ) => {
+    // If category is an object with color, use that
+    if (typeof category === "object" && category !== null && category.color) {
+      return category.color;
+    }
+
+    // Otherwise use default colors based on transaction type
+    return type.toLowerCase() === "income" ? colors.primary : "#FF6B6B";
+  };
+
+  const formatDate = (date: string | Date) => {
+    if (!date) return "";
+    const dateObj = typeof date === "string" ? new Date(date) : date;
+    return dateObj.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year:
+        dateObj.getFullYear() !== new Date().getFullYear()
+          ? "numeric"
+          : undefined,
+    });
+  };
+
+  const renderTransaction = (transaction: Transaction) => {
+    return (
+      <TouchableOpacity
+        key={transaction.id || transaction._id || Math.random().toString()}
+        style={styles.transactionItem}
+        onPress={() => handleTransactionPress(transaction)}
+      >
+        <View
+          style={[
+            styles.iconContainer,
+            {
+              backgroundColor: getCategoryColor(
+                transaction.category,
+                transaction.type
+              ),
+            },
+          ]}
+        >
+          <Ionicons
+            name={getCategoryIcon(transaction.category)}
+            size={22}
+            color="#FFFFFF"
+            style={styles.icon}
+          />
+        </View>
+
+        <View style={styles.detailsContainer}>
+          <View style={styles.leftContent}>
+            <Text style={styles.title}>
+              {transaction.title || getCategoryName(transaction.category)}
+            </Text>
+            <Text style={styles.date}>{formatDate(transaction.date)}</Text>
+          </View>
+
+          <View style={styles.rightContent}>
+            <Text
               style={[
-                styles.iconContainer,
-                { backgroundColor: getIconBackgroundColor(transaction.type) },
+                styles.amount,
+                {
+                  color: formatAmount(transaction.amount, transaction.type)
+                    .color,
+                },
               ]}
             >
-              <Ionicons
-                name={getIconName(transaction.type)}
-                size={22}
-                color="#FFFFFF"
-                style={styles.icon}
-              />
-            </View>
-
-            <View style={styles.detailsContainer}>
-              <View style={styles.leftContent}>
-                <Text style={styles.title}>{transaction.category}</Text>
-                <Text style={styles.date}>{transaction.date}</Text>
-              </View>
-
-              <View style={styles.rightContent}>
-                <Text
-                  style={[
-                    styles.amount,
-                    { color: formatAmount(transaction.amount).color },
-                  ]}
-                >
-                  {formatAmount(transaction.amount).text}
-                </Text>
-                <Text style={styles.type}>{transaction.type}</Text>
-              </View>
-            </View>
+              {formatAmount(transaction.amount, transaction.type).text}
+            </Text>
+            <Text style={styles.type}>
+              {transaction.type.charAt(0).toUpperCase() +
+                transaction.type.slice(1)}
+            </Text>
           </View>
-        ))
-      ) : (
-        <EmptyTransactions />
-      )}
+          <View style={styles.editIconContainer}>
+            <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  const renderTransactionGroup = (group: TransactionGroup) => {
+    return (
+      <View key={group.date} style={styles.groupContainer}>
+        <Text style={styles.dateHeader}>{group.date}</Text>
+        {group.transactions.map(renderTransaction)}
+      </View>
+    );
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={colors.primary} />
+      </View>
+    );
+  }
+
+  if (!transactions || transactions.length === 0) {
+    return <EmptyTransactions />;
+  }
+
+  // Check if transactions is already grouped
+  const isGrouped =
+    transactions.length > 0 &&
+    "date" in transactions[0] &&
+    "transactions" in transactions[0];
+
+  return (
+    <View style={styles.container}>
+      {isGrouped
+        ? // Render grouped transactions
+          (transactions as TransactionGroup[]).map(renderTransactionGroup)
+        : // Render simple list without title
+          (transactions as Transaction[]).map(renderTransaction)}
     </View>
   );
-};
-
-const getIconBackgroundColor = (type: string) => {
-  // Assign colors based on transaction types
-  switch (type.toLowerCase()) {
-    case "salary":
-    case "income":
-      return "#00D09E"; // Green for income
-    case "groceries":
-    case "food":
-      return "#FFB800"; // Orange for food
-    case "rent":
-    case "housing":
-      return "#4A90E2"; // Blue for housing
-    case "utilities":
-      return "#9B51E0"; // Purple for utilities
-    case "transport":
-    case "transportation":
-      return "#F2994A"; // Orange for transport
-    case "entertainment":
-      return "#EB5757"; // Red for entertainment
-    case "shopping":
-      return "#2F80ED"; // Blue for shopping
-    case "healthcare":
-      return "#219653"; // Green for healthcare
-    default:
-      return "#6C63FF"; // Default purple
-  }
 };
 
 const styles = StyleSheet.create({
@@ -197,6 +317,10 @@ const styles = StyleSheet.create({
   rightContent: {
     alignItems: "flex-end",
   },
+  editIconContainer: {
+    marginLeft: 10,
+    justifyContent: "center",
+  },
   title: {
     fontSize: 16,
     fontWeight: "600",
@@ -208,8 +332,8 @@ const styles = StyleSheet.create({
     color: "#666666",
   },
   amount: {
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 15,
+    fontWeight: "600",
     marginBottom: 4,
   },
   type: {
@@ -231,6 +355,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#666666",
     textAlign: "center",
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  groupContainer: {
+    marginBottom: 20,
+  },
+  dateHeader: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#1A1A1A",
+    marginBottom: 16,
   },
 });
 

@@ -71,8 +71,10 @@ export interface Transaction {
     name: string;
     icon: IconName;
     color: string;
+    type?: "expense" | "income";
+    userId?: string;
   };
-  notes?: string;
+  note?: string;
   attachments?: string[];
   createdAt: string;
   updatedAt: string;

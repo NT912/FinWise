@@ -17,6 +17,12 @@ export interface ICategory extends Document {
   userId: string;
   transactionCount?: number;
   transactions?: mongoose.Types.ObjectId[];
+  stats?: {
+    totalAmount: number;
+    transactionCount: number;
+    averageAmount: number;
+    lastUpdated?: Date;
+  };
   createdAt: Date;
   updatedAt: Date;
 }
@@ -77,6 +83,12 @@ const CategorySchema = new Schema(
         ref: "Transaction",
       },
     ],
+    stats: {
+      totalAmount: { type: Number, default: 0 },
+      transactionCount: { type: Number, default: 0 },
+      averageAmount: { type: Number, default: 0 },
+      lastUpdated: { type: Date, default: Date.now },
+    },
   },
   {
     timestamps: true,

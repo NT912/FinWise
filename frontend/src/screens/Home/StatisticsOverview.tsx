@@ -2,25 +2,27 @@ import React from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Circle } from "react-native-svg";
+import { formatVND } from "../../utils/formatters";
+import { colors } from "../../theme";
 
 type StatisticsOverviewProps = {
   savingsOnGoals?: number;
   revenueLostWeek?: number;
-  foodLastWeek?: number;
+  expenseLastWeek?: number;
   isLoading?: boolean;
   goalPercentage?: number;
 };
 
 const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
-  savingsOnGoals,
-  revenueLostWeek,
-  foodLastWeek,
+  savingsOnGoals = 0,
+  revenueLostWeek = 0,
+  expenseLastWeek = 0,
   isLoading = false,
   goalPercentage = 0,
 }) => {
   // Circular progress calculations
-  const size = 60;
-  const strokeWidth = 5;
+  const size = 50;
+  const strokeWidth = 4;
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const progress = goalPercentage / 100;
@@ -50,7 +52,7 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
                   cx={size / 2}
                   cy={size / 2}
                   r={radius}
-                  stroke="#000000"
+                  stroke="#3366FF"
                   strokeWidth={strokeWidth}
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
@@ -61,11 +63,19 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
               </Svg>
             ) : null}
             <View style={styles.iconContainer}>
-              <Ionicons name="car-outline" size={24} color="#000000" />
+              <Ionicons name="save-outline" size={20} color="#000000" />
             </View>
           </View>
           <Text style={styles.label}>Savings</Text>
           <Text style={styles.sublabel}>On Goals</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#000000" />
+          ) : (
+            <Text style={styles.savingsAmount}>
+              {formatVND(savingsOnGoals)}
+            </Text>
+          )}
+          <Text style={styles.percentageText}>{goalPercentage}% achieved</Text>
         </View>
 
         <View style={styles.divider} />
@@ -73,18 +83,14 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
         <View style={styles.rightSection}>
           <View style={styles.statisticsItem}>
             <View style={styles.itemIconContainer}>
-              <Ionicons name="cash-outline" size={18} color="#000000" />
+              <Ionicons name="cash-outline" size={20} color="#000000" />
             </View>
             <View style={styles.itemContent}>
               <Text style={styles.itemLabel}>Revenue Last Week</Text>
               {isLoading ? (
                 <ActivityIndicator size="small" color="#000000" />
               ) : (
-                <Text style={styles.amount}>
-                  {revenueLostWeek !== undefined
-                    ? `$${revenueLostWeek.toFixed(2)}`
-                    : "-"}
-                </Text>
+                <Text style={styles.amount}>{formatVND(revenueLostWeek)}</Text>
               )}
             </View>
           </View>
@@ -93,17 +99,19 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
           <View style={styles.statisticsItem}>
             <View style={styles.itemIconContainer}>
-              <Ionicons name="restaurant-outline" size={18} color="#000000" />
+              <Ionicons
+                name="trending-down-outline"
+                size={20}
+                color="#000000"
+              />
             </View>
             <View style={styles.itemContent}>
-              <Text style={styles.itemLabel}>Food Last Week</Text>
+              <Text style={styles.itemLabel}>Expense Last Week</Text>
               {isLoading ? (
                 <ActivityIndicator size="small" color="#000000" />
               ) : (
-                <Text style={styles.amount}>
-                  {foodLastWeek !== undefined
-                    ? `-$${foodLastWeek.toFixed(2)}`
-                    : "-"}
+                <Text style={styles.expenseAmount}>
+                  -{formatVND(expenseLastWeek)}
                 </Text>
               )}
             </View>
@@ -116,13 +124,14 @@ const StatisticsOverview: React.FC<StatisticsOverviewProps> = ({
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 20,
-    paddingBottom: 20,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    backgroundColor: "transparent",
   },
   statisticsCard: {
-    backgroundColor: "#00D09E",
-    padding: 16,
+    backgroundColor: colors.primary,
+    padding: 5,
     borderRadius: 16,
     flexDirection: "row",
     shadowColor: "#000",
@@ -133,83 +142,102 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    borderWidth: 1,
+    borderColor: "rgba(0, 0, 0, 0.05)",
   },
   leftSection: {
     width: "30%",
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 8,
+    paddingVertical: 4,
   },
   rightSection: {
     flex: 1,
-    paddingLeft: 16,
+    paddingLeft: 12,
     justifyContent: "center",
   },
   divider: {
-    width: 2,
+    width: 1,
     alignSelf: "stretch",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    marginVertical: 8,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    marginVertical: 4,
   },
   horizontalDivider: {
-    height: 2,
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    marginVertical: 12,
+    height: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.1)",
+    marginVertical: 6,
   },
   circularProgressContainer: {
-    width: 60,
-    height: 60,
+    width: 50,
+    height: 50,
     position: "relative",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 8,
+    marginBottom: 4,
   },
   iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 208, 158, 0.1)",
     justifyContent: "center",
     alignItems: "center",
     position: "absolute",
   },
   label: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#000000",
     fontWeight: "700",
     textAlign: "center",
   },
   sublabel: {
-    fontSize: 12,
+    fontSize: 10,
     color: "#000000",
     opacity: 0.8,
     textAlign: "center",
+  },
+  savingsAmount: {
+    fontSize: 16,
+    color: "#000000",
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 2,
+  },
+  percentageText: {
+    fontSize: 10,
+    color: "#3366FF",
+    fontWeight: "600",
+    marginTop: 2,
   },
   statisticsItem: {
     flexDirection: "row",
     alignItems: "center",
   },
   itemIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(0, 208, 158, 0.1)",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
   itemContent: {
     flex: 1,
   },
   itemLabel: {
-    fontSize: 13,
+    fontSize: 14,
     color: "#000000",
     opacity: 0.8,
-    marginBottom: 2,
   },
   amount: {
-    fontSize: 15,
+    fontSize: 18,
     color: "#000000",
+    fontWeight: "700",
+  },
+  expenseAmount: {
+    fontSize: 18,
+    color: "#FF6B6B",
     fontWeight: "700",
   },
 });

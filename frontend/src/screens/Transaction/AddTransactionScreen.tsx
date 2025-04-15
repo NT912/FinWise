@@ -31,6 +31,7 @@ import { NavigationProp, ParamListBase } from "@react-navigation/native";
 import { checkServerConnection } from "../../services/apiService";
 import TabBar from "../../components/TabBar";
 import AppHeader from "../../components/common/AppHeader";
+import { useToast } from "../../components/ToastProvider";
 
 type RouteParams = {
   AddTransaction: {
@@ -45,6 +46,7 @@ const AddTransactionScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp<ParamListBase>>();
   const route = useRoute<RouteProp<RouteParams, "AddTransaction">>();
   const { preSelectedCategory, type } = route.params || {};
+  const toast = useToast();
 
   // Transaction data
   const [title, setTitle] = useState("");
@@ -93,8 +95,8 @@ const AddTransactionScreen: React.FC = () => {
         setConnectionError(!isConnected);
         if (!isConnected) {
           Alert.alert(
-            "Lỗi kết nối",
-            "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng và thử lại sau."
+            "Connection Error",
+            "Cannot connect to the server. Please check your network connection and try again later."
           );
         }
       } catch (error) {
@@ -138,8 +140,8 @@ const AddTransactionScreen: React.FC = () => {
         console.error("Error fetching categories:", error);
         setConnectionError(true);
         Alert.alert(
-          "Lỗi",
-          "Không thể tải danh mục. Vui lòng kiểm tra kết nối mạng và thử lại."
+          "Error",
+          "Cannot load categories. Please check your network connection and try again."
         );
       } finally {
         setLoadingCategories(false);
@@ -173,91 +175,106 @@ const AddTransactionScreen: React.FC = () => {
         // Nếu kết nối thành công, tải lại danh mục
         const data = await getAllCategories();
         setCategories(data);
-        Alert.alert("Thành công", "Đã kết nối lại với máy chủ.");
+        Alert.alert("Success", "Connected to the server successfully.");
       } else {
         Alert.alert(
-          "Lỗi kết nối",
-          "Vẫn không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng và thử lại sau."
+          "Connection Error",
+          "Cannot connect to the server. Please check your network connection and try again later."
         );
       }
     } catch (error) {
       console.error("Error retrying connection:", error);
       Alert.alert(
-        "Lỗi",
-        "Không thể kết nối đến máy chủ. Vui lòng thử lại sau."
+        "Error",
+        "Cannot connect to the server. Please try again later."
       );
     } finally {
       setLoading(false);
     }
   };
 
-  // Handle form submission
+  // Handle form submission with retry logic
   const handleSubmit = async () => {
     // Validation
     if (!title.trim()) {
-      Alert.alert("Lỗi", "Vui lòng nhập tiêu đề giao dịch");
+      Alert.alert("Error", "Please enter a transaction title");
       return;
     }
 
     if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      Alert.alert("Lỗi", "Vui lòng nhập số tiền hợp lệ");
+      Alert.alert("Error", "Please enter a valid amount");
       return;
     }
 
     if (!selectedCategory) {
-      Alert.alert("Lỗi", "Vui lòng chọn danh mục");
+      Alert.alert("Error", "Please select a category");
       return;
     }
 
     try {
       setLoading(true);
 
-      // Kiểm tra kết nối trước khi thực hiện giao dịch
+      // Check connection before creating transaction
       const isConnected = await checkServerConnection();
       if (!isConnected) {
         setConnectionError(true);
         Alert.alert(
-          "Lỗi kết nối",
-          "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng và thử lại sau."
+          "Connection Error",
+          "Cannot connect to the server. Please check your network connection and try again later."
         );
+        setLoading(false);
         return;
       }
 
       // Prepare transaction data
       const transactionData = {
-        title,
+        title: title.trim(),
         amount: parseFloat(amount),
         date: selectedDate.toISOString(),
         category: selectedCategory._id,
         type: transactionType,
-        note: note.trim(),
+        note: note ? note.trim() : "",
       };
 
-      // Create transaction
-      const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        navigation.navigate("Login" as never);
-        return;
-      }
+      console.log("🔄 Attempting to create transaction:", transactionData);
 
-      await createTransaction(transactionData);
+      // Create transaction with built-in retry mechanism
+      const result = await createTransaction(transactionData);
 
-      // Navigate back after successful creation
-      Alert.alert("Thành công", "Giao dịch đã được thêm thành công");
-      navigation.goBack();
-    } catch (error) {
+      // Hiển thị toast thành công và quay lại màn hình trước đó
+      toast.showToast(
+        "Transaction has been added successfully",
+        "success",
+        2000
+      );
+      setTimeout(() => {
+        navigation.goBack();
+      }, 500);
+    } catch (error: any) {
       console.error("Error creating transaction:", error);
 
-      // Kiểm tra xem lỗi có phải do mất kết nối không
-      const isConnected = await checkServerConnection();
-      if (!isConnected) {
+      // Specific error handling for different types of errors
+      if (error.response?.status === 500) {
+        // Handle WriteConflict-specific error
+        if (error.response.data?.retryable) {
+          toast.showToast("Database busy. Please try again.", "warning");
+        } else {
+          // General server error
+          toast.showToast(
+            "An unexpected error occurred. Please try again later.",
+            "error"
+          );
+        }
+      } else if (!error.response && error.message.includes("Network Error")) {
+        // Network connectivity issues
         setConnectionError(true);
-        Alert.alert(
-          "Lỗi kết nối",
-          "Không thể kết nối đến máy chủ. Vui lòng kiểm tra lại kết nối mạng và thử lại sau."
+        toast.showToast(
+          "Cannot connect to the server. Check your internet connection.",
+          "error"
         );
       } else {
-        Alert.alert("Lỗi", "Không thể thêm giao dịch. Vui lòng thử lại.");
+        // Default error message
+        toast.showToast("Cannot add transaction. Please try again.", "error");
       }
     } finally {
       setLoading(false);
@@ -293,298 +310,371 @@ const AddTransactionScreen: React.FC = () => {
     );
   };
 
-  // Hiển thị lỗi kết nối nếu không thể kết nối đến server
-  if (connectionError && !loading) {
-    return (
-      <SafeAreaView style={styles.connectionErrorContainer}>
-        <Animated.View
-          style={[
-            styles.errorCard,
-            {
-              opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }],
-            },
-          ]}
-        >
-          <Ionicons name="wifi-outline" size={80} color="#FF6B6B" />
-          <Text style={styles.connectionErrorTitle}>Lỗi kết nối</Text>
-          <Text style={styles.connectionErrorMessage}>
-            Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng của
-            bạn và thử lại.
-          </Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={retryConnection}
-          >
-            <Text style={styles.retryButtonText}>Thử lại</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.errorBackButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Text style={styles.backButtonText}>Quay lại</Text>
-          </TouchableOpacity>
-        </Animated.View>
-      </SafeAreaView>
-    );
-  }
-
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
 
+      {/* Header */}
       <AppHeader
-        headerTitle="Thêm Giao Dịch"
+        headerTitle="Add Transaction"
         showBackButton={true}
-        showAvatar={false}
-        backgroundColor="#00D09E"
-        textColor="#FFFFFF"
         onBackPress={() => navigation.goBack()}
       />
 
-      <View style={styles.backgroundLayer} />
-
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={styles.keyboardAvoidingView}
-      >
-        <Animated.View
-          style={[
-            styles.whiteContainer,
-            {
-              transform: [
-                {
-                  translateY: slideAnim.interpolate({
-                    inputRange: [0, 30],
-                    outputRange: [0, 20],
-                  }),
-                },
-              ],
-            },
-          ]}
+      {/* SHOW CONNECTION ERROR OR MAIN CONTENT */}
+      {connectionError ? (
+        <View style={styles.connectionErrorContainer}>
+          <View style={styles.errorCard}>
+            <Ionicons name="cloud-offline" size={60} color="#FF6B6B" />
+            <Text style={styles.connectionErrorTitle}>Connection Error</Text>
+            <Text style={styles.connectionErrorMessage}>
+              Cannot connect to the server. Please check your network connection
+              and try again.
+            </Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={retryConnection}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <Text style={styles.retryButtonText}>Retry Connection</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.errorBackButton}
+              onPress={() => navigation.goBack()}
+            >
+              <Text style={styles.backButtonText}>Go Back</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.keyboardAvoidingView}
         >
-          <ScrollView
-            style={styles.content}
-            contentContainerStyle={styles.contentContainer}
-            showsVerticalScrollIndicator={false}
+          {/* Green background layer */}
+          <View style={styles.backgroundLayer} />
+
+          {/* White Container holding form and footer */}
+          <Animated.View
+            style={[
+              styles.whiteContainer,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 30],
+                      outputRange: [0, 20],
+                    }),
+                  },
+                ],
+              },
+            ]}
           >
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              }}
+            {/* Form Content */}
+            <ScrollView
+              style={styles.content}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
             >
-              <Text style={styles.sectionTitle}>Loại Giao Dịch</Text>
-              <View style={styles.typeSelector}>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    transactionType === "income" && styles.selectedTypeButton,
-                  ]}
-                  onPress={() => setTransactionType("income")}
-                >
-                  <Ionicons
-                    name="arrow-down-circle"
-                    size={22}
-                    color={transactionType === "income" ? "#fff" : "#00D09E"}
-                  />
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      transactionType === "income" && styles.selectedTypeText,
-                    ]}
-                  >
-                    Thu Nhập
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.typeButton,
-                    transactionType === "expense" &&
-                      styles.selectedExpenseButton,
-                  ]}
-                  onPress={() => setTransactionType("expense")}
-                >
-                  <Ionicons
-                    name="arrow-up-circle"
-                    size={22}
-                    color={transactionType === "expense" ? "#fff" : "#FF6B6B"}
-                  />
-                  <Text
-                    style={[
-                      styles.typeButtonText,
-                      transactionType === "expense" && styles.selectedTypeText,
-                    ]}
-                  >
-                    Chi Tiêu
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </Animated.View>
-
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(slideAnim, 1.2) }],
-              }}
-            >
-              <Text style={styles.sectionTitle}>Số Tiền</Text>
-              <View style={styles.amountWrapper}>
-                <TextInput
-                  style={styles.amountInput}
-                  placeholder="0"
-                  value={amount}
-                  onChangeText={setAmount}
-                  keyboardType="numeric"
-                  placeholderTextColor="#CCCCCC"
-                />
-                <Text style={styles.currencyLabel}>VND</Text>
-              </View>
-            </Animated.View>
-
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(slideAnim, 1.4) }],
-              }}
-            >
-              <Text style={styles.sectionTitle}>Danh Mục</Text>
-              <TouchableOpacity
-                style={styles.sectionCard}
-                onPress={() => setShowCategoryModal(true)}
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                }}
               >
-                {selectedCategory ? (
-                  <View style={styles.selectedCategory}>
-                    <View
+                <Text style={styles.sectionTitle}>Transaction Type</Text>
+                <View style={styles.typeSelector}>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeButton,
+                      transactionType === "income" && styles.selectedTypeButton,
+                    ]}
+                    onPress={() => setTransactionType("income")}
+                  >
+                    <Ionicons
+                      name="arrow-down-circle"
+                      size={22}
+                      color={transactionType === "income" ? "#fff" : "#00D09E"}
+                    />
+                    <Text
                       style={[
-                        styles.categoryIcon,
-                        { backgroundColor: selectedCategory.color },
+                        styles.typeButtonText,
+                        transactionType === "income" && styles.selectedTypeText,
                       ]}
                     >
-                      <Ionicons
-                        name={selectedCategory.icon as any}
-                        size={20}
-                        color="#fff"
-                      />
-                    </View>
-                    <Text style={styles.selectedCategoryText}>
-                      {selectedCategory.name}
+                      Income
                     </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[
+                      styles.typeButton,
+                      transactionType === "expense" &&
+                        styles.selectedExpenseButton,
+                    ]}
+                    onPress={() => setTransactionType("expense")}
+                  >
+                    <Ionicons
+                      name="arrow-up-circle"
+                      size={22}
+                      color={transactionType === "expense" ? "#fff" : "#FF6B6B"}
+                    />
+                    <Text
+                      style={[
+                        styles.typeButtonText,
+                        transactionType === "expense" &&
+                          styles.selectedTypeText,
+                      ]}
+                    >
+                      Expense
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </Animated.View>
+
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: Animated.multiply(slideAnim, 1.2) },
+                  ],
+                }}
+              >
+                <Text style={styles.sectionTitle}>Title</Text>
+                <View style={styles.sectionCard}>
+                  <TextInput
+                    style={styles.titleInput}
+                    placeholder="Enter transaction title"
+                    value={title}
+                    onChangeText={setTitle}
+                    placeholderTextColor="#AAAAAA"
+                  />
+                </View>
+              </Animated.View>
+
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: Animated.multiply(slideAnim, 1.4) },
+                  ],
+                }}
+              >
+                <Text style={styles.sectionTitle}>Amount</Text>
+                <View style={styles.amountWrapper}>
+                  <TextInput
+                    style={styles.amountInput}
+                    placeholder="0"
+                    value={amount}
+                    onChangeText={setAmount}
+                    keyboardType="numeric"
+                    placeholderTextColor="#CCCCCC"
+                  />
+                  <Text style={styles.currencyLabel}>VND</Text>
+                </View>
+              </Animated.View>
+
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: Animated.multiply(slideAnim, 1.6) },
+                  ],
+                }}
+              >
+                <Text style={styles.sectionTitle}>Category</Text>
+                <TouchableOpacity
+                  style={styles.sectionCard}
+                  onPress={() => setShowCategoryModal(true)}
+                >
+                  {selectedCategory ? (
+                    <View style={styles.selectedCategory}>
+                      <View
+                        style={[
+                          styles.categoryIcon,
+                          { backgroundColor: selectedCategory.color },
+                        ]}
+                      >
+                        <Ionicons
+                          name={selectedCategory.icon as any}
+                          size={20}
+                          color="#fff"
+                        />
+                      </View>
+                      <Text style={styles.selectedCategoryText}>
+                        {selectedCategory.name}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={styles.placeholderContainer}>
+                      <Text style={styles.placeholderText}>
+                        Select category
+                      </Text>
+                      <Ionicons name="chevron-forward" size={20} color="#999" />
+                    </View>
+                  )}
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [
+                    { translateY: Animated.multiply(slideAnim, 1.8) },
+                  ],
+                }}
+              >
+                <Text style={styles.sectionTitle}>Transaction Date</Text>
+                <TouchableOpacity
+                  style={styles.sectionCard}
+                  onPress={() => setShowDatePicker(true)}
+                >
+                  <View style={styles.dateContainer}>
+                    <View
+                      style={[
+                        styles.calendarIconContainer,
+                        {
+                          backgroundColor:
+                            transactionType === "income"
+                              ? "#00D09E"
+                              : "#FF6B6B",
+                        },
+                      ]}
+                    >
+                      <Ionicons name="calendar" size={20} color="#FFFFFF" />
+                    </View>
+                    <View style={styles.dateTextContainer}>
+                      <Text style={styles.dateLabel}>Date</Text>
+                      <Text style={styles.dateText}>
+                        {formatDate(selectedDate)}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-down"
+                      size={20}
+                      color="#999"
+                      style={styles.dateChevron}
+                    />
                   </View>
+                </TouchableOpacity>
+              </Animated.View>
+
+              <Animated.View
+                style={{
+                  opacity: fadeAnim,
+                  transform: [{ translateY: Animated.multiply(slideAnim, 2) }],
+                  marginBottom: 30,
+                }}
+              >
+                <Text style={styles.sectionTitle}>Note</Text>
+                <View style={styles.sectionCard}>
+                  <TextInput
+                    style={styles.notesInput}
+                    placeholder="Add a note (optional)"
+                    value={note}
+                    onChangeText={setNote}
+                    multiline
+                    numberOfLines={3}
+                    placeholderTextColor="#AAAAAA"
+                  />
+                </View>
+              </Animated.View>
+            </ScrollView>
+
+            {/* Footer with save button - now inside white container */}
+            <Animated.View
+              style={[
+                styles.footer,
+                {
+                  opacity: fadeAnim,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  {
+                    backgroundColor:
+                      transactionType === "income" ? "#00D09E" : "#FF6B6B",
+                  },
+                ]}
+                onPress={handleSubmit}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
                 ) : (
-                  <View style={styles.placeholderContainer}>
-                    <Text style={styles.placeholderText}>Chọn danh mục</Text>
-                    <Ionicons name="chevron-forward" size={20} color="#999" />
-                  </View>
+                  <>
+                    <Ionicons
+                      name="save-outline"
+                      size={20}
+                      color="#FFF"
+                      style={{ marginRight: 8 }}
+                    />
+                    <Text style={styles.saveButtonText}>Save Transaction</Text>
+                  </>
                 )}
               </TouchableOpacity>
             </Animated.View>
+          </Animated.View>
+        </KeyboardAvoidingView>
+      )}
 
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(slideAnim, 1.6) }],
-              }}
-            >
-              <Text style={styles.sectionTitle}>Ngày Giao Dịch</Text>
-              <TouchableOpacity
-                style={styles.sectionCard}
-                onPress={() => setShowDatePicker(true)}
-              >
-                <View style={styles.dateContainer}>
-                  <Ionicons name="calendar-outline" size={20} color="#666" />
-                  <Text style={styles.dateText}>
-                    {formatDate(selectedDate)}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            </Animated.View>
-
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(slideAnim, 1.8) }],
-              }}
-            >
-              <Text style={styles.sectionTitle}>Tiêu Đề</Text>
-              <View style={styles.sectionCard}>
-                <TextInput
-                  style={styles.titleInput}
-                  placeholder="Nhập tiêu đề giao dịch"
-                  value={title}
-                  onChangeText={setTitle}
-                  placeholderTextColor="#AAAAAA"
-                />
-              </View>
-            </Animated.View>
-
-            <Animated.View
-              style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: Animated.multiply(slideAnim, 2) }],
-                marginBottom: 30,
-              }}
-            >
-              <Text style={styles.sectionTitle}>Ghi Chú</Text>
-              <View style={styles.sectionCard}>
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Thêm ghi chú (không bắt buộc)"
-                  value={note}
-                  onChangeText={setNote}
-                  multiline
-                  numberOfLines={3}
-                  placeholderTextColor="#AAAAAA"
-                />
-              </View>
-            </Animated.View>
-          </ScrollView>
-        </Animated.View>
-      </KeyboardAvoidingView>
-
-      <Animated.View
-        style={[
-          styles.footer,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: Animated.multiply(slideAnim, 0.5) }],
-          },
-        ]}
-      >
-        <TouchableOpacity
-          style={[
-            styles.saveButton,
-            {
-              backgroundColor:
-                transactionType === "income" ? "#00D09E" : "#FF6B6B",
-            },
-          ]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading ? (
-            <ActivityIndicator color="#FFFFFF" />
-          ) : (
-            <>
-              <Ionicons
-                name="save-outline"
-                size={20}
-                color="#FFF"
-                style={{ marginRight: 8 }}
-              />
-              <Text style={styles.saveButtonText}>Lưu Giao Dịch</Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </Animated.View>
-
+      {/* Date Picker Modal */}
       {showDatePicker && (
-        <DateTimePicker
-          value={selectedDate}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-        />
+        <Modal
+          visible={showDatePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowDatePicker(false)}
+        >
+          <TouchableOpacity
+            style={styles.datePickerBackdrop}
+            activeOpacity={1}
+            onPress={() => setShowDatePicker(false)}
+          >
+            <View style={styles.datePickerContainer}>
+              <View style={styles.datePickerHeader}>
+                <Text style={styles.datePickerTitle}>Select Date</Text>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Ionicons name="close" size={24} color="#333" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.datePickerWrapper}>
+                <DateTimePicker
+                  value={selectedDate}
+                  mode="date"
+                  display="inline"
+                  onChange={onDateChange}
+                  style={styles.datePicker}
+                  maximumDate={new Date()}
+                  textColor="#333333"
+                  accentColor={
+                    transactionType === "income" ? "#00D09E" : "#FF6B6B"
+                  }
+                  themeVariant="light"
+                />
+              </View>
+              <View style={styles.datePickerFooter}>
+                <TouchableOpacity
+                  style={[
+                    styles.datePickerButton,
+                    {
+                      backgroundColor:
+                        transactionType === "income" ? "#00D09E" : "#FF6B6B",
+                    },
+                  ]}
+                  onPress={() => setShowDatePicker(false)}
+                >
+                  <Text style={styles.datePickerButtonText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* Category Selection Modal */}
@@ -597,7 +687,7 @@ const AddTransactionScreen: React.FC = () => {
         <View style={styles.modalContainer}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Chọn Danh Mục</Text>
+              <Text style={styles.modalTitle}>Select Category</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setShowCategoryModal(false)}
@@ -632,12 +722,30 @@ const styles = StyleSheet.create({
     flex: 1,
     marginTop: 10,
   },
+  whiteContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: -3,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    elevation: 10,
+    paddingBottom: 0,
+    display: "flex",
+    flexDirection: "column",
+  },
   content: {
     flex: 1,
   },
   contentContainer: {
     padding: 20,
-    paddingBottom: 100,
+    paddingBottom: 20,
   },
   formContainer: {
     flex: 1,
@@ -803,21 +911,13 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
   },
   footer: {
-    backgroundColor: "#FFFFFF",
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: "#EEEEEE",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -3,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 10,
+    backgroundColor: "#FFFFFF",
+    marginTop: 0,
+    width: "100%",
   },
   saveButton: {
     backgroundColor: "#00D09E",
@@ -826,6 +926,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
+    shadowColor: "#00D09E",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   saveButtonText: {
     color: "#FFFFFF",
@@ -834,23 +942,26 @@ const styles = StyleSheet.create({
   },
   modalContainer: {
     flex: 1,
-    justifyContent: "flex-end",
+    justifyContent: "center",
     backgroundColor: "rgba(0, 0, 0, 0.5)",
+    alignItems: "center",
+    paddingBottom: 0,
   },
   modalContent: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 20,
+    width: "90%",
+    maxWidth: 400,
     paddingBottom: 20,
-    maxHeight: "70%",
+    maxHeight: "80%",
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: -5,
+      height: 2,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 10,
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
   modalHeader: {
     flexDirection: "row",
@@ -988,7 +1099,40 @@ const styles = StyleSheet.create({
   dateContainer: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "space-between",
+  },
+  calendarIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#00D09E",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  dateTextContainer: {
+    flex: 1,
+  },
+  dateLabel: {
+    fontSize: 12,
+    color: "#999",
+    marginBottom: 2,
+  },
+  dateText: {
+    fontSize: 16,
+    color: "#333333",
+    fontWeight: "500",
+  },
+  dateChevron: {
+    marginLeft: 8,
   },
   backgroundLayer: {
     position: "absolute",
@@ -999,20 +1143,81 @@ const styles = StyleSheet.create({
     backgroundColor: "#00D09E",
     zIndex: -1,
   },
-  whiteContainer: {
+
+  // Date picker styles
+  datePickerBackdrop: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 30,
-    borderTopRightRadius: 30,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  datePickerContainer: {
+    width: "90%",
+    backgroundColor: "white",
+    borderRadius: 20,
     overflow: "hidden",
+    paddingBottom: 15,
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: -3,
+      height: 4,
     },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.25,
     shadowRadius: 5,
-    elevation: 10,
+    elevation: 5,
+  },
+  datePickerHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
+  },
+  datePickerTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333333",
+  },
+  datePickerWrapper: {
+    backgroundColor: "white",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    alignItems: "center",
+  },
+  datePicker: {
+    width: "100%",
+    height: 350,
+    backgroundColor: "white",
+  },
+  datePickerFooter: {
+    flexDirection: "row",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#EEEEEE",
+  },
+  datePickerButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 16,
+    backgroundColor: "#00D09E",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
+  },
+  datePickerButtonText: {
+    color: "white",
+    fontWeight: "600",
+    fontSize: 16,
   },
 });
 

@@ -24,6 +24,13 @@ export interface IUser extends Document {
   userId?: string;
   transactionCount?: number;
   transactions?: mongoose.Types.ObjectId[];
+  stats?: {
+    totalIncome: number;
+    totalExpense: number;
+    avgMonthlyIncome?: number;
+    avgMonthlyExpense?: number;
+    lastUpdated?: Date;
+  };
 }
 
 interface ValidationProps {
@@ -92,6 +99,13 @@ const userSchema = new Schema(
         ref: "Transaction",
       },
     ],
+    stats: {
+      totalIncome: { type: Number, default: 0 },
+      totalExpense: { type: Number, default: 0 },
+      avgMonthlyIncome: { type: Number, default: 0 },
+      avgMonthlyExpense: { type: Number, default: 0 },
+      lastUpdated: { type: Date, default: Date.now },
+    },
   },
   { timestamps: true }
 );

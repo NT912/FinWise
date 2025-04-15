@@ -1,20 +1,52 @@
 import React from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { formatVND } from "../../utils/formatters";
+import { colors } from "../../theme";
+
+// Define icon name type
+type IconName = keyof typeof Ionicons.glyphMap;
 
 // Định nghĩa kiểu dữ liệu cho props
 type BalanceOverviewProps = {
   totalBalance: number;
   totalExpense: number;
+  monthlyTarget?: number;
 };
 
 const BalanceOverview: React.FC<BalanceOverviewProps> = ({
   totalBalance,
   totalExpense,
+  monthlyTarget = 20000000, // Default value if not provided from DB
 }) => {
-  // Calculate expense percentage
-  const targetAmount = 20000.0;
-  const expensePercentage = Math.min((totalExpense / targetAmount) * 100, 100);
+  // Calculate expense percentage based on monthly target
+  const expensePercentage =
+    monthlyTarget > 0 ? Math.min((totalExpense / monthlyTarget) * 100, 100) : 0;
+
+  // Dynamic message based on expense percentage
+  const getStatusMessage = () => {
+    if (expensePercentage >= 100) {
+      return "You've exceeded your monthly target.";
+    } else if (expensePercentage >= 80) {
+      return "You're approaching your monthly target.";
+    } else if (expensePercentage >= 50) {
+      return `${expensePercentage.toFixed(0)}% of your target spent.`;
+    } else {
+      return `${expensePercentage.toFixed(0)}% of your target, looks good.`;
+    }
+  };
+
+  const getStatusIcon = () => {
+    if (expensePercentage >= 100) {
+      return { name: "alert-circle-outline" as IconName, color: "#FF0000" };
+    } else if (expensePercentage >= 80) {
+      return { name: "warning-outline" as IconName, color: "#FFA500" };
+    } else {
+      return { name: "checkmark-circle-outline" as IconName, color: "#00AA00" };
+    }
+  };
+
+  const statusIcon = getStatusIcon();
 
   return (
     <View style={styles.container}>
@@ -24,15 +56,17 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
             <Ionicons name="wallet-outline" size={16} color="#000000" />
             <Text style={styles.balanceLabel}>Total Balance</Text>
           </View>
-          <Text style={styles.balanceAmount}>${totalBalance.toFixed(2)}</Text>
+          <Text style={styles.balanceAmount}>{formatVND(totalBalance)}</Text>
         </View>
+
+        <View style={styles.separator} />
 
         <View style={styles.balanceItem}>
           <View style={styles.balanceHeader}>
             <Ionicons name="trending-down-outline" size={16} color="#000000" />
             <Text style={styles.balanceLabel}>Total Expense</Text>
           </View>
-          <Text style={styles.expenseAmount}>-${totalExpense.toFixed(2)}</Text>
+          <Text style={styles.expenseAmount}>-{formatVND(totalExpense)}</Text>
         </View>
       </View>
 
@@ -45,28 +79,23 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
               {expensePercentage.toFixed(0)}%
             </Text>
           </View>
-          <View
-            style={[
-              styles.progressRemaining,
-              { width: `${100 - expensePercentage}%` },
-            ]}
-          >
-            <Text style={styles.remainingPercentage}>
-              {(100 - expensePercentage).toFixed(0)}%
-            </Text>
-          </View>
+          <Text style={styles.progressAmountText}>
+            {formatVND(monthlyTarget)}
+          </Text>
         </View>
-        <Text style={styles.progressText}>${targetAmount.toFixed(2)}</Text>
       </View>
 
-      <Text style={styles.statusText}>Of Your Expenses, Looks Good</Text>
+      <View style={styles.statusContainer}>
+        <Ionicons name={statusIcon.name} size={16} color={statusIcon.color} />
+        <Text style={styles.statusText}>{getStatusMessage()}</Text>
+      </View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: "#00D09E",
+    backgroundColor: colors.primary,
     paddingHorizontal: 20,
     paddingTop: 4,
     paddingBottom: 20,
@@ -84,42 +113,41 @@ const styles = StyleSheet.create({
   balanceHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 4,
+    marginBottom: 8,
   },
   balanceLabel: {
     fontSize: 14,
     color: "#000000",
     marginLeft: 8,
-    opacity: 0.7,
+    opacity: 0.8,
   },
   balanceAmount: {
-    fontSize: 24,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
     color: "#FFFFFF",
   },
   expenseAmount: {
-    fontSize: 24,
-    fontWeight: "600",
+    fontSize: 20,
+    fontWeight: "700",
     color: "#0068FF",
   },
   progressContainer: {
-    marginBottom: 6,
+    marginBottom: 12,
   },
   progressBackground: {
     height: 30,
-    backgroundColor: "rgba(255, 255, 255, 0.3)",
+    backgroundColor: "#FFFFFF",
     borderRadius: 15,
-    flexDirection: "row",
     overflow: "hidden",
+    marginBottom: 5,
+    position: "relative",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#A67C52",
+    borderRadius: 15,
     justifyContent: "center",
-    alignItems: "flex-start",
-    paddingLeft: 10,
-    borderTopRightRadius: 20,
-    borderBottomRightRadius: 20,
+    paddingHorizontal: 12,
   },
   progressRemaining: {
     height: "100%",
@@ -131,8 +159,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "600",
   },
+  progressAmountText: {
+    position: "absolute",
+    right: 12,
+    top: 7,
+    fontSize: 14,
+    color: "#000000",
+    fontWeight: "500",
+  },
   remainingPercentage: {
-    color: "#FFFFFF",
+    color: "#000000",
     fontSize: 14,
     fontWeight: "600",
   },
@@ -140,13 +176,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#000000",
     textAlign: "right",
-    marginTop: 2,
-    opacity: 0.7,
+    marginTop: 4,
+  },
+  statusContainer: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   statusText: {
     fontSize: 14,
     color: "#000000",
-    opacity: 0.7,
+    marginLeft: 5,
+    opacity: 0.8,
+  },
+  separator: {
+    width: 1,
+    height: 40,
+    backgroundColor: "rgba(0, 0, 0, 0.3)",
+    marginHorizontal: 20,
   },
 });
 

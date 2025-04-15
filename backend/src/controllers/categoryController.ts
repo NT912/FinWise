@@ -186,22 +186,82 @@ export const updateCategoryRules = async (req: Request, res: Response) => {
 
 // Increment transaction count for a category
 export const incrementTransactionCount = async (categoryId: string) => {
-  try {
-    await Category.findByIdAndUpdate(categoryId, {
-      $inc: { transactionCount: 1 },
-    });
-  } catch (error) {
-    console.error("Error incrementing transaction count:", error);
+  const maxRetries = 3;
+  let retries = 0;
+
+  while (retries < maxRetries) {
+    try {
+      // Sử dụng $inc thay vì findOne và update để tránh race condition
+      const result = await Category.findByIdAndUpdate(
+        categoryId,
+        { $inc: { transactionCount: 1 } },
+        { new: true }
+      );
+
+      if (!result) {
+        console.warn(
+          `Category ${categoryId} not found when incrementing transaction count`
+        );
+      }
+
+      return; // Thành công, thoát hàm
+    } catch (error) {
+      retries++;
+      console.error(
+        `Error incrementing transaction count (attempt ${retries}/${maxRetries}):`,
+        error
+      );
+
+      if (retries >= maxRetries) {
+        console.error("Max retries reached for incrementTransactionCount");
+        // Không throw error để tránh làm hỏng luồng chính
+        return;
+      }
+
+      // Đợi một khoảng thời gian ngẫu nhiên trước khi thử lại
+      const delay = Math.floor(Math.random() * 300) + 100; // 100-400ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
 };
 
 // Decrement transaction count for a category
 export const decrementTransactionCount = async (categoryId: string) => {
-  try {
-    await Category.findByIdAndUpdate(categoryId, {
-      $inc: { transactionCount: -1 },
-    });
-  } catch (error) {
-    console.error("Error decrementing transaction count:", error);
+  const maxRetries = 3;
+  let retries = 0;
+
+  while (retries < maxRetries) {
+    try {
+      // Sử dụng $inc thay vì findOne và update để tránh race condition
+      const result = await Category.findByIdAndUpdate(
+        categoryId,
+        { $inc: { transactionCount: -1 } },
+        { new: true }
+      );
+
+      if (!result) {
+        console.warn(
+          `Category ${categoryId} not found when decrementing transaction count`
+        );
+      }
+
+      return; // Thành công, thoát hàm
+    } catch (error) {
+      retries++;
+      console.error(
+        `Error decrementing transaction count (attempt ${retries}/${maxRetries}):`,
+        error
+      );
+
+      if (retries >= maxRetries) {
+        console.error("Max retries reached for decrementTransactionCount");
+        // Không throw error để tránh làm hỏng luồng chính
+        return;
+      }
+
+      // Đợi một khoảng thời gian ngẫu nhiên trước khi thử lại
+      const delay = Math.floor(Math.random() * 300) + 100; // 100-400ms
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
 };

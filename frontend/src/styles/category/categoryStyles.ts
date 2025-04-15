@@ -579,7 +579,7 @@ const categoryStyles = StyleSheet.create({
     alignItems: "center",
   },
   balanceValue: {
-    fontSize: 24,
+    fontSize: 18,
     fontWeight: "700",
     color: "#00C897",
   },
@@ -614,8 +614,9 @@ const categoryStyles = StyleSheet.create({
     fontWeight: "600",
   },
   progressMaxLabel: {
-    fontSize: 12,
-    color: "#666666",
+    fontSize: 13,
+    fontWeight: "500",
+    color: "#555",
   },
   budgetInfoText: {
     fontSize: 14,

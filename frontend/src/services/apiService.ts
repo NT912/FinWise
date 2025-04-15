@@ -1,30 +1,76 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Platform } from "react-native";
+import { Platform, Alert } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 
-// Xác định baseURL dựa trên platform
-const getBaseUrl = () => {
-  if (Platform.OS === "android") {
-    if (Platform.constants.Release === null) {
-      // Android Emulator
-      return "http://10.0.2.2:3002";
-    }
-    // Android Device
-    return "http://192.168.1.8:3002"; // IP Wifi của nhà phát triển
+// Lưu API URL vào AsyncStorage
+export const saveApiUrl = async (url: string) => {
+  try {
+    await AsyncStorage.setItem("api_url", url);
+    console.log("✅ Đã lưu API URL:", url);
+    return true;
+  } catch (error) {
+    console.error("❌ Lỗi khi lưu API URL:", error);
+    return false;
   }
-  // iOS
-  return "http://192.168.1.8:3002"; // Sử dụng IP thay vì localhost để tránh lỗi
 };
 
+// Lấy API URL từ AsyncStorage
+export const getStoredApiUrl = async () => {
+  try {
+    const url = await AsyncStorage.getItem("api_url");
+    if (url) {
+      console.log("🔍 Đã tìm thấy API URL đã lưu:", url);
+      return url;
+    }
+  } catch (error) {
+    console.error("❌ Lỗi khi lấy API URL:", error);
+  }
+  return null;
+};
+
+// Xác định baseURL dựa trên platform
+const getBaseUrl = async () => {
+  // Thử lấy từ AsyncStorage trước tiên
+  const storedUrl = await getStoredApiUrl();
+  if (storedUrl) {
+    return storedUrl;
+  }
+
+  // Nếu không có URL đã lưu, sử dụng các giá trị mặc định
+  if (__DEV__) {
+    // Sử dụng IP thực tế làm mặc định thay vì localhost
+    return "http://192.168.1.8:3002";
+  }
+  // Production environment
+  return "https://api.finwise-app.com"; // Thay thế URL này khi triển khai production
+};
+
+// Tạo API client với baseURL mặc định (sẽ được cập nhật sau)
 const api = axios.create({
-  baseURL: getBaseUrl(),
+  baseURL: "http://192.168.1.8:3002", // Cập nhật giá trị mặc định tạm thời
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
   timeout: 60000,
 });
+
+// Khởi tạo API client với URL từ AsyncStorage hoặc giá trị mặc định
+export const initializeApi = async () => {
+  try {
+    const baseUrl = await getBaseUrl();
+    api.defaults.baseURL = baseUrl;
+    console.log("🚀 Khởi tạo API client với baseURL:", baseUrl);
+    return true;
+  } catch (error) {
+    console.error("❌ Lỗi khởi tạo API client:", error);
+    return false;
+  }
+};
+
+// Gọi hàm khởi tạo ngay lập tức
+initializeApi();
 
 // Log mỗi request để debug
 api.interceptors.request.use((request) => {

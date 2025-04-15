@@ -50,7 +50,7 @@ const homeStyles = StyleSheet.create({
 
   // 💰 Balance Overview
   balanceCard: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     borderRadius: 15,
     padding: 20,
     marginBottom: 15,
@@ -81,7 +81,7 @@ const homeStyles = StyleSheet.create({
 
   // 🎯 Savings on Goals
   savingsCard: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
     borderRadius: 15,
     padding: 20,
     marginBottom: 15,
@@ -128,24 +128,36 @@ const homeStyles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "center",
     marginBottom: 10,
+    width: "100%",
   },
   filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 22,
     borderRadius: 20,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: "#F0F0F0",
     marginHorizontal: 5,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   filterButtonActive: {
-    backgroundColor: "#00C897",
+    backgroundColor: "#00D09E",
+    shadowColor: "#00D09E",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   filterText: {
     fontSize: 14,
-    color: "black",
-    fontWeight: "bold",
+    color: "#555555",
+    fontWeight: "600",
   },
   filterTextActive: {
     color: "white",
+    fontWeight: "700",
   },
 });
 

@@ -28,9 +28,11 @@ import LogoutScreen from "../screens/Profile/LogoutScreen";
 import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
 import CategoryDetailScreen from "../screens/Category/CategoryDetailScreen";
 import AddTransactionScreen from "../screens/Transaction/AddTransactionScreen";
+import EditTransactionScreen from "../screens/Transaction/EditTransactionScreen";
 import { User } from "../types";
 import CustomTabBar from "../components/CustomTabBar";
 import ChangePinScreen from "../screens/Security/ChangePinScreen";
+import SavingScreen from "../screens/Saving/SavingScreen";
 
 export type RootStackParamList = {
   Launch: undefined;
@@ -63,7 +65,15 @@ export type RootStackParamList = {
 
 export type HomeStackParamList = {
   Home: undefined;
-  AddTransaction: undefined;
+  AddTransaction:
+    | {
+        preSelectedCategory?: string;
+        type?: "expense" | "income";
+      }
+    | undefined;
+  EditTransaction: {
+    transactionId: string;
+  };
 };
 
 export type CategoryStackParamList = {
@@ -74,9 +84,14 @@ export type CategoryStackParamList = {
     categoryIcon: string;
     categoryColor: string;
   };
-  AddTransaction: {
-    preSelectedCategory?: string;
-    type?: string;
+  AddTransaction:
+    | {
+        preSelectedCategory?: string;
+        type?: "expense" | "income";
+      }
+    | undefined;
+  EditTransaction: {
+    transactionId: string;
   };
 };
 
@@ -97,9 +112,14 @@ export type ProfileStackParamList = {
   Logout: undefined;
 };
 
+export type SavingStackParamList = {
+  Saving: undefined;
+};
+
 interface AppNavigatorProps {
   initialAuthenticated?: boolean;
   forceLogin?: boolean;
+  initialRouteName?: keyof RootStackParamList;
 }
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -107,6 +127,7 @@ const HomeStack = createStackNavigator<HomeStackParamList>();
 const CategoryStack = createStackNavigator<CategoryStackParamList>();
 const ChartsStack = createStackNavigator<ChartsStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
+const SavingStack = createStackNavigator<SavingStackParamList>();
 const Tab = createBottomTabNavigator();
 
 // Home Stack
@@ -114,6 +135,10 @@ const HomeStackNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
     <HomeStack.Screen name="AddTransaction" component={AddTransactionScreen} />
+    <HomeStack.Screen
+      name="EditTransaction"
+      component={EditTransactionScreen}
+    />
   </HomeStack.Navigator>
 );
 
@@ -129,6 +154,10 @@ const CategoryStackNavigator = () => (
       name="AddTransaction"
       component={AddTransactionScreen}
     />
+    <CategoryStack.Screen
+      name="EditTransaction"
+      component={EditTransactionScreen}
+    />
   </CategoryStack.Navigator>
 );
 
@@ -137,6 +166,13 @@ const ChartsStackNavigator = () => (
   <ChartsStack.Navigator screenOptions={{ headerShown: false }}>
     <ChartsStack.Screen name="Charts" component={ChartsScreen} />
   </ChartsStack.Navigator>
+);
+
+// Saving Stack
+const SavingStackNavigator = () => (
+  <SavingStack.Navigator screenOptions={{ headerShown: false }}>
+    <SavingStack.Screen name="Saving" component={SavingScreen} />
+  </SavingStack.Navigator>
 );
 
 // Profile Stack
@@ -171,7 +207,7 @@ const TabNavigator = () => (
   >
     <Tab.Screen name="HomeTab" component={HomeStackNavigator} />
     <Tab.Screen name="CategoryTab" component={CategoryStackNavigator} />
-    <Tab.Screen name="ChartsTab" component={ChartsStackNavigator} />
+    <Tab.Screen name="SavingTab" component={SavingStackNavigator} />
     <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} />
   </Tab.Navigator>
 );
@@ -179,6 +215,7 @@ const TabNavigator = () => (
 export default function AppNavigator({
   initialAuthenticated = false,
   forceLogin = false,
+  initialRouteName = "Launch",
 }: AppNavigatorProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState<string | null>(null);
@@ -217,16 +254,13 @@ export default function AppNavigator({
     return null;
   }
 
-  // Luôn bắt đầu với màn hình Launch
-  const initialRoute = "Launch";
-
   return (
     <Stack.Navigator
       screenOptions={{
         headerShown: false,
         cardStyle: { backgroundColor: "#fff" },
       }}
-      initialRouteName={initialRoute}
+      initialRouteName={initialRouteName}
     >
       <Stack.Screen name="Launch" component={LaunchScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
