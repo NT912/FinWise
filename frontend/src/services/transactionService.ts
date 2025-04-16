@@ -1,8 +1,9 @@
 import api from "./apiService";
 import { Transaction } from "../types";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { config } from "../config/config";
 
-const API_URL = "http://192.168.1.7:3002";
+const API_URL = config.api.baseUrl;
 const MAX_RETRIES = 3;
 const RETRY_DELAY = 500; // ms
 
@@ -128,21 +129,52 @@ export const updateTransaction = async (
   transactionId: string,
   transactionData: Partial<Transaction>
 ): Promise<Transaction> => {
-  try {
-    console.log(`🔄 Đang cập nhật giao dịch: ${transactionId}`);
-    const response = await api.put(
-      `/api/transactions/${transactionId}`,
-      transactionData
-    );
+  let retries = 0;
 
-    // Xử lý phản hồi có thể cấu trúc khác nhau
-    const result = response.data.transaction || response.data;
-    console.log(`✅ Đã cập nhật giao dịch: ${transactionId}`);
-    return result;
-  } catch (error) {
-    console.error(`❌ Lỗi khi cập nhật giao dịch ${transactionId}:`, error);
-    throw error;
+  while (retries < MAX_RETRIES) {
+    try {
+      console.log(`🔄 Đang cập nhật giao dịch: ${transactionId}`);
+      console.log(
+        "📦 Dữ liệu gửi đi:",
+        JSON.stringify(transactionData, null, 2)
+      );
+
+      const response = await api.put(
+        `/api/transactions/${transactionId}`,
+        transactionData
+      );
+
+      // Xử lý phản hồi có thể cấu trúc khác nhau
+      const result = response.data.transaction || response.data;
+      console.log(`✅ Đã cập nhật giao dịch: ${transactionId}`);
+      return result;
+    } catch (error: any) {
+      console.error(`❌ Lỗi khi cập nhật giao dịch ${transactionId}:`, error);
+
+      // Check if it's a WriteConflict error or other server error that might be resolved with a retry
+      if (
+        error.response?.status === 500 ||
+        (error.response?.data?.message &&
+          (error.response?.data?.message.includes("WriteConflict") ||
+            error.response?.data?.message.includes("CastError")))
+      ) {
+        retries++;
+        console.log(`⚠️ Lỗi server, thử lại lần ${retries}/${MAX_RETRIES}`);
+
+        if (retries < MAX_RETRIES) {
+          // Wait before retrying (exponential backoff)
+          const delay = RETRY_DELAY * Math.pow(2, retries - 1);
+          await wait(delay);
+          continue;
+        }
+      }
+
+      // If it's not a retryable error or we've reached max retries, throw the error
+      throw error;
+    }
   }
+
+  throw new Error("Exceeded maximum retry attempts");
 };
 
 /**

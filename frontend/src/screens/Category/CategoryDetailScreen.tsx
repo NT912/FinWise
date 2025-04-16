@@ -44,6 +44,8 @@ import {
   GestureHandlerRootView,
 } from "react-native-gesture-handler";
 import { useToast } from "../../components/ToastProvider";
+import * as savingService from "../../services/savingService";
+import { SavingGoal } from "../../services/savingService";
 
 type RouteParams = {
   CategoryDetail: {
@@ -72,7 +74,7 @@ const CategoryDetailScreen = () => {
   const [category, setCategory] = useState<Category | null>(null);
   const [totalIncome, setTotalIncome] = useState(0);
   const [totalExpense, setTotalExpense] = useState(0);
-  const [budgetLimit, setBudgetLimit] = useState(0);
+  const [category_budget, setCategoryBudget] = useState("");
   const [expensePercentage, setExpensePercentage] = useState(0);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [newBudget, setNewBudget] = useState("");
@@ -119,11 +121,16 @@ const CategoryDetailScreen = () => {
 
       // Get category details
       const categoryData = await categoryService.getCategoryById(categoryId);
+      if (!categoryData) {
+        Alert.alert("Error", "Category not found");
+        return;
+      }
+
       setCategory(categoryData);
 
-      // Set budget limit if available
+      // Set budget if available
       if (categoryData.budget) {
-        setBudgetLimit(categoryData.budget);
+        setCategoryBudget(categoryData.budget.toString());
       }
 
       // Get transactions for this category
@@ -238,7 +245,7 @@ const CategoryDetailScreen = () => {
   // Handle budget edit
   const handleBudgetEdit = () => {
     setIsEditingBudget(true);
-    setNewBudget(budgetLimit.toString());
+    setNewBudget(category_budget);
   };
 
   // Format input value while typing (for display only)
@@ -257,27 +264,52 @@ const CategoryDetailScreen = () => {
 
   const handleSaveBudget = async () => {
     try {
-      const numericBudget = parseInt(newBudget.replace(/\D/g, "")) || 0;
-      setBudgetLimit(numericBudget);
-
-      // Update category budget in backend
-      if (category) {
-        await categoryService.updateCategory(categoryId, {
-          ...category,
-          budget: numericBudget,
-        });
+      if (!categoryId) {
+        Alert.alert("Error", "Category ID is missing");
+        return;
       }
 
-      // Recalculate expense percentage
-      const percentage = Math.min(
-        Math.round((totalExpense / numericBudget) * 100),
-        100
-      );
-      setExpensePercentage(percentage);
+      const budgetValue = Number(newBudget);
+      if (isNaN(budgetValue)) {
+        Alert.alert("Error", "Invalid budget amount");
+        return;
+      }
 
-      setIsEditingBudget(false);
+      console.log(
+        "Updating budget for category:",
+        categoryId,
+        "with value:",
+        budgetValue
+      );
+
+      const updatedCategory = await categoryService.updateCategory(categoryId, {
+        budget: budgetValue,
+      });
+
+      console.log("Update response:", updatedCategory);
+
+      if (updatedCategory) {
+        // Update local state with the new category data
+        setCategory(updatedCategory);
+        setCategoryBudget(updatedCategory.budget?.toString() || "");
+
+        // Recalculate expense percentage
+        const percentage = Math.min(
+          Math.round((totalExpense / (updatedCategory.budget || 1)) * 100),
+          100
+        );
+        setExpensePercentage(percentage);
+
+        // Close the edit modal
+        setIsEditingBudget(false);
+
+        Alert.alert("Success", "Budget updated successfully");
+      } else {
+        Alert.alert("Error", "Failed to update budget");
+      }
     } catch (error) {
       console.error("Error updating budget:", error);
+      Alert.alert("Error", "Failed to update budget");
     }
   };
 
@@ -791,6 +823,12 @@ const CategoryDetailScreen = () => {
     }
   };
 
+  // Handle notification button press
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
+  };
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaView style={styles.container}>
@@ -802,7 +840,10 @@ const CategoryDetailScreen = () => {
             <Ionicons name="chevron-back" size={24} color="white" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{categoryName}</Text>
-          <TouchableOpacity style={styles.notificationButton}>
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={handleNotificationPress}
+          >
             <Ionicons name="notifications-outline" size={24} color="white" />
           </TouchableOpacity>
         </View>
@@ -840,7 +881,9 @@ const CategoryDetailScreen = () => {
               />
             </View>
             <TouchableOpacity onPress={handleBudgetEdit}>
-              <Text style={styles.budgetLimit}>{formatVND(budgetLimit)}</Text>
+              <Text style={styles.budgetLimit}>
+                {formatVND(Number(category_budget))}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -1019,7 +1062,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   notificationButton: {
-    padding: 4,
+    padding: 8,
   },
   financialSummary: {
     paddingHorizontal: 16,

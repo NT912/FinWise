@@ -1,27 +1,21 @@
 import mongoose, { Document, Schema } from "mongoose";
 
-export interface ISaving extends Document {
+export interface IBudget extends Document {
   userId: mongoose.Types.ObjectId;
-  goalName: string;
-  targetAmount: number;
-  currentAmount: number;
   totalBudget: number;
   month: number;
   year: number;
   createdAt: Date;
 }
 
-const SavingSchema = new Schema<ISaving>(
+const BudgetSchema = new Schema<IBudget>(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
     },
-    goalName: { type: String, required: true },
-    targetAmount: { type: Number, required: true },
-    currentAmount: { type: Number, default: 0 },
-    totalBudget: { type: Number, default: 0 },
+    totalBudget: { type: Number, required: true },
     month: { type: Number, required: true },
     year: { type: Number, required: true },
     createdAt: { type: Date, default: Date.now },
@@ -29,4 +23,4 @@ const SavingSchema = new Schema<ISaving>(
   { timestamps: true }
 );
 
-export default mongoose.model<ISaving>("Saving", SavingSchema);
+export default mongoose.model<IBudget>("Budget", BudgetSchema);

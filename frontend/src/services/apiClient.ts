@@ -1,17 +1,11 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
+import { config } from "../config/config";
 
 // Đồng bộ với cấu hình từ apiService để đảm bảo tất cả các gọi API đều sử dụng cùng URL base
 const getApiUrl = () => {
-  // Ưu tiên sử dụng biến môi trường API_URL nếu có
-  if (process.env.API_URL) {
-    console.log("🔍 Sử dụng API_URL từ .env:", process.env.API_URL);
-    return process.env.API_URL;
-  }
-
-  // URL mặc định cho thiết bị di động - đảm bảo trùng với apiService.ts
-  return "http://192.168.1.7:3002";
+  return config.api.baseUrl;
 };
 
 const API_URL = getApiUrl();
@@ -24,7 +18,7 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 30000,
+  timeout: config.api.timeout,
 });
 
 // Thêm interceptor cho request để tự động thêm token xác thực

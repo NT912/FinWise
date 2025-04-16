@@ -17,7 +17,11 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
 } from "react-native";
-import { useNavigation, NavigationProp } from "@react-navigation/native";
+import {
+  useNavigation,
+  NavigationProp,
+  CommonActions,
+} from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { User } from "../../types";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
@@ -268,6 +272,11 @@ const EditProfileScreen = ({ route }: EditProfileScreenProps) => {
     Keyboard.dismiss();
   };
 
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
+  };
+
   if (loading) {
     return <LoadingIndicator />;
   }
@@ -314,7 +323,10 @@ const EditProfileScreen = ({ route }: EditProfileScreenProps) => {
             Edit My Profile
           </Text>
         </View>
-        <TouchableOpacity style={categoryStyles.notificationButton}>
+        <TouchableOpacity
+          style={categoryStyles.notificationButton}
+          onPress={handleNotificationPress}
+        >
           <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>

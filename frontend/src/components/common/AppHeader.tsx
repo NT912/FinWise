@@ -14,6 +14,7 @@ interface AppHeaderProps {
   onNotificationPress?: () => void;
   userName?: string;
   headerTitle?: string;
+  showNotification?: boolean;
 }
 
 const AppHeader: React.FC<AppHeaderProps> = ({
@@ -27,6 +28,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   onNotificationPress,
   userName = "",
   headerTitle,
+  showNotification = true,
 }) => {
   const navigation = useNavigation();
 
@@ -41,6 +43,9 @@ const AppHeader: React.FC<AppHeaderProps> = ({
   const handleNotificationPress = () => {
     if (onNotificationPress) {
       onNotificationPress();
+    } else {
+      // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+      navigation.navigate("NotificationScreen" as any);
     }
   };
 
@@ -79,24 +84,26 @@ const AppHeader: React.FC<AppHeaderProps> = ({
                 {getGreeting()}
               </Text>
               <Text style={[styles.welcomeText, { color: textColor }]}>
-                Hi, Welcome Back
+                Hi, {userName || "User"}
               </Text>
             </>
           )}
         </View>
 
-        <TouchableOpacity
-          style={styles.notificationButton}
-          onPress={handleNotificationPress}
-        >
-          <View style={styles.notificationIconContainer}>
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={textColor}
-            />
-          </View>
-        </TouchableOpacity>
+        {showNotification && (
+          <TouchableOpacity
+            style={styles.notificationButton}
+            onPress={handleNotificationPress}
+          >
+            <View style={styles.notificationIconContainer}>
+              <Ionicons
+                name="notifications-outline"
+                size={24}
+                color={textColor}
+              />
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );

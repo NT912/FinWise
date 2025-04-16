@@ -95,12 +95,18 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    // Đảm bảo category là một string ID
+    let categoryId = category;
+    if (typeof category === "object" && category._id) {
+      categoryId = category._id;
+    }
+
     // Create transaction
     const transaction = await transactionService.createTransaction(userId, {
       title,
       amount,
       date,
-      category,
+      category: categoryId,
       type,
       note,
     });
@@ -110,7 +116,7 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
     await transactionService.updateUserBalance(userId, amountChange);
 
     // Update category stats
-    await transactionService.updateCategoryStats(category, userId, amount);
+    await transactionService.updateCategoryStats(categoryId, userId, amount);
 
     return res.status(201).json({
       message: "Transaction created successfully",
@@ -147,9 +153,52 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
     const { transactionId } = req.params;
     const updateData = req.body;
 
+    console.log(
+      "⬇️ updateTransaction request data:",
+      JSON.stringify(updateData, null, 2)
+    );
+
     // Validation cơ bản
     if (!updateData || Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: "No update data provided" });
+    }
+
+    // Đảm bảo category là một string nếu có
+    if (updateData.category) {
+      console.log(
+        "🔄 Processing category:",
+        typeof updateData.category,
+        updateData.category
+      );
+
+      if (
+        typeof updateData.category === "object" &&
+        updateData.category !== null &&
+        updateData.category._id
+      ) {
+        console.log(
+          "🔄 Converting category object to ID:",
+          updateData.category._id
+        );
+        updateData.category = updateData.category._id;
+      } else if (typeof updateData.category === "string") {
+        try {
+          // Kiểm tra xem có phải là JSON string không
+          if (
+            updateData.category.startsWith("{") &&
+            updateData.category.endsWith("}")
+          ) {
+            const catObj = JSON.parse(updateData.category);
+            if (catObj && catObj._id) {
+              console.log("🔄 Extracted ID from JSON string:", catObj._id);
+              updateData.category = catObj._id;
+            }
+          }
+        } catch (e) {
+          // Nếu không parse được JSON, giữ nguyên giá trị
+          console.log("⚠️ Failed to parse category JSON:", e);
+        }
+      }
     }
 
     // Validation dữ liệu đầu vào
@@ -175,6 +224,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
         transactionId
       );
 
+      // Cập nhật giao dịch
       const updatedTransaction = await transactionService.updateTransaction(
         userId,
         transactionId,
@@ -214,25 +264,63 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
 
       // Cập nhật thống kê danh mục nếu thay đổi danh mục hoặc số tiền
       if (updateData.category || updateData.amount !== undefined) {
-        // Xử lý nếu danh mục thay đổi thì update cả danh mục cũ và mới
-        if (
-          updateData.category &&
-          oldTransaction.category.toString() !==
-            safeTransaction.category.toString()
-        ) {
-          // Cập nhật danh mục mới
-          await transactionService.updateCategoryStats(
-            safeTransaction.category.toString(),
-            userId,
-            safeTransaction.amount
-          );
-        } else if (updateData.amount !== undefined) {
+        try {
+          // Lấy category ID từ transaction đã cập nhật
+          let newCategoryId: string;
+          const newCategory = safeTransaction.category;
+
+          if (typeof newCategory === "object" && newCategory !== null) {
+            if (newCategory._id) {
+              newCategoryId = newCategory._id.toString();
+            } else {
+              console.warn("⚠️ Category object without _id:", newCategory);
+              newCategoryId = String(newCategory);
+            }
+          } else {
+            newCategoryId = String(newCategory);
+          }
+
+          // Lấy category ID cũ
+          let oldCategoryId: string;
+          const oldCategory = oldTransaction.category;
+
+          if (typeof oldCategory === "object" && oldCategory !== null) {
+            if (oldCategory._id) {
+              oldCategoryId = oldCategory._id.toString();
+            } else {
+              console.warn("⚠️ Old category object without _id:", oldCategory);
+              oldCategoryId = String(oldCategory);
+            }
+          } else {
+            oldCategoryId = String(oldCategory);
+          }
+
+          // Xử lý nếu danh mục thay đổi
+          if (oldCategoryId !== newCategoryId) {
+            console.log(
+              `📊 Category changed: ${oldCategoryId} -> ${newCategoryId}`
+            );
+
+            // Cập nhật danh mục mới
+            await transactionService.updateCategoryStats(
+              newCategoryId,
+              userId,
+              safeTransaction.amount
+            );
+          }
           // Nếu chỉ thay đổi số tiền, cập nhật thống kê danh mục hiện tại
-          await transactionService.updateCategoryStats(
-            safeTransaction.category.toString(),
-            userId,
-            safeTransaction.amount - oldTransaction.amount
-          );
+          else if (updateData.amount !== undefined) {
+            console.log(`📊 Amount changed for category ${newCategoryId}`);
+
+            await transactionService.updateCategoryStats(
+              newCategoryId,
+              userId,
+              safeTransaction.amount - oldTransaction.amount
+            );
+          }
+        } catch (error) {
+          console.error("❌ Error updating category stats:", error);
+          // Không throw lỗi để không ảnh hưởng đến luồng cập nhật transaction
         }
       }
 

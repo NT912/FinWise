@@ -1,7 +1,7 @@
 import api from "./apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { API_URL } from "../config/api";
+import { config } from "../config/config";
 
 interface LoginCredentials {
   email: string;
@@ -11,55 +11,55 @@ interface LoginCredentials {
 interface RegisterData {
   email: string;
   password: string;
-  fullName: string;
-  phoneNumber?: string;
-  dateOfBirth?: string;
+  name: string;
+}
+
+interface AuthResponse {
+  token: string;
+  user: {
+    id: string;
+    email: string;
+    name: string;
+  };
 }
 
 // Đăng ký tài khoản
-export const register = async (userData: RegisterData) => {
+export const register = async (data: RegisterData): Promise<AuthResponse> => {
   try {
-    const response = await api.post("/api/auth/register", userData);
+    const response = await axios.post(
+      `${config.api.baseUrl}/api/auth/register`,
+      data
+    );
+    const { token, user } = response.data;
+
+    await AsyncStorage.setItem(config.auth.tokenKey, token);
+    await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
+
     return response.data;
-  } catch (error: any) {
-    throw new Error(error.response?.data?.message || "Error registering user.");
+  } catch (error) {
+    console.error("Register error:", error);
+    throw error;
   }
 };
 
 // Đăng nhập
-export const login = async (credentials: LoginCredentials) => {
+export const login = async (
+  credentials: LoginCredentials
+): Promise<AuthResponse> => {
   try {
-    const response = await api.post("/api/auth/login", credentials);
+    const response = await axios.post(
+      `${config.api.baseUrl}/api/auth/login`,
+      credentials
+    );
+    const { token, user } = response.data;
 
-    if (response.data.token) {
-      await AsyncStorage.setItem("token", response.data.token);
-      console.log(
-        "✅ Đăng nhập thành công, token đã được lưu cho phiên hiện tại"
-      );
-      return { success: true, token: response.data.token };
-    }
+    await AsyncStorage.setItem(config.auth.tokenKey, token);
+    await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
 
-    return {
-      success: false,
-      message: "Login failed. No token received from server.",
-    };
-  } catch (error: any) {
+    return response.data;
+  } catch (error) {
     console.error("Login error:", error);
-
-    let errorMessage = "Login failed. Please check your credentials.";
-
-    if (error.response?.status === 401) {
-      errorMessage = "Email or password is incorrect.";
-    } else if (error.code === "ERR_NETWORK") {
-      errorMessage = "Network error. Please check your connection.";
-    } else if (error.response?.data?.message) {
-      errorMessage = error.response.data.message;
-    }
-
-    return {
-      success: false,
-      message: errorMessage,
-    };
+    throw error;
   }
 };
 
@@ -94,9 +94,12 @@ export const loginWithFacebook = async (accessToken: string) => {
 export const forgotPassword = async (email: string) => {
   try {
     console.log("📤 Sending forgot password request for:", email);
-    const response = await axios.post(`${API_URL}/api/auth/forgot-password`, {
-      email,
-    });
+    const response = await axios.post(
+      `${config.api.baseUrl}/api/auth/forgot-password`,
+      {
+        email,
+      }
+    );
     console.log("✅ Forgot password response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -116,10 +119,13 @@ export const resetPassword = async (email: string, resetCode: string) => {
     console.log("📤 Verifying reset code for:", email);
     console.log("Reset code:", resetCode);
 
-    const response = await axios.post(`${API_URL}/api/auth/verify-reset-code`, {
-      email,
-      resetCode,
-    });
+    const response = await axios.post(
+      `${config.api.baseUrl}/api/auth/verify-reset-code`,
+      {
+        email,
+        resetCode,
+      }
+    );
 
     console.log("✅ Reset code verification response:", response.data);
     return response.data;
@@ -142,11 +148,14 @@ export const updatePassword = async (
 ) => {
   try {
     console.log("📤 Updating password for:", email);
-    const response = await axios.post(`${API_URL}/api/auth/reset-password`, {
-      email,
-      resetCode,
-      newPassword,
-    });
+    const response = await axios.post(
+      `${config.api.baseUrl}/api/auth/reset-password`,
+      {
+        email,
+        resetCode,
+        newPassword,
+      }
+    );
     console.log("✅ Password update response:", response.data);
     return response.data;
   } catch (error: any) {
@@ -161,11 +170,9 @@ export const updatePassword = async (
 };
 
 // Đăng xuất
-export const logout = async () => {
+export const logout = async (): Promise<void> => {
   try {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("userId");
-    return { success: true };
+    await AsyncStorage.multiRemove([config.auth.tokenKey, config.auth.userKey]);
   } catch (error) {
     console.error("Logout error:", error);
     throw error;
@@ -173,20 +180,25 @@ export const logout = async () => {
 };
 
 // Lấy thông tin người dùng
-export const getUserData = async () => {
+export const getCurrentUser = async (): Promise<any> => {
   try {
-    const response = await api.get("/api/user/profile");
-    return response.data;
+    const userStr = await AsyncStorage.getItem(config.auth.userKey);
+    return userStr ? JSON.parse(userStr) : null;
   } catch (error) {
-    console.error("Get user data error:", error);
+    console.error("Get current user error:", error);
     throw error;
   }
 };
 
 // Kiểm tra xem người dùng đã đăng nhập chưa
-export const isAuthenticated = async () => {
-  const token = await AsyncStorage.getItem("token");
-  return !!token;
+export const isAuthenticated = async (): Promise<boolean> => {
+  try {
+    const token = await AsyncStorage.getItem(config.auth.tokenKey);
+    return !!token;
+  } catch (error) {
+    console.error("Check authentication error:", error);
+    return false;
+  }
 };
 
 export default {
@@ -198,6 +210,6 @@ export default {
   forgotPassword,
   resetPassword,
   updatePassword,
-  getUserData,
+  getCurrentUser,
   isAuthenticated,
 };

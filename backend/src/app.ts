@@ -8,6 +8,7 @@ import categoryRoutes from "./routes/categoryRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
 import goalRoutes from "./routes/goalRoutes";
+import savingsRoutes from "./routes/savingsRoutes";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -28,6 +29,7 @@ app.use("/api/categories", categoryRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/budgets", budgetRoutes);
 app.use("/api/goals", goalRoutes);
+app.use("/api/savings", savingsRoutes);
 
 // Error handling
 app.use(errorHandler);

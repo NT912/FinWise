@@ -25,7 +25,7 @@ import {
 import { fetchHomeData, fetchTransactions } from "../../services/homeService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import AppHeader from "../../components/common/AppHeader";
-import BalanceOverview from "./BalanceOverview";
+import BalanceOverview from "../../components/BalanceOverview";
 import StatisticsOverview from "./StatisticsOverview";
 import FilterButtons from "../../components/FilterButtons";
 import LoadingIndicator from "../../components/LoadingIndicator";
@@ -33,6 +33,7 @@ import TransactionList from "./TransactionList";
 import api from "../../services/apiService";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../theme";
+import * as savingService from "../../services/savingService";
 
 const HomeScreen = () => {
   const [refreshing, setRefreshing] = useState(false);
@@ -53,7 +54,7 @@ const HomeScreen = () => {
   const [userData, setUserData] = useState({
     userName: "",
     userAvatar: "",
-    totalBalance: 0,
+    totalIncome: 0,
     totalExpense: 0,
     savingsOnGoals: 0,
     goalPercentage: 0,
@@ -119,30 +120,96 @@ const HomeScreen = () => {
       }
 
       // Fetch both user data and transactions in parallel
-      const [homeData, transactionsData] = await Promise.all([
+      const [homeData, transactionsData, savingsInfo] = await Promise.all([
         fetchHomeData(filter.toLowerCase()),
         fetchTransactions(filter.toLowerCase()),
+        savingService.getSimpleSavingsInfo(),
       ]);
 
       console.log("Home data received:", homeData);
-      console.log("Statistics data:", {
-        savingsOnGoals: homeData.savingsOnGoals,
-        revenueLostWeek: homeData.revenueLostWeek,
-        expenseLastWeek: homeData.expenseLastWeek,
-        goalPercentage: homeData.goalPercentage,
-      });
+      console.log("Savings info received:", savingsInfo);
       console.log("Transactions data received:", transactionsData.length);
+
+      // Calculate total income from transactions
+      const totalIncome = transactionsData.reduce(
+        (sum: number, transaction: { type: string; amount: number }) => {
+          if (transaction.type === "income") {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
+
+      // Calculate total income and expense from last week
+      const now = new Date();
+      const lastWeekStart = new Date(now);
+      lastWeekStart.setDate(now.getDate() - now.getDay() - 6); // Set to last Monday
+      lastWeekStart.setHours(0, 0, 0, 0);
+
+      const lastWeekEnd = new Date(lastWeekStart);
+      lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Set to last Sunday
+      lastWeekEnd.setHours(23, 59, 59, 999);
+
+      console.log("Last week range:", {
+        start: lastWeekStart.toISOString(),
+        end: lastWeekEnd.toISOString(),
+      });
+
+      const totalExpenseLastWeek = transactionsData.reduce(
+        (
+          sum: number,
+          transaction: { type: string; amount: number; date: string }
+        ) => {
+          const transactionDate = new Date(transaction.date);
+          if (
+            transaction.type === "expense" &&
+            transactionDate >= lastWeekStart &&
+            transactionDate <= lastWeekEnd
+          ) {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
+
+      const totalRevenueLastWeek = transactionsData.reduce(
+        (
+          sum: number,
+          transaction: { type: string; amount: number; date: string }
+        ) => {
+          const transactionDate = new Date(transaction.date);
+          if (
+            transaction.type === "income" &&
+            transactionDate >= lastWeekStart &&
+            transactionDate <= lastWeekEnd
+          ) {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
 
       // Update user data state
       setUserData({
         userName: homeData.userName || "User",
         userAvatar: homeData.userAvatar || "",
-        totalBalance: homeData.totalBalance || 0,
+        totalIncome: totalIncome,
         totalExpense: homeData.totalExpense || 0,
-        savingsOnGoals: homeData.savingsOnGoals || 0,
-        goalPercentage: homeData.goalPercentage || 0,
-        revenueLostWeek: homeData.revenueLostWeek || 0,
-        expenseLastWeek: homeData.expenseLastWeek || 0,
+        savingsOnGoals: totalIncome - (homeData.totalExpense || 0),
+        goalPercentage:
+          savingsInfo.data?.targetSavingAmount > 0
+            ? Math.min(
+                ((totalIncome - (homeData.totalExpense || 0)) /
+                  savingsInfo.data.targetSavingAmount) *
+                  100,
+                100
+              )
+            : 0,
+        revenueLostWeek: totalRevenueLastWeek,
+        expenseLastWeek: totalExpenseLastWeek,
       });
 
       // Update transactions
@@ -177,20 +244,92 @@ const HomeScreen = () => {
       }
 
       // Fetch both user data and transactions in parallel
-      const [homeData, transactionsData] = await Promise.all([
+      const [homeData, transactionsData, savingsInfo] = await Promise.all([
         fetchHomeData(filter.toLowerCase()),
         fetchTransactions(filter.toLowerCase()),
+        savingService.getSimpleSavingsInfo(),
       ]);
+
+      // Calculate total income from transactions
+      const totalIncome = transactionsData.reduce(
+        (sum: number, transaction: { type: string; amount: number }) => {
+          if (transaction.type === "income") {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
+
+      // Calculate total income and expense from last week
+      const now = new Date();
+      const lastWeekStart = new Date(now);
+      lastWeekStart.setDate(now.getDate() - now.getDay() - 6); // Set to last Monday
+      lastWeekStart.setHours(0, 0, 0, 0);
+
+      const lastWeekEnd = new Date(lastWeekStart);
+      lastWeekEnd.setDate(lastWeekStart.getDate() + 6); // Set to last Sunday
+      lastWeekEnd.setHours(23, 59, 59, 999);
+
+      console.log("Last week range:", {
+        start: lastWeekStart.toISOString(),
+        end: lastWeekEnd.toISOString(),
+      });
+
+      const totalExpenseLastWeek = transactionsData.reduce(
+        (
+          sum: number,
+          transaction: { type: string; amount: number; date: string }
+        ) => {
+          const transactionDate = new Date(transaction.date);
+          if (
+            transaction.type === "expense" &&
+            transactionDate >= lastWeekStart &&
+            transactionDate <= lastWeekEnd
+          ) {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
+
+      const totalRevenueLastWeek = transactionsData.reduce(
+        (
+          sum: number,
+          transaction: { type: string; amount: number; date: string }
+        ) => {
+          const transactionDate = new Date(transaction.date);
+          if (
+            transaction.type === "income" &&
+            transactionDate >= lastWeekStart &&
+            transactionDate <= lastWeekEnd
+          ) {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
+      );
 
       // Update user data state
       setUserData((prev) => ({
         ...prev,
-        totalBalance: homeData.totalBalance || prev.totalBalance,
+        totalIncome: totalIncome,
         totalExpense: homeData.totalExpense || prev.totalExpense,
-        savingsOnGoals: homeData.savingsOnGoals || prev.savingsOnGoals,
-        goalPercentage: homeData.goalPercentage || prev.goalPercentage,
-        revenueLostWeek: homeData.revenueLostWeek || prev.revenueLostWeek,
-        expenseLastWeek: homeData.expenseLastWeek || prev.expenseLastWeek,
+        savingsOnGoals:
+          totalIncome - (homeData.totalExpense || prev.totalExpense),
+        goalPercentage:
+          savingsInfo.data?.targetSavingAmount > 0
+            ? Math.min(
+                ((totalIncome - (homeData.totalExpense || prev.totalExpense)) /
+                  savingsInfo.data.targetSavingAmount) *
+                  100,
+                100
+              )
+            : 0,
+        revenueLostWeek: totalRevenueLastWeek,
+        expenseLastWeek: totalExpenseLastWeek,
       }));
 
       // Update transactions
@@ -236,8 +375,20 @@ const HomeScreen = () => {
         </SafeAreaView>
 
         <BalanceOverview
-          totalBalance={userData.totalBalance}
-          totalExpense={userData.totalExpense}
+          totalBalance={userData.totalIncome || 0}
+          totalExpense={userData.totalExpense || 0}
+          expensePercentage={
+            userData.totalIncome > 0
+              ? Math.min(
+                  Math.round(
+                    ((userData.totalExpense || 0) /
+                      (userData.totalIncome || 1)) *
+                      100
+                  ),
+                  100
+                )
+              : 0
+          }
         />
       </View>
 
@@ -340,7 +491,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingHorizontal: 20,
     paddingVertical: 8,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   errorContainer: {
     flex: 1,

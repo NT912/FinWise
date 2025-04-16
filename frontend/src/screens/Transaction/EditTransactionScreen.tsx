@@ -394,10 +394,15 @@ const EditTransactionScreen: React.FC = () => {
         title,
         amount: parseFloat(amount),
         date: selectedDate.toISOString(),
-        category: selectedCategory._id,
+        category: selectedCategory?._id || "",
         type: transactionType,
         note: note ? note.trim() : "",
       };
+
+      console.log(
+        "Données de transaction à envoyer:",
+        JSON.stringify(transactionData, null, 2)
+      );
 
       // Update transaction
       const token = await AsyncStorage.getItem("token");
@@ -969,7 +974,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 20,
     fontWeight: "600",
-    color: "white",
+    color: "#000000",
   },
   deleteButton: {
     padding: 8,

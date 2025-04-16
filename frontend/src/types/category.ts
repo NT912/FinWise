@@ -7,6 +7,7 @@ export interface Category {
   color: string;
   type: "expense" | "income";
   budget?: number;
+  budget_of_category?: number;
   rules?: {
     keyword: string;
     isEnabled: boolean;

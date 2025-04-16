@@ -1,305 +1,231 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
   SafeAreaView,
-  Alert,
   StyleSheet,
   TextInput,
-  ScrollView,
-  Animated,
-  Image,
-  Platform,
-  KeyboardAvoidingView,
+  StatusBar,
+  Alert,
+  Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { deleteAccount } from "../../services/profileService";
-import LoadingIndicator from "../../components/LoadingIndicator";
-import commonProfileStyles from "../../styles/profile/commonProfileStyles";
+import {
+  NavigationProp,
+  useNavigation,
+  CommonActions,
+} from "@react-navigation/native";
+import { ProfileStackParamList } from "../../navigation/AppNavigator";
 
-const DeleteAccountScreen = ({ navigation }: { navigation: any }) => {
-  const [loading, setLoading] = useState(false);
+const DeleteAccountScreen = () => {
+  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
   const [password, setPassword] = useState("");
-  const [isButtonEnabled, setIsButtonEnabled] = useState(false);
-  const fadeAnim = useState(new Animated.Value(0))[0];
-  const slideAnim = useState(new Animated.Value(50))[0];
-  const warningIconAnim = useState(new Animated.Value(0))[0];
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const [showError, setShowError] = useState(false);
 
-  useEffect(() => {
-    // Animation on mount
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]).start();
-
-    // Pulse animation for warning icon
-    const pulseWarning = Animated.sequence([
-      Animated.timing(warningIconAnim, {
-        toValue: 1.2,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-      Animated.timing(warningIconAnim, {
-        toValue: 1,
-        duration: 800,
-        useNativeDriver: true,
-      }),
-    ]);
-
-    Animated.loop(pulseWarning).start();
-  }, []);
-
-  useEffect(() => {
-    // Check if button should be enabled
-    setIsButtonEnabled(password.length > 0);
-  }, [password]);
-
-  const handleDeleteAccount = async () => {
-    if (!password) {
-      Alert.alert("Error", "Please enter your password to confirm deletion");
-      return;
-    }
-
-    Alert.alert(
-      "Final Confirmation",
-      "This will permanently delete your account and all associated data. This action CANNOT be undone.",
-      [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Delete My Account",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setLoading(true);
-              console.log("Attempting to delete account...");
-
-              // Add timeout to prevent hanging requests
-              const timeoutPromise = new Promise((_, reject) =>
-                setTimeout(() => reject(new Error("Request timed out")), 15000)
-              );
-
-              const deletePromise = deleteAccount(password);
-
-              // Race between the delete request and the timeout
-              await Promise.race([deletePromise, timeoutPromise]);
-
-              // If successful, clear token and navigate
-              await AsyncStorage.removeItem("token");
-              console.log("Account deleted successfully, token removed");
-
-              Alert.alert(
-                "Account Deleted",
-                "Your account has been successfully deleted",
-                [
-                  {
-                    text: "OK",
-                    onPress: () => {
-                      navigation.reset({
-                        index: 0,
-                        routes: [{ name: "Login" }],
-                      });
-                    },
-                  },
-                ]
-              );
-            } catch (error: any) {
-              console.error("Error deleting account:", error);
-
-              // Detailed error logging
-              if (error.response) {
-                // The request was made and the server responded with a status code
-                // that falls out of the range of 2xx
-                console.error("Response data:", error.response.data);
-                console.error("Response status:", error.response.status);
-                console.error("Response headers:", error.response.headers);
-
-                // Show specific error message from server if available
-                const errorMessage =
-                  error.response.data?.message ||
-                  "Failed to delete account. Please check your password and try again.";
-
-                Alert.alert("Error", errorMessage);
-              } else if (error.request) {
-                // The request was made but no response was received
-                console.error("No response received:", error.request);
-                Alert.alert(
-                  "Connection Error",
-                  "No response from server. Please check your internet connection and try again."
-                );
-              } else if (error.message?.includes("timeout")) {
-                // Request timed out
-                Alert.alert(
-                  "Request Timeout",
-                  "The request took too long to complete. Please try again later."
-                );
-              } else {
-                // Something happened in setting up the request that triggered an Error
-                console.error("Error message:", error.message);
-                Alert.alert(
-                  "Error",
-                  "An unexpected error occurred. Please try again later."
-                );
-              }
-            } finally {
-              setLoading(false);
-            }
-          },
-        },
-      ]
-    );
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
   };
 
-  if (loading) {
-    return <LoadingIndicator />;
-  }
+  const validatePassword = async () => {
+    // Here we would normally validate the password with the API
+    // For demo, we'll assume the password is correct if it's not empty
+    if (!password || password.length < 6) {
+      setErrorMessage("Please enter a valid password");
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000); // Hide error after 3 seconds
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleDeleteAccountInitial = async () => {
+    const isPasswordValid = await validatePassword();
+
+    if (isPasswordValid) {
+      // Show the confirmation popup
+      setShowConfirmModal(true);
+    }
+  };
+
+  const handleFinalDeleteAccount = async () => {
+    try {
+      // Here you would call your API to delete the account
+      // For now, we'll just simulate success
+      await AsyncStorage.removeItem("userToken");
+
+      // Close modal and navigate to login
+      setShowConfirmModal(false);
+
+      // Navigate to the login screen using CommonActions
+      navigation.dispatch(
+        CommonActions.reset({
+          index: 0,
+          routes: [{ name: "Login" as any }], // Cast as any to bypass TypeScript error
+        })
+      );
+    } catch (error) {
+      setShowConfirmModal(false);
+      setErrorMessage("Failed to delete account. Please try again.");
+      setShowError(true);
+      setTimeout(() => setShowError(false), 3000);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <View style={commonProfileStyles.enhancedHeader}>
-          <TouchableOpacity
-            style={commonProfileStyles.enhancedBackButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <Text style={commonProfileStyles.enhancedHeaderTitle}>
-            Delete Account
+      <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={24} color="#fff" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Delete Account</Text>
+        <TouchableOpacity
+          style={styles.rightIcon}
+          onPress={handleNotificationPress}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      {/* Content */}
+      <View style={styles.contentContainer}>
+        {/* Warning title */}
+        <Text style={styles.warningTitle}>
+          Are You Sure You Want To Delete Your Account?
+        </Text>
+
+        {/* Warning box */}
+        <View style={styles.warningBox}>
+          <Text style={styles.warningText}>
+            This action will permanently delete all of your data, and you will
+            not be able to recover it. Please keep the following in mind before
+            proceeding:
           </Text>
+
+          <View style={styles.bulletPointsContainer}>
+            <View style={styles.bulletPoint}>
+              <Text style={styles.bulletDot}>•</Text>
+              <Text style={styles.bulletText}>
+                All your expenses, income and associated transactions will be
+                deleted.
+              </Text>
+            </View>
+
+            <View style={styles.bulletPoint}>
+              <Text style={styles.bulletDot}>•</Text>
+              <Text style={styles.bulletText}>
+                You will not be able to access your account or any related
+                information.
+              </Text>
+            </View>
+
+            <View style={styles.bulletPoint}>
+              <Text style={styles.bulletDot}>•</Text>
+              <Text style={styles.bulletText}>
+                This action cannot be undone.
+              </Text>
+            </View>
+          </View>
         </View>
 
-        <ScrollView contentContainerStyle={styles.scrollContent}>
-          <Animated.View
-            style={[
-              styles.contentCard,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
+        {/* Password input */}
+        <Text style={styles.passwordLabel}>
+          Please Enter Your Password To Confirm Deletion Of Your Account.
+        </Text>
+        <View style={styles.passwordInputContainer}>
+          <TextInput
+            style={styles.input}
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+            placeholder="••••••••"
+          />
+          <TouchableOpacity
+            style={styles.eyeIcon}
+            onPress={() => setShowPassword(!showPassword)}
           >
-            <View style={styles.warningHeader}>
-              <Animated.View
-                style={{
-                  transform: [{ scale: warningIconAnim }],
-                }}
-              >
-                <Ionicons name="warning" size={40} color="#FF6B6B" />
-              </Animated.View>
-              <Text style={styles.warningTitle}>Account Deletion</Text>
-            </View>
+            <Ionicons
+              name={showPassword ? "eye-off" : "eye"}
+              size={24}
+              color="#999"
+            />
+          </TouchableOpacity>
+        </View>
 
-            <View style={styles.divider} />
+        {/* Action buttons */}
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={handleDeleteAccountInitial}
+          >
+            <Text style={styles.deleteButtonText}>Yes, Delete Account</Text>
+          </TouchableOpacity>
 
-            <View style={styles.cautionBox}>
-              <Text style={styles.cautionText}>
-                This action is permanent and irreversible. All your data will be
-                permanently deleted, including:
-              </Text>
+          <TouchableOpacity
+            style={styles.cancelButton}
+            onPress={() => navigation.goBack()}
+          >
+            <Text style={styles.cancelButtonText}>Cancel</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
 
-              <View style={styles.bulletPoints}>
-                <View style={styles.bulletPoint}>
-                  <Ionicons name="cash-outline" size={20} color="#FF6B6B" />
-                  <Text style={styles.bulletText}>
-                    Your financial data and transaction history
-                  </Text>
-                </View>
+      {/* Error Message */}
+      {showError && (
+        <View style={styles.errorContainer}>
+          <View style={styles.errorContent}>
+            <Ionicons name="alert-circle" size={24} color="#FFF" />
+            <Text style={styles.errorText}>{errorMessage}</Text>
+          </View>
+        </View>
+      )}
 
-                <View style={styles.bulletPoint}>
-                  <Ionicons
-                    name="pie-chart-outline"
-                    size={20}
-                    color="#FF6B6B"
-                  />
-                  <Text style={styles.bulletText}>
-                    Budget plans and financial goals
-                  </Text>
-                </View>
+      {/* Final Confirmation Modal */}
+      <Modal visible={showConfirmModal} transparent={true} animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
 
-                <View style={styles.bulletPoint}>
-                  <Ionicons
-                    name="analytics-outline"
-                    size={20}
-                    color="#FF6B6B"
-                  />
-                  <Text style={styles.bulletText}>
-                    Insights and financial analytics
-                  </Text>
-                </View>
-
-                <View style={styles.bulletPoint}>
-                  <Ionicons name="person-outline" size={20} color="#FF6B6B" />
-                  <Text style={styles.bulletText}>
-                    Your profile and personal settings
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <Text style={styles.passwordLabel}>
-              Enter your password to confirm:
+            <Text style={styles.modalText}>
+              Are You Sure You Want To Log Out?
             </Text>
-            <View style={styles.passwordInputContainer}>
-              <Ionicons
-                name="lock-closed-outline"
-                size={20}
-                color="#888"
-                style={styles.inputIcon}
-              />
-              <TextInput
-                style={styles.passwordInput}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-                placeholder="Enter your password"
-                placeholderTextColor="#999"
-              />
-            </View>
 
-            <View style={styles.buttonContainer}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => navigation.goBack()}
-              >
-                <Text style={styles.cancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
+            <Text style={styles.modalDescription}>
+              By deleting your account, you agree that you understand the
+              consequences of this action and that you agree to permanently
+              delete your account and all associated data.
+            </Text>
 
-              <TouchableOpacity
-                style={[
-                  styles.deleteButton,
-                  !isButtonEnabled && styles.disabledButton,
-                ]}
-                onPress={handleDeleteAccount}
-                disabled={!isButtonEnabled}
-              >
-                <Ionicons
-                  name="trash-outline"
-                  size={20}
-                  color="#FFF"
-                  style={styles.buttonIcon}
-                />
-                <Text style={styles.deleteButtonText}>Delete Account</Text>
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+            <TouchableOpacity
+              style={styles.modalDeleteButton}
+              onPress={handleFinalDeleteAccount}
+            >
+              <Text style={styles.modalDeleteButtonText}>
+                Yes, Delete Account
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.modalCancelButton}
+              onPress={() => setShowConfirmModal(false)}
+            >
+              <Text style={styles.modalCancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -307,130 +233,209 @@ const DeleteAccountScreen = ({ navigation }: { navigation: any }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E3FFF8",
+    backgroundColor: "#00D09E",
   },
-  scrollContent: {
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-  },
-  contentCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 24,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 5,
-  },
-  warningHeader: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  rightIcon: {
+    padding: 8,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#F6F9F8",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 20,
   },
   warningTitle: {
-    fontSize: 24,
-    fontWeight: "700",
-    color: "#FF6B6B",
-    marginLeft: 12,
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333",
+    textAlign: "center",
+    marginBottom: 20,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#E5E5E5",
-    marginVertical: 16,
-  },
-  cautionBox: {
-    backgroundColor: "#FFF4F4",
+  warningBox: {
+    backgroundColor: "#E5F8F0",
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
   },
-  cautionText: {
-    fontSize: 15,
-    color: "#555",
-    lineHeight: 22,
+  warningText: {
+    fontSize: 14,
+    color: "#333",
     marginBottom: 12,
   },
-  bulletPoints: {
-    marginTop: 8,
+  bulletPointsContainer: {
+    marginLeft: 8,
   },
   bulletPoint: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 8,
+  },
+  bulletDot: {
+    fontSize: 16,
+    color: "#333",
+    marginRight: 8,
   },
   bulletText: {
-    fontSize: 14,
-    color: "#555",
-    marginLeft: 10,
     flex: 1,
+    fontSize: 14,
+    color: "#333",
   },
   passwordLabel: {
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 16,
+    fontWeight: "500",
     color: "#333",
-    marginBottom: 8,
+    textAlign: "center",
+    marginBottom: 12,
   },
   passwordInputContainer: {
     flexDirection: "row",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 10,
-    backgroundColor: "#F9F9F9",
-    marginBottom: 20,
+    backgroundColor: "#E5F8F0",
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    marginBottom: 24,
+    height: 55,
   },
-  inputIcon: {
-    marginLeft: 16,
-  },
-  passwordInput: {
+  input: {
     flex: 1,
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    fontSize: 15,
+    height: 55,
     color: "#333",
+    fontSize: 16,
+  },
+  eyeIcon: {
+    padding: 8,
   },
   buttonContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 10,
-  },
-  cancelButton: {
-    flex: 1,
-    backgroundColor: "#E0E0E0",
-    borderRadius: 10,
-    padding: 15,
     alignItems: "center",
-    marginRight: 10,
-  },
-  cancelButtonText: {
-    color: "#555",
-    fontSize: 16,
-    fontWeight: "600",
   },
   deleteButton: {
-    flex: 2,
-    backgroundColor: "#FF6B6B",
-    borderRadius: 10,
-    padding: 15,
-    flexDirection: "row",
-    alignItems: "center",
+    backgroundColor: "#00D09E",
+    borderRadius: 30,
+    height: 50,
+    paddingHorizontal: 24,
     justifyContent: "center",
-  },
-  disabledButton: {
-    backgroundColor: "#FFADAD",
-    opacity: 0.5,
+    alignItems: "center",
+    marginBottom: 12,
+    width: "80%",
   },
   deleteButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "600",
   },
-  buttonIcon: {
-    marginRight: 8,
+  cancelButton: {
+    backgroundColor: "#F2F2F2",
+    borderRadius: 30,
+    height: 50,
+    paddingHorizontal: 24,
+    justifyContent: "center",
+    alignItems: "center",
+    width: "80%",
+  },
+  cancelButtonText: {
+    color: "#333",
+    fontSize: 16,
+  },
+  // Error styles
+  errorContainer: {
+    position: "absolute",
+    bottom: 90,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 10,
+    zIndex: 1000,
+  },
+  errorContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FF6B6B",
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    width: "90%",
+  },
+  errorText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    marginLeft: 10,
+    fontWeight: "500",
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalContainer: {
+    width: "85%",
+    backgroundColor: "#FFFFFF",
+    borderRadius: 20,
+    padding: 20,
+    alignItems: "center",
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#333333",
+    marginBottom: 16,
+  },
+  modalText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#333333",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+  modalDescription: {
+    fontSize: 14,
+    color: "#666666",
+    marginBottom: 20,
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  modalDeleteButton: {
+    backgroundColor: "#00D09E",
+    borderRadius: 30,
+    height: 50,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  modalDeleteButtonText: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  modalCancelButton: {
+    backgroundColor: "#E5F8F0",
+    borderRadius: 30,
+    height: 50,
+    width: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  modalCancelButtonText: {
+    color: "#333333",
+    fontSize: 16,
   },
 });
 

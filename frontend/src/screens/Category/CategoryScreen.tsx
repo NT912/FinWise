@@ -19,16 +19,20 @@ import {
   KeyboardAvoidingView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { NavigationProp } from "@react-navigation/native";
-import { CategoryStackParamList } from "../../navigation/AppNavigator";
+import {
+  RootStackParamList,
+  CategoryStackParamList,
+  HomeStackParamList,
+} from "../../navigation/AppNavigator";
 import {
   getAllCategories,
   createCategory,
   updateCategory,
   deleteCategory,
 } from "../../services/categoryService";
-import { fetchHomeData } from "../../services/homeService";
+import { fetchHomeData, fetchTransactions } from "../../services/homeService";
 import { IconName } from "../../types";
 import { Category } from "../../types/category";
 import LoadingIndicator from "../../components/LoadingIndicator";
@@ -41,6 +45,7 @@ import {
   showConfirmation,
 } from "../../services/alertService";
 import { formatVND } from "../../utils/formatters";
+import * as savingService from "../../services/savingService";
 
 // Import styles
 import categoryStyles from "../../styles/category/categoryStyles";
@@ -237,32 +242,51 @@ const modalStyles = StyleSheet.create({
 });
 
 const CategoryScreen = () => {
-  const navigation = useNavigation<NavigationProp<CategoryStackParamList>>();
+  const navigation =
+    useNavigation<
+      NavigationProp<RootStackParamList & CategoryStackParamList>
+    >();
+  const isFocused = useIsFocused();
 
   // Data states
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [expenseCategories, setExpenseCategories] = useState<Category[]>([]);
-  const [incomeCategories, setIncomeCategories] = useState<Category[]>([]);
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
+  const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<"name" | "budget" | "transactions">(
     "name"
   );
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-
-  // Global budget edit states
-  const [isEditingGlobalBudget, setIsEditingGlobalBudget] = useState(false);
-  const [newGlobalBudget, setNewGlobalBudget] = useState("");
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isDeleteModalVisible, setIsDeleteModalVisible] = useState(false);
+  const [isBudgetModalVisible, setIsBudgetModalVisible] = useState(false);
+  const [isRulesModalVisible, setIsRulesModalVisible] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
+    null
+  );
+  const [isIconPickerVisible, setIsIconPickerVisible] = useState(false);
+  const [isColorPickerVisible, setIsColorPickerVisible] = useState(false);
+  const [selectedIcon, setSelectedIcon] = useState<IconName>(
+    "home" as IconName
+  );
+  const [selectedColor, setSelectedColor] = useState("#00D09E");
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "expense" as "expense" | "income",
+    icon: "home" as IconName,
+    color: "#00D09E",
+    budget: 0,
+    rules: [] as string[],
+  });
 
   // User data state
   const [userData, setUserData] = useState({
     userName: "",
-    userAvatar: "https://via.placeholder.com/50",
-    totalBalance: 0,
+    userAvatar: "",
+    totalIncome: 0,
     totalExpense: 0,
-    totalExpensePercentage: 0,
-    budgetLimit: 0,
   });
 
   // Animation values
@@ -271,17 +295,13 @@ const CategoryScreen = () => {
   const translateY = useState(new Animated.Value(20))[0];
 
   // Modal states
-  const [modalVisible, setModalVisible] = useState(false);
   const [modalMode, setModalMode] = useState<"add" | "edit">("add");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
-  );
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [newCategoryIcon, setNewCategoryIcon] = useState<IconName>("cart");
+  const [newCategoryIcon, setNewCategoryIcon] =
+    useState<IconName>("cart-outline");
   const [newCategoryColor, setNewCategoryColor] = useState("#FF6B6B");
   const [iconPickerVisible, setIconPickerVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
-  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(
     null
   );
@@ -292,23 +312,28 @@ const CategoryScreen = () => {
   const deleteModalScale = useState(new Animated.Value(1))[0];
   const deleteModalOpacity = useState(new Animated.Value(1))[0];
 
-  // Load categories and user data on mount
-  useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        setLoading(true);
-        await Promise.all([loadUserData(), loadCategories()]);
-        startContentAnimation();
-      } catch (error) {
-        console.error("Error loading initial data:", error);
-        showError("Error", "Failed to load data. Please try again.");
-      } finally {
-        setLoading(false);
-      }
-    };
+  // New state for total budget
+  const [totalBudget, setTotalBudget] = useState<number>(0);
 
-    loadInitialData();
-  }, []);
+  // Load initial data
+  useEffect(() => {
+    if (isFocused) {
+      loadInitialData();
+    }
+  }, [isFocused]);
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([loadUserData(), loadCategories()]);
+      startContentAnimation();
+    } catch (error) {
+      console.error("Error loading initial data:", error);
+      showError("Error", "Failed to load data. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter and sort categories
   const getFilteredAndSortedCategories = useCallback(() => {
@@ -377,37 +402,28 @@ const CategoryScreen = () => {
   // Load user data from API
   const loadUserData = async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
-      if (!token) {
-        navigation.navigate("Login" as never);
-        return;
-      }
+      const homeData = await fetchHomeData();
 
-      const data = await fetchHomeData("monthly");
-
-      // Calculate expense percentage based on actual data
-      const totalExpense = Math.abs(data.totalExpense || 0);
-      const budgetLimit = data.budgetLimit || 20000000; // Default 20M VND if not set
-      const expensePercentage = Math.min(
-        Math.round((totalExpense / budgetLimit) * 100),
-        100
+      // Calculate total income from transactions
+      const transactions = await fetchTransactions();
+      const totalIncome = transactions.reduce(
+        (sum: number, transaction: { type: string; amount: number }) => {
+          if (transaction.type === "income") {
+            return sum + transaction.amount;
+          }
+          return sum;
+        },
+        0
       );
 
       setUserData({
-        userName: data.userName || "User",
-        userAvatar: data.userAvatar || "https://via.placeholder.com/50",
-        totalBalance: data.totalBalance || 0,
-        totalExpense: totalExpense,
-        totalExpensePercentage: expensePercentage,
-        budgetLimit: budgetLimit,
+        userName: homeData.userName || "User",
+        userAvatar: homeData.userAvatar || "",
+        totalIncome: totalIncome,
+        totalExpense: homeData.totalExpense || 0,
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error loading user data:", error);
-      if (error.response?.status === 401) {
-        navigation.navigate("Login" as never);
-      } else {
-        showError("Error", "Failed to load user data. Please try again.");
-      }
     }
   };
 
@@ -416,26 +432,15 @@ const CategoryScreen = () => {
     try {
       const token = await AsyncStorage.getItem("token");
       if (!token) {
-        navigation.navigate("Login" as never);
+        navigation.navigate("Login");
         return;
       }
 
       const data = await getAllCategories();
-
-      // Split categories by type
-      const expenseCats = data.filter((cat) => cat.type === "expense");
-      const incomeCats = data.filter((cat) => cat.type === "income");
-
       setCategories(data);
-      setExpenseCategories(expenseCats);
-      setIncomeCategories(incomeCats);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Error loading categories:", error);
-      if (error.response?.status === 401) {
-        navigation.navigate("Login" as never);
-      } else {
-        showError("Error", "Failed to load categories. Please try again.");
-      }
+      showError("Error", "Failed to load categories");
     }
   };
 
@@ -477,10 +482,10 @@ const CategoryScreen = () => {
   const handleAddCategory = () => {
     setModalMode("add");
     setNewCategoryName("");
-    setNewCategoryIcon("cart");
+    setNewCategoryIcon("cart-outline");
     setNewCategoryColor("#FF6B6B");
     setSelectedCategory(null);
-    setModalVisible(true);
+    setIsModalVisible(true);
   };
 
   const handleEditCategory = (category: Category) => {
@@ -489,7 +494,7 @@ const CategoryScreen = () => {
     setNewCategoryName(category.name);
     setNewCategoryIcon(category.icon);
     setNewCategoryColor(category.color);
-    setModalVisible(true);
+    setIsModalVisible(true);
   };
 
   const handleSaveCategory = async () => {
@@ -501,7 +506,7 @@ const CategoryScreen = () => {
     try {
       const token = await AsyncStorage.getItem("token");
       if (!token) {
-        navigation.navigate("Login" as never);
+        navigation.navigate("Login");
         return;
       }
 
@@ -533,7 +538,7 @@ const CategoryScreen = () => {
       }
 
       // Close modal first
-      setModalVisible(false);
+      setIsModalVisible(false);
       setIconPickerVisible(false);
       setColorPickerVisible(false);
 
@@ -555,7 +560,7 @@ const CategoryScreen = () => {
       // This is a non-critical error since the category was actually created
       console.log("Category was created but response parsing failed:", error);
       showSuccess("Success", "New category created successfully");
-      setModalVisible(false);
+      setIsModalVisible(false);
       setIconPickerVisible(false);
       setColorPickerVisible(false);
       await loadCategories();
@@ -596,52 +601,44 @@ const CategoryScreen = () => {
   // Budget handlers
   const handleSetBudget = (category: Category) => {
     setSelectedCategory(category);
-    setBudgetModalVisible(true);
+    setIsBudgetModalVisible(true);
   };
 
-  const handleSaveBudget = async (budget: number) => {
+  const handleUpdateBudget = async () => {
     if (!selectedCategory) return;
 
     try {
-      await updateCategory(selectedCategory._id, {
-        name: selectedCategory.name,
-        icon: selectedCategory.icon,
-        color: selectedCategory.color,
-        budget,
-        rules: selectedCategory.rules,
-      });
-      await loadCategories();
-      setBudgetModalVisible(false);
+      await updateCategory(selectedCategory._id, { budget: formData.budget });
       showSuccess("Success", "Budget updated successfully");
+      setIsBudgetModalVisible(false);
+      setSelectedCategory(null);
+      loadCategories();
     } catch (error) {
-      console.error("Error updating budget:", error);
-      showError("Error", "Failed to update budget. Please try again later.");
+      handleError(error, "Failed to update budget");
     }
   };
 
   // Rules handlers
   const handleSetRules = (category: Category) => {
     setSelectedCategory(category);
-    setRulesModalVisible(true);
+    setIsRulesModalVisible(true);
   };
 
-  const handleSaveRules = async (rules: any) => {
+  const handleUpdateRules = async () => {
     if (!selectedCategory) return;
 
     try {
-      await updateCategory(selectedCategory._id, {
-        name: selectedCategory.name,
-        icon: selectedCategory.icon,
-        color: selectedCategory.color,
-        budget: selectedCategory.budget,
-        rules,
-      });
-      await loadCategories();
-      setRulesModalVisible(false);
+      const formattedRules = formData.rules.map((rule) => ({
+        keyword: rule,
+        isEnabled: true,
+      }));
+      await updateCategory(selectedCategory._id, { rules: formattedRules });
       showSuccess("Success", "Rules updated successfully");
+      setIsRulesModalVisible(false);
+      setSelectedCategory(null);
+      loadCategories();
     } catch (error) {
-      console.error("Error updating rules:", error);
-      showError("Error", "Failed to update rules. Please try again later.");
+      handleError(error, "Failed to update rules");
     }
   };
 
@@ -678,57 +675,10 @@ const CategoryScreen = () => {
 
   const handleCloseModal = useCallback(() => {
     console.log("Closing category modal");
-    setModalVisible(false);
+    setIsModalVisible(false);
     setIconPickerVisible(false);
     setColorPickerVisible(false);
   }, []);
-
-  // Handle global budget edit
-  const handleGlobalBudgetEdit = () => {
-    console.log("Handling global budget edit");
-    setIsEditingGlobalBudget(true);
-    setNewGlobalBudget(userData.budgetLimit.toString());
-  };
-
-  const handleSaveGlobalBudget = async () => {
-    try {
-      const numericBudget = parseInt(newGlobalBudget.replace(/\D/g, "")) || 0;
-
-      // Update user data with new budget
-      setUserData({
-        ...userData,
-        budgetLimit: numericBudget,
-        totalExpensePercentage: Math.min(
-          Math.round((userData.totalExpense / numericBudget) * 100),
-          100
-        ),
-      });
-
-      // TODO: Add API call to update budget in backend once implemented
-      // await userService.updateBudgetLimit(numericBudget);
-
-      setIsEditingGlobalBudget(false);
-      showSuccess("Success", "Total budget updated successfully");
-    } catch (error) {
-      console.error("Error updating global budget:", error);
-      showError("Error", "Failed to update budget. Please try again.");
-    }
-  };
-
-  // Handle currency input formatting
-  const handleBudgetInputChange = (text: string) => {
-    // Remove all non-numeric characters
-    const numericValue = text.replace(/\D/g, "");
-    // Format as currency
-    setNewGlobalBudget(numericValue);
-  };
-
-  // Format number as VND for display
-  const formatInputValue = (value: string) => {
-    if (!value) return "";
-    const numericValue = parseInt(value);
-    return formatVND(numericValue).replace("₫", "").trim();
-  };
 
   // Render category item
   const renderCategoryItem = ({ item }: { item: Category }) => {
@@ -762,7 +712,7 @@ const CategoryScreen = () => {
     return (
       <>
         <CategoryFormModal
-          visible={modalVisible}
+          visible={isModalVisible}
           mode={modalMode}
           onClose={handleCloseModal}
           onSave={handleSaveCategory}
@@ -798,15 +748,15 @@ const CategoryScreen = () => {
         )}
 
         <DeleteConfirmationModal
-          visible={deleteModalVisible}
+          visible={isDeleteModalVisible}
           categoryName={categoryToDelete?.name}
           animationValues={{
             scale: deleteModalScale,
             opacity: deleteModalOpacity,
           }}
-          onCancel={() => setDeleteModalVisible(false)}
+          onCancel={() => setIsDeleteModalVisible(false)}
           onConfirm={() => {
-            setDeleteModalVisible(false);
+            setIsDeleteModalVisible(false);
             if (categoryToDelete) {
               showDeleteConfirmation(categoryToDelete);
             }
@@ -814,31 +764,31 @@ const CategoryScreen = () => {
         />
 
         <CategoryBudgetModal
-          visible={budgetModalVisible}
+          visible={isBudgetModalVisible}
           category={selectedCategory}
-          onClose={() => setBudgetModalVisible(false)}
-          onSave={handleSaveBudget}
+          onClose={() => setIsBudgetModalVisible(false)}
+          onSave={handleUpdateBudget}
         />
 
         <CategoryRulesModal
-          visible={rulesModalVisible}
+          visible={isRulesModalVisible}
           category={selectedCategory}
-          onClose={() => setRulesModalVisible(false)}
-          onSave={handleSaveRules}
+          onClose={() => setIsRulesModalVisible(false)}
+          onSave={handleUpdateRules}
         />
       </>
     );
   }, [
-    modalVisible,
+    isModalVisible,
     modalMode,
     newCategoryName,
     newCategoryIcon,
     newCategoryColor,
     iconPickerVisible,
     colorPickerVisible,
-    deleteModalVisible,
-    budgetModalVisible,
-    rulesModalVisible,
+    isDeleteModalVisible,
+    isBudgetModalVisible,
+    isRulesModalVisible,
     categoryToDelete,
     selectedCategory,
   ]);
@@ -851,16 +801,24 @@ const CategoryScreen = () => {
 
   // Render financial summary component
   const renderFinancialSummary = () => {
+    const expensePercentage =
+      userData.totalIncome > 0
+        ? Math.min(
+            Math.round((userData.totalExpense / userData.totalIncome) * 100),
+            100
+          )
+        : 0;
+
     return (
       <View style={categoryStyles.financialSummaryContainer}>
         <View style={categoryStyles.balanceContainer}>
           <View style={categoryStyles.balanceItem}>
             <Text style={categoryStyles.balanceLabel}>
               <Ionicons name="wallet-outline" size={14} color="#444" /> Total
-              Balance
+              Income
             </Text>
             <Text style={categoryStyles.balanceValue}>
-              {formatVND(userData.totalBalance)}
+              {formatVND(userData.totalIncome)}
             </Text>
           </View>
 
@@ -883,36 +841,16 @@ const CategoryScreen = () => {
             <View
               style={[
                 categoryStyles.progressFill,
-                { width: `${userData.totalExpensePercentage}%` },
+                { width: `${expensePercentage}%` },
               ]}
             />
           </View>
-          <View style={categoryStyles.progressLabels}>
-            <Text style={categoryStyles.progressLabel}>
-              {userData.totalExpensePercentage}%
-            </Text>
-            <TouchableOpacity
-              onPress={handleGlobalBudgetEdit}
-              style={{ padding: 8, backgroundColor: "transparent" }}
-            >
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <Text
-                  style={[
-                    categoryStyles.progressMaxLabel,
-                    { color: "#00D09E" },
-                  ]}
-                >
-                  {formatVND(userData.budgetLimit)}
-                </Text>
-                <Ionicons
-                  name="create-outline"
-                  size={14}
-                  color="#00D09E"
-                  style={{ marginLeft: 3 }}
-                />
-              </View>
-            </TouchableOpacity>
-          </View>
+          <View
+            style={[
+              categoryStyles.progressLabels,
+              { justifyContent: "space-between", alignItems: "center" },
+            ]}
+          ></View>
         </View>
 
         <Text style={categoryStyles.budgetInfoText}>
@@ -921,15 +859,36 @@ const CategoryScreen = () => {
             size={14}
             color="#00D09E"
           />{" "}
-          {userData.totalExpensePercentage}% Of Your Expenses
-          {userData.totalExpensePercentage < 50
+          {expensePercentage}% Of Your Income
+          {expensePercentage < 50
             ? ", Looks Good!"
-            : userData.totalExpensePercentage < 80
+            : expensePercentage < 80
             ? ", Be Careful!"
             : ", Too High!"}
         </Text>
       </View>
     );
+  };
+
+  const handleError = (error: any, message: string) => {
+    console.error(message, error);
+    showError("Error", message);
+  };
+
+  const handleDeleteCategory = async (category: Category) => {
+    try {
+      await deleteCategory(category._id);
+      showSuccess("Success", "Category deleted successfully");
+      loadCategories();
+    } catch (error) {
+      handleError(error, "Failed to delete category");
+    }
+  };
+
+  // Thêm hàm xử lý khi nhấn vào nút thông báo
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
   };
 
   return (
@@ -949,7 +908,10 @@ const CategoryScreen = () => {
           >
             Categories
           </Text>
-          <TouchableOpacity style={categoryStyles.notificationButton}>
+          <TouchableOpacity
+            style={categoryStyles.notificationButton}
+            onPress={handleNotificationPress}
+          >
             <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </View>
@@ -1045,83 +1007,6 @@ const CategoryScreen = () => {
         </View>
 
         {renderModals()}
-
-        {/* Global Budget Edit Modal */}
-        <Modal
-          visible={isEditingGlobalBudget}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setIsEditingGlobalBudget(false)}
-          statusBarTranslucent={true}
-        >
-          <View style={modalStyles.modalOverlay}>
-            <KeyboardAvoidingView
-              behavior={Platform.OS === "ios" ? "padding" : "height"}
-              style={modalStyles.modalContent}
-              keyboardVerticalOffset={Platform.OS === "ios" ? 40 : 20}
-            >
-              <View style={modalStyles.modalHeader}>
-                <View style={modalStyles.modalTitleContainer}>
-                  <Ionicons name="wallet-outline" size={24} color="#00D09E" />
-                  <Text style={modalStyles.modalTitle}>
-                    Update Total Budget
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={modalStyles.closeButton}
-                  onPress={() => setIsEditingGlobalBudget(false)}
-                >
-                  <Ionicons name="close" size={24} color="#666" />
-                </TouchableOpacity>
-              </View>
-
-              <View style={modalStyles.modalBody}>
-                <View style={modalStyles.inputContainer}>
-                  <Text style={modalStyles.inputLabel}>
-                    Total Budget Amount
-                  </Text>
-                  <View style={modalStyles.amountInputContainer}>
-                    <Text style={modalStyles.currencySymbol}>₫</Text>
-                    <TextInput
-                      style={modalStyles.budgetInput}
-                      value={formatInputValue(newGlobalBudget)}
-                      onChangeText={handleBudgetInputChange}
-                      keyboardType="numeric"
-                      placeholder="0"
-                      placeholderTextColor="#999"
-                      autoFocus={true}
-                    />
-                  </View>
-
-                  <Text style={modalStyles.formattedPreview}>
-                    {formatVND(parseInt(newGlobalBudget) || 0)}
-                  </Text>
-                  <Text style={modalStyles.inputHelper}>
-                    Enter the amount you want to set as the total budget for all
-                    categories
-                  </Text>
-
-                  <View style={[modalStyles.modalFooter, { marginTop: 30 }]}>
-                    <TouchableOpacity
-                      style={modalStyles.cancelButton}
-                      onPress={() => setIsEditingGlobalBudget(false)}
-                    >
-                      <Text style={modalStyles.cancelButtonText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={modalStyles.saveButton}
-                      onPress={handleSaveGlobalBudget}
-                    >
-                      <Text style={modalStyles.saveButtonText}>
-                        Save Budget
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-            </KeyboardAvoidingView>
-          </View>
-        </Modal>
       </SafeAreaView>
     </TouchableWithoutFeedback>
   );

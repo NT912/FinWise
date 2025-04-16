@@ -1,7 +1,23 @@
 import api from "./apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as savingService from "./savingService";
 
-// 🏠 Lấy dữ liệu trang Home (Số dư, tổng chi tiêu)
+// Hàm utility để lấy năm và tháng hiện tại
+export const getCurrentYearMonth = () => {
+  const now = new Date();
+  return {
+    year: now.getFullYear(),
+    month: now.getMonth() + 1, // getMonth() trả về 0-11, nên +1 để được 1-12
+  };
+};
+
+// Tạo chuỗi năm-tháng cho API
+export const getCurrentMonthString = () => {
+  const { year, month } = getCurrentYearMonth();
+  return `${year}-${month}`;
+};
+
+// 🏠 Lấy dữ liệu trang Home (Số dư, tổng chi tiêu) và tổng ngân sách của tháng hiện tại
 export const fetchHomeData = async (filter = "monthly") => {
   try {
     const token = await AsyncStorage.getItem("token");
@@ -26,6 +42,19 @@ export const fetchHomeData = async (filter = "monthly") => {
       console.log("✅ API trả về userName:", homeResponse.data.userName);
     }
 
+    // Lấy tổng ngân sách của tháng hiện tại
+    let monthlyBudget = 20000000; // Giá trị mặc định
+    try {
+      const currentMonth = getCurrentMonthString();
+      monthlyBudget = await savingService.getTotalBudget(currentMonth);
+      console.log("✅ Tổng ngân sách tháng hiện tại:", monthlyBudget);
+    } catch (budgetError) {
+      console.warn(
+        "⚠️ Không thể lấy tổng ngân sách, sử dụng giá trị mặc định:",
+        budgetError
+      );
+    }
+
     // Trả về dữ liệu từ API home
     return {
       userName: homeResponse.data.userName || "User",
@@ -36,6 +65,16 @@ export const fetchHomeData = async (filter = "monthly") => {
       goalPercentage: homeResponse.data.goalPercentage || 0,
       revenueLostWeek: homeResponse.data.revenueLostWeek || 0,
       foodLastWeek: homeResponse.data.foodLastWeek || 0,
+      monthlyBudget: monthlyBudget,
+      budgetPercentage:
+        monthlyBudget > 0
+          ? Math.min(
+              Math.round(
+                ((homeResponse.data.totalExpense || 0) / monthlyBudget) * 100
+              ),
+              100
+            )
+          : 0,
     };
   } catch (error: any) {
     // ✅ Xử lý lỗi đúng cách
@@ -66,6 +105,8 @@ export const fetchHomeData = async (filter = "monthly") => {
       revenueLostWeek: 2500000,
       foodLastWeek: 750000,
       transactions: [],
+      monthlyBudget: 20000000,
+      budgetPercentage: 0,
     };
   }
 };

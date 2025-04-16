@@ -607,6 +607,7 @@ const categoryStyles = StyleSheet.create({
   progressLabels: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
   },
   progressLabel: {
     fontSize: 12,

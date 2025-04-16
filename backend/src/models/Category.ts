@@ -6,6 +6,7 @@ export interface ICategory extends Document {
   color: string;
   type: "expense" | "income";
   budget?: number;
+  budget_of_category?: number;
   rules?: {
     keywords: string[];
     amount?: {
@@ -48,6 +49,10 @@ const CategorySchema = new Schema(
       required: true,
     },
     budget: {
+      type: Number,
+      default: 0,
+    },
+    budget_of_category: {
       type: Number,
       default: 0,
     },

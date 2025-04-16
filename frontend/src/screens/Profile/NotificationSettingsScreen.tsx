@@ -1,242 +1,194 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
   TouchableOpacity,
+  Switch,
   ScrollView,
   SafeAreaView,
-  Alert,
-  ActivityIndicator,
-  RefreshControl,
   StyleSheet,
-  Image,
+  StatusBar,
 } from "react-native";
-import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
-import {
-  getUserProfile,
-  updateNotificationSettings,
-} from "../../services/profileService";
-import NotificationToggle from "../../components/profile/NotificationToggle";
-import LoadingIndicator from "../../components/LoadingIndicator";
-import notificationStyles from "../../styles/profile/notificationStyles";
-import commonProfileStyles from "../../styles/profile/commonProfileStyles";
+import { Ionicons } from "@expo/vector-icons";
+import { NavigationProp, useNavigation } from "@react-navigation/native";
+import { ProfileStackParamList } from "../../navigation/AppNavigator";
 
-const NotificationSettingsScreen = ({ navigation }: { navigation: any }) => {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
+const NotificationSettingsScreen = () => {
+  const navigation = useNavigation<NavigationProp<ProfileStackParamList>>();
+
+  // Settings state
   const [settings, setSettings] = useState({
-    pushNotifications: true,
-    emailNotifications: true,
-    budgetAlerts: true,
-    goalAlerts: true,
-    billReminders: true,
+    generalNotification: true,
+    sound: true,
+    soundCall: true,
+    vibrate: true,
+    transactionUpdate: false,
+    expenseReminder: false,
+    budgetNotifications: false,
+    lowBalanceAlerts: false,
   });
 
-  useEffect(() => {
-    fetchNotificationSettings();
-  }, []);
-
-  const fetchNotificationSettings = async () => {
-    try {
-      setLoading(true);
-      const userData = await getUserProfile();
-
-      if (userData && userData.notifications) {
-        setSettings({
-          pushNotifications: userData.notifications.push || false,
-          emailNotifications: userData.notifications.email || false,
-          budgetAlerts: userData.notifications.budgetAlerts || true,
-          goalAlerts: userData.notifications.goalAlerts || true,
-          billReminders: userData.notifications.billReminders || true,
-        });
-      }
-    } catch (error) {
-      console.error("Error fetching notification settings:", error);
-      Alert.alert(
-        "Error",
-        "Unable to load notification settings. Please try again later."
-      );
-    } finally {
-      setLoading(false);
-    }
+  // Handle toggle changes
+  const handleToggle = (key: keyof typeof settings) => {
+    setSettings((prevSettings) => ({
+      ...prevSettings,
+      [key]: !prevSettings[key],
+    }));
   };
 
-  const onRefresh = useCallback(async () => {
-    setRefreshing(true);
-    await fetchNotificationSettings();
-    setRefreshing(false);
-  }, []);
-
-  const handleToggle = async (key: string, value: boolean) => {
-    try {
-      const newSettings = { ...settings, [key]: value };
-      setSettings(newSettings);
-
-      // Display update notification
-      const toastMessage = value
-        ? `Enabling ${getLabelForKey(key)}...`
-        : `Disabling ${getLabelForKey(key)}...`;
-
-      // Convert key names for API
-      const apiSettings = {
-        pushNotifications: newSettings.pushNotifications,
-        emailNotifications: newSettings.emailNotifications,
-        budgetAlerts: newSettings.budgetAlerts,
-        goalAlerts: newSettings.goalAlerts,
-        billReminders: newSettings.billReminders,
-      };
-
-      await updateNotificationSettings(apiSettings);
-    } catch (error) {
-      console.error("Error updating notification settings:", error);
-      Alert.alert(
-        "Error",
-        "Unable to update notification settings. Please try again later."
-      );
-      setSettings(settings); // Restore previous settings if failed
-    }
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
   };
-
-  // Helper function to get display names for notification types
-  const getLabelForKey = (key: string): string => {
-    const labels: Record<string, string> = {
-      pushNotifications: "Push Notifications",
-      emailNotifications: "Email Notifications",
-      budgetAlerts: "Budget Alerts",
-      goalAlerts: "Goal Alerts",
-      billReminders: "Bill Reminders",
-    };
-    return labels[key] || key;
-  };
-
-  if (loading) {
-    return <LoadingIndicator />;
-  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={commonProfileStyles.enhancedHeader}>
+      <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
+
+      {/* Header */}
+      <View style={styles.header}>
         <TouchableOpacity
-          style={commonProfileStyles.enhancedBackButton}
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={commonProfileStyles.enhancedHeaderTitle}>
-          Notification Settings
-        </Text>
+        <Text style={styles.headerTitle}>Notification Settings</Text>
+        <TouchableOpacity
+          style={styles.rightIcon}
+          onPress={handleNotificationPress}
+        >
+          <Ionicons name="notifications-outline" size={24} color="#fff" />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={["#00D09E"]}
-            tintColor="#00D09E"
+      {/* Content */}
+      <View style={styles.contentContainer}>
+        <ScrollView style={styles.scrollView}>
+          {/* Notification options */}
+          <NotificationOption
+            label="General Notification"
+            value={settings.generalNotification}
+            onToggle={() => handleToggle("generalNotification")}
           />
-        }
-      >
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <MaterialIcons
-              name="notifications-active"
-              size={22}
-              color="#00D09E"
-            />
-            <Text style={styles.sectionTitle}>Notification Methods</Text>
-          </View>
-          <NotificationToggle
-            label="Push Notifications"
-            description="Receive notifications directly on your device"
-            value={settings.pushNotifications}
-            onToggle={(value) => handleToggle("pushNotifications", value)}
-            icon={
-              <Ionicons name="phone-portrait-outline" size={20} color="#555" />
-            }
-          />
-          <NotificationToggle
-            label="Email Notifications"
-            description="Receive notifications via your registered email address"
-            value={settings.emailNotifications}
-            onToggle={(value) => handleToggle("emailNotifications", value)}
-            icon={<Ionicons name="mail-outline" size={20} color="#555" />}
-          />
-        </View>
 
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Feather name="bell" size={22} color="#00D09E" />
-            <Text style={styles.sectionTitle}>Notification Types</Text>
-          </View>
-          <NotificationToggle
-            label="Budget Alerts"
-            description="Get notified when you're about to exceed your budget"
-            value={settings.budgetAlerts}
-            onToggle={(value) => handleToggle("budgetAlerts", value)}
-            icon={
-              <MaterialIcons
-                name="account-balance-wallet"
-                size={20}
-                color="#555"
-              />
-            }
+          <NotificationOption
+            label="Sound"
+            value={settings.sound}
+            onToggle={() => handleToggle("sound")}
           />
-          <NotificationToggle
-            label="Goal Alerts"
-            description="Notifications about your financial goals progress"
-            value={settings.goalAlerts}
-            onToggle={(value) => handleToggle("goalAlerts", value)}
-            icon={<Ionicons name="flag-outline" size={20} color="#555" />}
+
+          <NotificationOption
+            label="Sound Call"
+            value={settings.soundCall}
+            onToggle={() => handleToggle("soundCall")}
           />
-          <NotificationToggle
-            label="Bill Reminders"
-            description="Reminders when bills are due for payment"
-            value={settings.billReminders}
-            onToggle={(value) => handleToggle("billReminders", value)}
-            icon={<Ionicons name="calendar-outline" size={20} color="#555" />}
-            isLast={true}
+
+          <NotificationOption
+            label="Vibrate"
+            value={settings.vibrate}
+            onToggle={() => handleToggle("vibrate")}
           />
-        </View>
-      </ScrollView>
+
+          <NotificationOption
+            label="Transaction Update"
+            value={settings.transactionUpdate}
+            onToggle={() => handleToggle("transactionUpdate")}
+          />
+
+          <NotificationOption
+            label="Expense Reminder"
+            value={settings.expenseReminder}
+            onToggle={() => handleToggle("expenseReminder")}
+          />
+
+          <NotificationOption
+            label="Budget Notifications"
+            value={settings.budgetNotifications}
+            onToggle={() => handleToggle("budgetNotifications")}
+          />
+
+          <NotificationOption
+            label="Low Balance Alerts"
+            value={settings.lowBalanceAlerts}
+            onToggle={() => handleToggle("lowBalanceAlerts")}
+          />
+        </ScrollView>
+      </View>
     </SafeAreaView>
+  );
+};
+
+// Simple notification option component
+const NotificationOption = ({
+  label,
+  value,
+  onToggle,
+}: {
+  label: string;
+  value: boolean;
+  onToggle: () => void;
+}) => {
+  return (
+    <View style={styles.optionRow}>
+      <Text style={styles.optionLabel}>{label}</Text>
+      <Switch
+        value={value}
+        onValueChange={onToggle}
+        trackColor={{ false: "#D9D9D9", true: "#00D09E" }}
+        thumbColor="#FFFFFF"
+        ios_backgroundColor="#D9D9D9"
+      />
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#E3FFF8",
+    backgroundColor: "#00D09E",
   },
-  content: {
-    flex: 1,
-    padding: 16,
-  },
-  section: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    marginBottom: 16,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    overflow: "hidden",
-  },
-  sectionHeader: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(0, 0, 0, 0.05)",
-    backgroundColor: "rgba(0, 208, 158, 0.05)",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  sectionTitle: {
+  backButton: {
+    padding: 8,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000000",
+  },
+  rightIcon: {
+    padding: 8,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#F6F9F8",
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    overflow: "hidden",
+  },
+  scrollView: {
+    flex: 1,
+    padding: 20,
+  },
+  optionRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8E8E8",
+  },
+  optionLabel: {
     fontSize: 16,
-    fontWeight: "bold",
-    marginLeft: 10,
-    color: "#00D09E",
+    color: "#333333",
+    fontWeight: "400",
   },
 });
 

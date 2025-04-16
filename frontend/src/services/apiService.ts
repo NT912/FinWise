@@ -2,6 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform, Alert } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
+import { config } from "../config/config";
 
 // Lưu API URL vào AsyncStorage
 export const saveApiUrl = async (url: string) => {
@@ -37,23 +38,18 @@ const getBaseUrl = async () => {
     return storedUrl;
   }
 
-  // Nếu không có URL đã lưu, sử dụng các giá trị mặc định
-  if (__DEV__) {
-    // Sử dụng IP thực tế làm mặc định thay vì localhost
-    return "http://192.168.1.8:3002";
-  }
-  // Production environment
-  return "https://api.finwise-app.com"; // Thay thế URL này khi triển khai production
+  // Nếu không có URL đã lưu, sử dụng config mặc định
+  return config.api.baseUrl;
 };
 
-// Tạo API client với baseURL mặc định (sẽ được cập nhật sau)
+// Tạo API client với baseURL mặc định
 const api = axios.create({
-  baseURL: "http://192.168.1.8:3002", // Cập nhật giá trị mặc định tạm thời
+  baseURL: config.api.baseUrl,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
   },
-  timeout: 60000,
+  timeout: config.api.timeout,
 });
 
 // Khởi tạo API client với URL từ AsyncStorage hoặc giá trị mặc định

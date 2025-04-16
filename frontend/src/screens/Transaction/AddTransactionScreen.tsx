@@ -231,7 +231,7 @@ const AddTransactionScreen: React.FC = () => {
         title: title.trim(),
         amount: parseFloat(amount),
         date: selectedDate.toISOString(),
-        category: selectedCategory._id,
+        category: selectedCategory?._id || "",
         type: transactionType,
         note: note ? note.trim() : "",
       };
@@ -310,16 +310,34 @@ const AddTransactionScreen: React.FC = () => {
     );
   };
 
+  // Xử lý khi nhấn nút quay lại
+  const handleGoBack = () => {
+    navigation.goBack();
+  };
+
+  // Xử lý khi nhấn nút thông báo
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#00D09E" />
 
       {/* Header */}
-      <AppHeader
-        headerTitle="Add Transaction"
-        showBackButton={true}
-        onBackPress={() => navigation.goBack()}
-      />
+      <View style={styles.header}>
+        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+          <Ionicons name="chevron-back" size={24} color="white" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Add Transaction</Text>
+        <TouchableOpacity
+          style={styles.notificationButton}
+          onPress={handleNotificationPress}
+        >
+          <Ionicons name="notifications-outline" size={24} color="white" />
+        </TouchableOpacity>
+      </View>
 
       {/* SHOW CONNECTION ERROR OR MAIN CONTENT */}
       {connectionError ? (
@@ -718,6 +736,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#00D09E",
   },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight || 0 : 10,
+    paddingBottom: 10,
+  },
+  backButton: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#000000",
+    textAlign: "center",
+  },
+  notificationButton: {
+    padding: 8,
+  },
   keyboardAvoidingView: {
     flex: 1,
     marginTop: 10,
@@ -862,6 +900,7 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 16,
     color: "#333333",
+    fontWeight: "500",
   },
   categorySelector: {
     flexDirection: "row",
@@ -1125,11 +1164,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
     marginBottom: 2,
-  },
-  dateText: {
-    fontSize: 16,
-    color: "#333333",
-    fontWeight: "500",
   },
   dateChevron: {
     marginLeft: 8,

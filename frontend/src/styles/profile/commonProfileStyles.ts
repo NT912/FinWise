@@ -47,7 +47,7 @@ const commonProfileStyles = StyleSheet.create({
   enhancedHeaderTitle: {
     fontSize: 24,
     fontWeight: "bold",
-    color: "#00C897",
+    color: "black",
     marginLeft: 15,
     letterSpacing: 0.5,
   },

@@ -83,7 +83,8 @@ export const createCategory = async (req: Request, res: Response) => {
 // Update a category
 export const updateCategory = async (req: Request, res: Response) => {
   try {
-    const { name, icon, color, type, budget, rules } = req.body;
+    const { name, icon, color, type, budget, budget_of_category, rules } =
+      req.body;
     const category = await Category.findById(req.params.id);
 
     if (!category) {
@@ -109,6 +110,10 @@ export const updateCategory = async (req: Request, res: Response) => {
       color: color || category.color,
       type: type || category.type,
       budget: budget !== undefined ? budget : category.budget,
+      budget_of_category:
+        budget_of_category !== undefined
+          ? budget_of_category
+          : category.budget_of_category,
       rules: rules || category.rules,
     };
 

@@ -43,17 +43,17 @@ export default function LaunchScreen() {
         setTimeout(() => {
           if (token) {
             console.log("Navigating to TabNavigator screen");
-            navigation.replace("TabNavigator");
+            navigation.navigate("TabNavigator");
           } else {
             console.log("Navigating to Login screen");
-            navigation.replace("Login");
+            navigation.navigate("Login");
           }
         }, 2000);
       } catch (error) {
         console.error("Error checking token:", error);
         // Nếu có lỗi, mặc định chuyển đến màn hình Login
         setTimeout(() => {
-          navigation.replace("Login");
+          navigation.navigate("Login");
         }, 2000);
       }
     };

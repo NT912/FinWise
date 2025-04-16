@@ -5,13 +5,15 @@ import { getUserIdFromToken } from "../utils/auth";
 export const createSavingGoal = async (req: Request, res: Response) => {
   try {
     const userId = await getUserIdFromToken(req);
-    const { goalName, targetAmount } = req.body;
+    const { goalName, targetAmount, month, year } = req.body;
 
     const saving = new Saving({
       userId,
       goalName,
       targetAmount,
       currentAmount: 0,
+      month: month || new Date().getMonth() + 1,
+      year: year || new Date().getFullYear(),
     });
 
     await saving.save();
@@ -51,11 +53,15 @@ export const updateSavingGoal = async (req: Request, res: Response) => {
   try {
     const userId = await getUserIdFromToken(req);
     const { goalId } = req.params;
-    const { currentAmount } = req.body;
+    const { currentAmount, targetAmount } = req.body;
+
+    const updateData: any = {};
+    if (currentAmount !== undefined) updateData.currentAmount = currentAmount;
+    if (targetAmount !== undefined) updateData.targetAmount = targetAmount;
 
     const saving = await Saving.findOneAndUpdate(
       { _id: goalId, userId },
-      { currentAmount },
+      updateData,
       { new: true }
     );
 
@@ -93,13 +99,23 @@ export const getSavingsSummary = async (req: Request, res: Response) => {
       0
     );
 
+    // Get current month and year
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth() + 1;
+    const currentYear = currentDate.getFullYear();
+
+    // Find target amount for current month
+    const currentGoal = savingGoals.find(
+      (goal) => goal.month === currentMonth && goal.year === currentYear
+    );
+    const targetAmount = currentGoal?.targetAmount || 0;
+
     // Generate monthly data for the last 6 months
     const monthlyData = {
       labels: [] as string[],
       data: [] as number[],
     };
 
-    const currentDate = new Date();
     for (let i = 5; i >= 0; i--) {
       const date = new Date(currentDate);
       date.setMonth(date.getMonth() - i);
@@ -127,13 +143,20 @@ export const getSavingsSummary = async (req: Request, res: Response) => {
       id: goal._id,
       name: goal.goalName,
       totalAmount: goal.currentAmount,
+      targetAmount: goal.targetAmount,
       color: "#" + Math.floor(Math.random() * 16777215).toString(16), // Random color
     }));
+
+    // Calculate progress percentage
+    const progress =
+      targetAmount > 0 ? Math.min((totalSavings / targetAmount) * 100, 100) : 0;
 
     res.status(200).json({
       success: true,
       data: {
         totalSavings,
+        targetAmount,
+        progress,
         categories,
         monthlyData,
       },

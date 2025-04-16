@@ -18,6 +18,10 @@ const options = {
         url: "http://3.0.248.48:3000",
         description: "Production Server",
       },
+      {
+        url: "http://192.168.2.2:3002",
+        description: "New Server",
+      },
     ],
     components: {
       securitySchemes: {

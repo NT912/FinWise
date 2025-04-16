@@ -132,6 +132,12 @@ const ProfileScreen = () => {
     fetchUserData().then(() => setRefreshing(false));
   }, []);
 
+  // Hàm xử lý khi nhấn nút thông báo
+  const handleNotificationPress = () => {
+    // Điều hướng trực tiếp đến màn hình NotificationScreen ở root navigator
+    navigation.navigate("NotificationScreen" as any);
+  };
+
   // Add this function to handle profile updates
   useEffect(() => {
     const unsubscribe = navigation.addListener("focus", () => {
@@ -158,16 +164,16 @@ const ProfileScreen = () => {
       textColor: "#FFFFFF",
     },
     {
-      icon: "shield-outline",
-      text: "Security",
-      onPress: () => navigation.navigate("Security"),
+      icon: "settings-outline",
+      text: "Setting",
+      onPress: () => navigation.navigate("Settings"),
       color: "#4DABFF",
       textColor: "#FFFFFF",
     },
     {
-      icon: "settings-outline",
-      text: "Setting",
-      onPress: () => navigation.navigate("Settings"),
+      icon: "document-text-outline",
+      text: "Terms & Conditions",
+      onPress: () => navigation.navigate("Terms"),
       color: "#4DABFF",
       textColor: "#FFFFFF",
     },
@@ -225,7 +231,10 @@ const ProfileScreen = () => {
             Profile
           </Text>
         </View>
-        <TouchableOpacity style={categoryStyles.notificationButton}>
+        <TouchableOpacity
+          style={categoryStyles.notificationButton}
+          onPress={handleNotificationPress}
+        >
           <Ionicons name="notifications-outline" size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </View>
@@ -288,25 +297,22 @@ const ProfileScreen = () => {
               },
             ]}
           >
-            <View style={styles.deleteIconContainer}>
-              <Ionicons name="log-out" size={30} color="#FF6B6B" />
-            </View>
-            <Text style={styles.deleteTitle}>Logout</Text>
-            <Text style={styles.deleteMessage}>
-              Are you sure you want to logout from your account?
+            <Text style={styles.modalTitle}>End Session</Text>
+            <Text style={styles.modalMessage}>
+              Are you sure you want to log out?
             </Text>
-            <View style={styles.deleteButtonContainer}>
+            <View style={styles.buttonContainer}>
               <TouchableOpacity
-                style={styles.deleteCancelButton}
-                onPress={handleLogoutCancel}
-              >
-                <Text style={styles.deleteCancelButtonText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteConfirmButton}
+                style={styles.confirmButton}
                 onPress={handleLogoutConfirm}
               >
-                <Text style={styles.deleteConfirmButtonText}>Logout</Text>
+                <Text style={styles.confirmButtonText}>Yes, End Session</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={handleLogoutCancel}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </Animated.View>
@@ -413,74 +419,48 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    width: "85%",
-    backgroundColor: "#FFF",
-    borderRadius: 20,
-    padding: 25,
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 20,
+    width: "80%",
     alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 10,
   },
-  deleteIconContainer: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "#FFE5E5",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-  deleteTitle: {
-    fontSize: 22,
+  modalTitle: {
+    fontSize: 18,
     fontWeight: "bold",
-    color: "#333",
-    marginBottom: 15,
+    marginBottom: 10,
+    color: "#000",
   },
-  deleteMessage: {
+  modalMessage: {
     fontSize: 16,
-    color: "#666",
     textAlign: "center",
-    marginBottom: 25,
-    lineHeight: 24,
+    marginBottom: 20,
+    color: "#333",
   },
-  deleteButtonContainer: {
-    flexDirection: "row",
+  buttonContainer: {
     width: "100%",
-    justifyContent: "space-between",
   },
-  deleteCancelButton: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    borderRadius: 12,
-    padding: 14,
+  confirmButton: {
+    backgroundColor: "#00D09E",
+    borderRadius: 8,
+    padding: 15,
     alignItems: "center",
-    marginRight: 10,
+    marginBottom: 10,
   },
-  deleteCancelButtonText: {
-    color: "#555",
+  confirmButtonText: {
+    color: "white",
+    fontWeight: "600",
     fontSize: 16,
-    fontWeight: "500",
   },
-  deleteConfirmButton: {
-    flex: 1,
-    backgroundColor: "#FF6B6B",
-    borderRadius: 12,
-    padding: 14,
+  cancelButton: {
+    backgroundColor: "#f0f0f0",
+    borderRadius: 8,
+    padding: 15,
     alignItems: "center",
-    marginLeft: 10,
-    shadowColor: "#FF6B6B",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 4,
   },
-  deleteConfirmButtonText: {
-    color: "#FFF",
+  cancelButtonText: {
+    color: "#333",
     fontSize: 16,
-    fontWeight: "bold",
   },
   usernameContainer: {
     alignItems: "center",

@@ -18,40 +18,46 @@ export const authenticateJWT = async (
 
     if (!authHeader) {
       res.status(401).json({ message: "Unauthorized - No token provided" });
-      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+      return;
     }
 
-    const token = authHeader.split(" ")[1]; // ✅ Lấy token từ "Bearer <token>"
+    const token = authHeader.split(" ")[1];
 
     if (!token) {
       res.status(401).json({ message: "Unauthorized - Invalid token format" });
-      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+      return;
     }
 
-    // ✅ Giải mã token
-    const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
+    // Check if JWT_SECRET exists
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT_SECRET is not defined in environment variables");
+      res.status(500).json({ message: "Internal server error" });
+      return;
+    }
+
+    // Verify token
+    const decoded = jwt.verify(token, process.env.JWT_SECRET) as {
       userId: string;
     };
 
     if (!decoded) {
       res.status(401).json({ message: "Unauthorized - Invalid token" });
-      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+      return;
     }
 
-    // ✅ Tìm user trong DB
+    // Find user in DB
     const user = await User.findById(decoded.userId);
     if (!user) {
       res.status(401).json({ message: "Unauthorized - User not found" });
-      return; // ✅ Fix lỗi bằng cách return sau khi gửi response
+      return;
     }
 
-    req.user = { id: decoded.userId }; // ✅ Gán user vào request
-    next(); // ✅ Nếu hợp lệ, tiếp tục xử lý request
+    req.user = { id: decoded.userId };
+    next();
   } catch (error) {
-    console.error("JWT Auth Error:", error);
+    console.error("Auth middleware error:", error);
     res
       .status(401)
       .json({ message: "Unauthorized - Token verification failed" });
-    return; // ✅ Fix lỗi bằng cách return sau khi gửi response
   }
 };

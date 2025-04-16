@@ -23,7 +23,7 @@ import SecurityScreen from "../screens/Security/SecurityScreen";
 import NotificationSettingsScreen from "../screens/Profile/NotificationSettingsScreen";
 import HelpScreen from "../screens/Profile/HelpScreen";
 import DeleteAccountScreen from "../screens/Profile/DeleteAccountScreen";
-import TermsAndConditionsScreen from "../screens/Security/TermsAndConditionsScreen";
+import TermsAndConditionsScreen from "../screens/Profile/TermsAndConditionsScreen";
 import LogoutScreen from "../screens/Profile/LogoutScreen";
 import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
 import CategoryDetailScreen from "../screens/Category/CategoryDetailScreen";
@@ -43,6 +43,7 @@ export type RootStackParamList = {
   Categories: undefined;
   Settings: undefined;
   Notifications: undefined;
+  NotificationScreen: undefined;
   ForgotPassword: undefined;
   SecurityPin: { email: string };
   ResetPassword: { email: string; resetCode: string };
@@ -74,6 +75,7 @@ export type HomeStackParamList = {
   EditTransaction: {
     transactionId: string;
   };
+  NotificationScreen: undefined;
 };
 
 export type CategoryStackParamList = {
@@ -219,6 +221,7 @@ export default function AppNavigator({
 }: AppNavigatorProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [showLaunch, setShowLaunch] = useState(true);
 
   useEffect(() => {
     // Kiểm tra token khi component mount
@@ -249,6 +252,17 @@ export default function AppNavigator({
     checkToken();
   }, [initialAuthenticated, forceLogin]);
 
+  // Tự động chuyển hướng sau khi hiển thị màn hình Launch
+  useEffect(() => {
+    if (!isLoading) {
+      const timer = setTimeout(() => {
+        setShowLaunch(false);
+      }, 2000); // Hiển thị màn hình Launch trong 2 giây
+
+      return () => clearTimeout(timer);
+    }
+  }, [isLoading]);
+
   // Hiển thị màn hình loading nếu đang kiểm tra token
   if (isLoading) {
     return null;
@@ -260,7 +274,9 @@ export default function AppNavigator({
         headerShown: false,
         cardStyle: { backgroundColor: "#fff" },
       }}
-      initialRouteName={initialRouteName}
+      initialRouteName={
+        showLaunch ? "Launch" : userToken ? "TabNavigator" : "Login"
+      }
     >
       <Stack.Screen name="Launch" component={LaunchScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
@@ -279,7 +295,6 @@ export default function AppNavigator({
 
       {/* Other screens not directly accessible through tabs */}
       <Stack.Screen name="Categories" component={CategoriesScreen} />
-      <Stack.Screen name="Notifications" component={NotificationScreen} />
       <Stack.Screen
         name="Security"
         component={SecurityScreen}
@@ -303,6 +318,11 @@ export default function AppNavigator({
       <Stack.Screen
         name="PrivacyPolicy"
         component={require("../screens/Auth/PrivacyPolicyScreen").default}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="NotificationScreen"
+        component={NotificationScreen}
         options={{ headerShown: false }}
       />
     </Stack.Navigator>

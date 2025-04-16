@@ -11,35 +11,33 @@ type IconName = keyof typeof Ionicons.glyphMap;
 type BalanceOverviewProps = {
   totalBalance: number;
   totalExpense: number;
-  monthlyTarget?: number;
+  monthlyBudget: number;
+  budgetPercentage: number;
 };
 
 const BalanceOverview: React.FC<BalanceOverviewProps> = ({
   totalBalance,
   totalExpense,
-  monthlyTarget = 20000000, // Default value if not provided from DB
+  monthlyBudget,
+  budgetPercentage,
 }) => {
-  // Calculate expense percentage based on monthly target
-  const expensePercentage =
-    monthlyTarget > 0 ? Math.min((totalExpense / monthlyTarget) * 100, 100) : 0;
-
   // Dynamic message based on expense percentage
   const getStatusMessage = () => {
-    if (expensePercentage >= 100) {
-      return "You've exceeded your monthly target.";
-    } else if (expensePercentage >= 80) {
-      return "You're approaching your monthly target.";
-    } else if (expensePercentage >= 50) {
-      return `${expensePercentage.toFixed(0)}% of your target spent.`;
+    if (budgetPercentage >= 100) {
+      return "You've exceeded your monthly budget.";
+    } else if (budgetPercentage >= 80) {
+      return "You're approaching your monthly budget.";
+    } else if (budgetPercentage >= 50) {
+      return `${budgetPercentage.toFixed(0)}% of your budget spent.`;
     } else {
-      return `${expensePercentage.toFixed(0)}% of your target, looks good.`;
+      return `${budgetPercentage.toFixed(0)}% of your budget, looks good.`;
     }
   };
 
   const getStatusIcon = () => {
-    if (expensePercentage >= 100) {
+    if (budgetPercentage >= 100) {
       return { name: "alert-circle-outline" as IconName, color: "#FF0000" };
-    } else if (expensePercentage >= 80) {
+    } else if (budgetPercentage >= 80) {
       return { name: "warning-outline" as IconName, color: "#FFA500" };
     } else {
       return { name: "checkmark-circle-outline" as IconName, color: "#00AA00" };
@@ -54,7 +52,7 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
         <View style={styles.balanceItem}>
           <View style={styles.balanceHeader}>
             <Ionicons name="wallet-outline" size={16} color="#000000" />
-            <Text style={styles.balanceLabel}>Total Balance</Text>
+            <Text style={styles.balanceLabel}>Total Income</Text>
           </View>
           <Text style={styles.balanceAmount}>{formatVND(totalBalance)}</Text>
         </View>
@@ -66,21 +64,21 @@ const BalanceOverview: React.FC<BalanceOverviewProps> = ({
             <Ionicons name="trending-down-outline" size={16} color="#000000" />
             <Text style={styles.balanceLabel}>Total Expense</Text>
           </View>
-          <Text style={styles.expenseAmount}>-{formatVND(totalExpense)}</Text>
+          <Text style={styles.expenseAmount}>{formatVND(totalExpense)}</Text>
         </View>
       </View>
 
       <View style={styles.progressContainer}>
         <View style={styles.progressBackground}>
           <View
-            style={[styles.progressFill, { width: `${expensePercentage}%` }]}
+            style={[styles.progressFill, { width: `${budgetPercentage}%` }]}
           >
             <Text style={styles.progressPercentage}>
-              {expensePercentage.toFixed(0)}%
+              {budgetPercentage.toFixed(0)}%
             </Text>
           </View>
           <Text style={styles.progressAmountText}>
-            {formatVND(monthlyTarget)}
+            {formatVND(monthlyBudget)}
           </Text>
         </View>
       </View>

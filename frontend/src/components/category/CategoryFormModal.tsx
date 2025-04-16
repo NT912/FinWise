@@ -12,8 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { CATEGORY_COLORS } from "../../utils/categoryColors";
-
-type IconName = keyof typeof Ionicons.glyphMap;
+import { IconName } from "../../types";
 
 interface CategoryFormModalProps {
   visible: boolean;

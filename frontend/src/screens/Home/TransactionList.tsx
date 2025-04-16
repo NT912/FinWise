@@ -14,17 +14,8 @@ import {
   RootStackParamList,
 } from "../../navigation/AppNavigator";
 import { colors } from "../../theme";
-
-interface Transaction {
-  id?: string;
-  _id?: string;
-  title?: string;
-  type: string;
-  icon?: string;
-  amount: number;
-  date: string | Date;
-  category: string | { _id: string; name: string; icon: string; color: string };
-}
+import moment from "moment";
+import { Transaction } from "../../types";
 
 interface TransactionGroup {
   date: string;
@@ -36,7 +27,7 @@ interface TransactionListProps {
   title?: string;
   loading?: boolean;
   onRefresh?: () => void;
-  navigation: any; // Changed to any to avoid TypeScript errors
+  navigation: any;
 }
 
 const EmptyTransactions = () => (
@@ -56,6 +47,7 @@ const TransactionList: React.FC<TransactionListProps> = ({
   transactions,
   title = "",
   loading = false,
+  onRefresh,
   navigation,
 }) => {
   // Get the Ionicons name based on category
@@ -123,14 +115,8 @@ const TransactionList: React.FC<TransactionListProps> = ({
   };
 
   const handleTransactionPress = (transaction: Transaction) => {
-    // Navigate to edit transaction screen with transaction id
-    const transactionId = transaction.id || transaction._id;
-    if (transactionId) {
-      navigation.navigate(
-        "EditTransaction" as never,
-        { transactionId } as never
-      );
-    }
+    // Read-only mode: No navigation to edit screen
+    // Previously: navigation.navigate('EditTransaction', { transaction });
   };
 
   const getCategoryName = (
@@ -172,62 +158,38 @@ const TransactionList: React.FC<TransactionListProps> = ({
     });
   };
 
-  const renderTransaction = (transaction: Transaction) => {
+  const renderTransaction = (transaction: Transaction, index: number) => {
+    const isIncome = transaction.type === "income";
+    const categoryColor = transaction.category?.color || "#007BFF";
+    const iconName = transaction.category?.icon || "cash-outline";
+    const formattedAmount = formatAmount(transaction.amount, transaction.type);
+
     return (
-      <TouchableOpacity
-        key={transaction.id || transaction._id || Math.random().toString()}
-        style={styles.transactionItem}
-        onPress={() => handleTransactionPress(transaction)}
-      >
+      <View key={transaction._id || index} style={styles.transactionItem}>
         <View
           style={[
             styles.iconContainer,
-            {
-              backgroundColor: getCategoryColor(
-                transaction.category,
-                transaction.type
-              ),
-            },
+            { backgroundColor: categoryColor + "20" },
           ]}
         >
-          <Ionicons
-            name={getCategoryIcon(transaction.category)}
-            size={22}
-            color="#FFFFFF"
-            style={styles.icon}
-          />
+          <Ionicons name={iconName as any} size={24} color={categoryColor} />
         </View>
-
         <View style={styles.detailsContainer}>
           <View style={styles.leftContent}>
-            <Text style={styles.title}>
-              {transaction.title || getCategoryName(transaction.category)}
+            <Text style={styles.title} numberOfLines={1}>
+              {transaction.title || transaction.category?.name || "Unknown"}
             </Text>
-            <Text style={styles.date}>{formatDate(transaction.date)}</Text>
+            <Text style={styles.date}>
+              {moment(transaction.date).format("MMM DD, YYYY")}
+            </Text>
           </View>
-
           <View style={styles.rightContent}>
-            <Text
-              style={[
-                styles.amount,
-                {
-                  color: formatAmount(transaction.amount, transaction.type)
-                    .color,
-                },
-              ]}
-            >
-              {formatAmount(transaction.amount, transaction.type).text}
+            <Text style={[styles.amount, { color: formattedAmount.color }]}>
+              {formattedAmount.text}
             </Text>
-            <Text style={styles.type}>
-              {transaction.type.charAt(0).toUpperCase() +
-                transaction.type.slice(1)}
-            </Text>
-          </View>
-          <View style={styles.editIconContainer}>
-            <Ionicons name="chevron-forward" size={18} color="#CCCCCC" />
           </View>
         </View>
-      </TouchableOpacity>
+      </View>
     );
   };
 

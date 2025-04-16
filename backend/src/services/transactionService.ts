@@ -201,25 +201,102 @@ export const updateTransaction = async (
   let oldCategoryId = null;
   let newCategoryId = null;
 
-  if (
-    updateData.category &&
-    transaction.category.toString() !== updateData.category.toString()
-  ) {
-    categoryChanged = true;
-    oldCategoryId = transaction.category.toString();
-    newCategoryId = updateData.category.toString();
+  // Xử lý category nếu có
+  if (updateData.category) {
+    // Lấy ID của category cũ
+    const oldCategoryIdStr = transaction.category.toString();
 
-    // Kiểm tra xem category ID có hợp lệ không
-    if (!mongoose.Types.ObjectId.isValid(newCategoryId)) {
-      throw new Error("Invalid category ID");
-    }
+    // Xử lý giá trị category mới
+    let newCategoryIdStr: string;
+    const category = updateData.category;
 
-    // Kiểm tra xem category mới có tồn tại không
-    const categoryExists = await mongoose
-      .model("Category")
-      .findById(newCategoryId);
-    if (!categoryExists) {
-      throw new Error("New category not found");
+    console.log(
+      "👉 Processing category in updateTransaction:",
+      JSON.stringify(category)
+    );
+
+    try {
+      // Nếu category là object
+      if (typeof category === "object" && category !== null) {
+        if (category._id) {
+          newCategoryIdStr = category._id.toString();
+          console.log(`🧩 Category from object, ID: ${newCategoryIdStr}`);
+        } else {
+          console.log(
+            "⚠️ Category object without _id:",
+            JSON.stringify(category)
+          );
+          throw new Error("Invalid category object: missing _id");
+        }
+      }
+      // Nếu category là string
+      else if (typeof category === "string") {
+        const categoryString: string = category; // Ép kiểu rõ ràng
+        // Kiểm tra xem có phải là JSON string không
+        if (categoryString.startsWith("{") && categoryString.endsWith("}")) {
+          try {
+            const catObj = JSON.parse(categoryString);
+            if (catObj && catObj._id) {
+              newCategoryIdStr = catObj._id.toString();
+              console.log(
+                `🧩 Category from JSON string, ID: ${newCategoryIdStr}`
+              );
+            } else {
+              newCategoryIdStr = categoryString;
+              console.log(
+                `🧩 Using category string as is (JSON without _id): ${newCategoryIdStr}`
+              );
+            }
+          } catch (e) {
+            // Nếu không parse được, giữ nguyên giá trị
+            newCategoryIdStr = categoryString;
+            console.log(
+              `🧩 Using category string as is (invalid JSON): ${newCategoryIdStr}`
+            );
+          }
+        } else {
+          newCategoryIdStr = categoryString;
+          console.log(`🧩 Using category string as is: ${newCategoryIdStr}`);
+        }
+      }
+      // Các trường hợp khác
+      else {
+        newCategoryIdStr = String(category);
+        console.log(`🧩 Category converted to string: ${newCategoryIdStr}`);
+      }
+
+      // So sánh ID của category cũ và mới
+      if (oldCategoryIdStr !== newCategoryIdStr) {
+        categoryChanged = true;
+        oldCategoryId = oldCategoryIdStr;
+        newCategoryId = newCategoryIdStr;
+
+        // Kiểm tra xem category ID có hợp lệ không
+        if (!mongoose.Types.ObjectId.isValid(newCategoryId)) {
+          console.error(`❌ Invalid category ID format: ${newCategoryId}`);
+          throw new Error(`Invalid category ID: ${newCategoryId}`);
+        }
+
+        // Kiểm tra xem category mới có tồn tại không
+        const categoryExists = await mongoose
+          .model("Category")
+          .findById(newCategoryId);
+
+        if (!categoryExists) {
+          console.error(`❌ Category not found with ID: ${newCategoryId}`);
+          throw new Error(`New category not found with ID: ${newCategoryId}`);
+        }
+
+        console.log(`✅ Category validated: ${newCategoryId}`);
+
+        // Cập nhật category trong updateData bằng ObjectId
+        updateData.category = new mongoose.Types.ObjectId(newCategoryId);
+      } else {
+        console.log(`🔍 Category unchanged: ${oldCategoryIdStr}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error processing category:`, error);
+      throw error;
     }
   }
 
@@ -273,10 +350,14 @@ export const updateTransaction = async (
     // Cập nhật danh mục cũ (giảm transaction count và xóa transaction khỏi mảng)
     while (retryCount < MAX_RETRIES) {
       try {
-        await mongoose.model("Category").findByIdAndUpdate(oldCategoryId, {
-          $inc: { transactionCount: -1 },
-          $pull: { transactions: transactionId },
-        });
+        await mongoose.model("Category").findByIdAndUpdate(
+          oldCategoryId,
+          {
+            $inc: { transactionCount: -1 },
+            $pull: { transactions: transactionId },
+          },
+          { new: true }
+        );
         console.log("Old category updated successfully");
         break;
       } catch (error) {
@@ -300,10 +381,14 @@ export const updateTransaction = async (
     retryCount = 0;
     while (retryCount < MAX_RETRIES) {
       try {
-        await mongoose.model("Category").findByIdAndUpdate(newCategoryId, {
-          $inc: { transactionCount: 1 },
-          $push: { transactions: transactionId },
-        });
+        await mongoose.model("Category").findByIdAndUpdate(
+          newCategoryId,
+          {
+            $inc: { transactionCount: 1 },
+            $push: { transactions: transactionId },
+          },
+          { new: true }
+        );
         console.log("New category updated successfully");
         break;
       } catch (error) {
@@ -517,16 +602,46 @@ export const updateUserBalance = async (
  * @param amount Số tiền của giao dịch
  */
 export const updateCategoryStats = async (
-  categoryId: string,
+  categoryId: any,
   userId: string,
   amount: number
 ) => {
   try {
+    // Đảm bảo categoryId là string MongoDB ObjectId hợp lệ
+    let categoryIdStr = "";
+
+    // Xử lý các kiểu dữ liệu đầu vào khác nhau
+    if (categoryId instanceof mongoose.Types.ObjectId) {
+      // Nếu là MongoDB ObjectId
+      categoryIdStr = categoryId.toString();
+    } else if (typeof categoryId === "object" && categoryId !== null) {
+      // Nếu là object thông thường có _id
+      if (categoryId._id) {
+        categoryIdStr = categoryId._id.toString();
+      } else {
+        throw new Error(
+          `Invalid category object without ID: ${JSON.stringify(categoryId)}`
+        );
+      }
+    } else if (typeof categoryId === "string") {
+      // Nếu đã là string
+      categoryIdStr = categoryId;
+    } else {
+      // Các kiểu dữ liệu khác
+      throw new Error(`Unsupported category ID type: ${typeof categoryId}`);
+    }
+
+    // Kiểm tra tính hợp lệ của ID
+    if (!mongoose.Types.ObjectId.isValid(categoryIdStr)) {
+      throw new Error(`Invalid category ID format: ${categoryIdStr}`);
+    }
+
+    // Tìm category trong database
     const Category = mongoose.model("Category");
-    const category = await Category.findById(categoryId);
+    const category = await Category.findById(categoryIdStr);
 
     if (!category) {
-      throw new Error("Category not found");
+      throw new Error(`Category not found with ID: ${categoryIdStr}`);
     }
 
     // Khởi tạo thống kê nếu chưa có
@@ -548,10 +663,15 @@ export const updateCategoryStats = async (
         category.stats.totalAmount / category.stats.transactionCount;
     }
 
+    // Lưu thay đổi vào database
     await category.save();
+    console.log(
+      `📊 Category stats updated for ${categoryIdStr} with amount ${amount}`
+    );
+
     return category;
   } catch (error) {
-    console.error("Error updating category stats:", error);
+    console.error(`❌ Error updating category stats: ${error}`);
     throw error;
   }
 };

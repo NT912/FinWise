@@ -1,5 +1,5 @@
 import api from "./apiService";
-import { Category } from "../types";
+import { Category } from "../types/category";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Fetch all categories
@@ -107,11 +107,10 @@ export const updateCategory = async (
   try {
     console.log(`📝 Updating category ${id}:`, category);
     const response = await api.put(`/api/categories/${id}`, category);
-    console.log(
-      "✅ Category updated successfully:",
-      response.data.category._id
-    );
-    return response.data.category;
+    console.log("✅ Response data:", response.data);
+
+    // Return the updated category directly from response.data
+    return response.data;
   } catch (error: any) {
     console.error("❌ Error updating category:", error.message);
     console.error("📝 Error details:", {

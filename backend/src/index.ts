@@ -9,6 +9,7 @@ import homeRoutes from "./routes/homeRoutes";
 import userRoutes from "./routes/userRoutes";
 import categoryRoutes from "./routes/categoryRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
+import savingsRoutes from "./routes/savingsRoutes";
 import { specs, swaggerUi } from "./config/swagger";
 
 dotenv.config();
@@ -60,6 +61,11 @@ app.use(
       "http://192.168.1.4:3000",
       "http://192.168.1.4:3001",
       "exp://192.168.1.10:3000",
+      "http://192.168.2.2:3000",
+      "http://192.168.2.2:3001",
+      "http://192.168.2.2:3002",
+      "exp://192.168.2.2:8081",
+      "http://192.168.2.2:8081",
       "*",
     ],
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -108,6 +114,7 @@ app.use("/api", homeRoutes);
 app.use("/api/user", userRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api", transactionRoutes);
+app.use("/api/savings", savingsRoutes);
 
 // Error handling middleware
 app.use(
@@ -129,7 +136,7 @@ connectDB()
   .then(() => {
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server is running on port ${PORT}`);
-      console.log(`Server URL: http://localhost:${PORT}`);
+      console.log(`Server URL: http://192.168.2.2:${PORT}`);
       console.log(`Local URL: http://127.0.0.1:${PORT}`);
     });
   })
