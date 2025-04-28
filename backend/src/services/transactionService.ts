@@ -1,677 +1,769 @@
-import Transaction, { ITransaction } from "../models/Transaction";
 import mongoose from "mongoose";
-
-/**
- * Lấy tất cả giao dịch của một người dùng
- */
-export const getAllTransactions = async (userId: string) => {
-  try {
-    const transactions = await Transaction.find({ userId })
-      .sort({ date: -1 })
-      .populate({
-        path: "category",
-        select: "name icon color type",
-      });
-    return transactions;
-  } catch (error) {
-    console.error("Error in getAllTransactions service:", error);
-    throw error;
-  }
+import Transaction from "../models/new-models/Transaction";
+import Wallet from "../models/Wallet";
+import Category from "../models/Category";
+import { ApiError as AppError } from "../utils/ApiError";
+// Create a simple logger since the import is missing
+const logger = {
+  info: (message: string, ...args: any[]) =>
+    console.log(`[INFO] ${message}`, ...args),
+  error: (message: string, ...args: any[]) =>
+    console.error(`[ERROR] ${message}`, ...args),
+  warn: (message: string, ...args: any[]) =>
+    console.warn(`[WARN] ${message}`, ...args),
+  debug: (message: string, ...args: any[]) =>
+    console.debug(`[DEBUG] ${message}`, ...args),
 };
 
-/**
- * Lấy giao dịch theo danh mục
- */
-export const getTransactionsByCategory = async (
+interface TransactionFilters {
+  startDate?: Date;
+  endDate?: Date;
+  type?: "income" | "expense" | "transfer";
+  categoryId?: string;
+  walletId?: string;
+  minAmount?: number;
+  maxAmount?: number;
+  searchText?: string;
+  isRecurring?: boolean;
+}
+
+interface SortOptions {
+  field: string;
+  direction: "asc" | "desc";
+}
+
+interface PaginationOptions {
+  page: number;
+  limit: number;
+}
+
+// Helper function to group transactions by date
+const groupTransactionsByDate = (transactions: any[]) => {
+  const grouped = transactions.reduce((acc, transaction) => {
+    const date = new Date(transaction.date).toISOString().split("T")[0];
+
+    if (!acc[date]) {
+      acc[date] = [];
+    }
+
+    acc[date].push(transaction);
+    return acc;
+  }, {});
+
+  // Convert to array format
+  return Object.keys(grouped)
+    .map((date) => ({
+      date,
+      transactions: grouped[date],
+    }))
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+// Get all transactions with filtering, sorting and pagination
+export const getTransactions = async (
   userId: string,
-  categoryId: string
+  filters: TransactionFilters = {},
+  sortOptions: SortOptions = { field: "date", direction: "desc" },
+  paginationOptions: PaginationOptions = { page: 1, limit: 20 }
 ) => {
   try {
-    const transactions = await Transaction.find({
-      userId,
-      category: categoryId,
-    })
-      .sort({ date: -1 })
-      .populate({
-        path: "category",
-        select: "name icon color type",
-      });
-    return transactions;
+    const query: any = { userId: new mongoose.Types.ObjectId(userId) };
+
+    // Apply filters
+    if (filters.startDate && filters.endDate) {
+      query.date = {
+        $gte: new Date(filters.startDate),
+        $lte: new Date(filters.endDate),
+      };
+    } else if (filters.startDate) {
+      query.date = { $gte: new Date(filters.startDate) };
+    } else if (filters.endDate) {
+      query.date = { $lte: new Date(filters.endDate) };
+    }
+
+    if (filters.type) {
+      query.type = filters.type;
+    }
+
+    if (filters.categoryId) {
+      query.category = new mongoose.Types.ObjectId(filters.categoryId);
+    }
+
+    if (filters.walletId) {
+      query.walletId = new mongoose.Types.ObjectId(filters.walletId);
+    }
+
+    if (filters.minAmount !== undefined || filters.maxAmount !== undefined) {
+      query.amount = {};
+      if (filters.minAmount !== undefined) {
+        query.amount.$gte = filters.minAmount;
+      }
+      if (filters.maxAmount !== undefined) {
+        query.amount.$lte = filters.maxAmount;
+      }
+    }
+
+    if (filters.searchText) {
+      query.$text = { $search: filters.searchText };
+    }
+
+    if (filters.isRecurring !== undefined) {
+      query.isRecurring = filters.isRecurring;
+    }
+
+    // Calculate pagination
+    const skip = (paginationOptions.page - 1) * paginationOptions.limit;
+    const limit = paginationOptions.limit;
+
+    // Apply sorting
+    const sortField = sortOptions.field || "date";
+    const sortDirection = sortOptions.direction === "asc" ? 1 : -1;
+    const sort: any = {};
+    sort[sortField] = sortDirection;
+
+    // Get total count for pagination
+    const total = await Transaction.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
+
+    // Execute query with pagination
+    const transactions = await Transaction.find(query)
+      .populate("category", "name icon color")
+      .populate("walletId", "name icon color balance currency")
+      .populate("toWalletId", "name icon color balance currency")
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    // Group transactions by date
+    const groupedTransactions = groupTransactionsByDate(transactions);
+
+    return {
+      data: groupedTransactions,
+      pagination: {
+        total,
+        page: paginationOptions.page,
+        limit: paginationOptions.limit,
+        totalPages,
+      },
+    };
   } catch (error) {
-    console.error("Error in getTransactionsByCategory service:", error);
-    throw error;
+    logger.error("Error getting transactions:", error);
+    throw new AppError(500, "Failed to get transactions");
   }
 };
 
-/**
- * Lấy chi tiết một giao dịch
- */
+// Get a single transaction by ID
 export const getTransactionById = async (
-  userId: string,
-  transactionId: string
+  transactionId: string,
+  userId: string
 ) => {
   try {
     const transaction = await Transaction.findOne({
       _id: transactionId,
-      userId,
-    }).populate({
-      path: "category",
-      select: "name icon color type",
-    });
+      userId: new mongoose.Types.ObjectId(userId),
+    })
+      .populate("category", "name icon color")
+      .populate("walletId", "name icon color balance currency")
+      .populate("toWalletId", "name icon color balance currency")
+      .lean();
 
     if (!transaction) {
-      throw new Error("Transaction not found");
+      throw new AppError(404, "Transaction not found");
     }
 
     return transaction;
   } catch (error) {
-    console.error("Error in getTransactionById service:", error);
-    throw error;
-  }
-};
-
-/**
- * Tạo giao dịch mới với cơ chế thử lại khi gặp lỗi WriteConflict
- */
-export const createTransaction = async (
-  userId: string,
-  transactionData: Partial<ITransaction>
-) => {
-  const MAX_RETRIES = 3;
-  let retryCount = 0;
-  let lastError: any = null;
-  let newTransaction = null;
-
-  // Bước 1: Tạo transaction trước
-  while (retryCount < MAX_RETRIES) {
-    try {
-      // Không sử dụng session ở đây để giảm thiểu xung đột
-      const newTransactionDoc = new Transaction({
-        ...transactionData,
-        userId,
-      });
-
-      newTransaction = await newTransactionDoc.save();
-      console.log("Transaction created successfully:", newTransaction._id);
-      break; // Thoát khỏi vòng lặp nếu thành công
-    } catch (error: any) {
-      lastError = error;
-      retryCount++;
-      console.log(
-        `Error creating transaction, retry attempt ${retryCount}/${MAX_RETRIES}`
-      );
-
-      if (retryCount >= MAX_RETRIES) {
-        console.error("Failed to create transaction after max retries");
-        throw error;
-      }
-
-      // Đợi thời gian ngẫu nhiên trước khi thử lại
-      const delay = Math.floor(Math.random() * 500) + 200; // 200-700ms
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  if (!newTransaction) {
-    throw new Error("Failed to create transaction");
-  }
-
-  // Bước 2: Thêm transaction vào danh mục
-  retryCount = 0;
-  if (transactionData.category) {
-    const categoryId = transactionData.category.toString();
-    while (retryCount < MAX_RETRIES) {
-      try {
-        // Sử dụng $atomic operators thay vì transactions
-        await mongoose.model("Category").findByIdAndUpdate(
-          categoryId,
-          {
-            $inc: { transactionCount: 1 },
-            $push: { transactions: newTransaction._id },
-          },
-          { new: true }
-        );
-        console.log("Category updated successfully");
-        break; // Thoát khỏi vòng lặp nếu thành công
-      } catch (error: any) {
-        retryCount++;
-        console.log(
-          `Error updating category, retry attempt ${retryCount}/${MAX_RETRIES}`
-        );
-
-        if (retryCount >= MAX_RETRIES) {
-          console.error("Failed to update category after max retries");
-          // Không throw lỗi, chỉ log lỗi để không làm gián đoạn luồng
-          console.error("Error details:", error);
-        }
-
-        // Đợi trước khi thử lại
-        const delay = Math.floor(Math.random() * 500) + 200;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  return newTransaction;
-};
-
-/**
- * Cập nhật giao dịch
- */
-export const updateTransaction = async (
-  userId: string,
-  transactionId: string,
-  updateData: Partial<ITransaction>
-) => {
-  const MAX_RETRIES = 3;
-
-  if (!transactionId || !mongoose.Types.ObjectId.isValid(transactionId)) {
-    throw new Error("Invalid transaction ID");
-  }
-
-  if (!updateData || Object.keys(updateData).length === 0) {
-    throw new Error("No update data provided");
-  }
-
-  // Kiểm tra số tiền nếu được cung cấp
-  if (
-    updateData.amount !== undefined &&
-    (updateData.amount <= 0 || isNaN(updateData.amount))
-  ) {
-    throw new Error("Amount must be a positive number");
-  }
-
-  // Kiểm tra loại giao dịch nếu được cung cấp
-  if (updateData.type && !["income", "expense"].includes(updateData.type)) {
-    throw new Error("Transaction type must be either 'income' or 'expense'");
-  }
-
-  // Bước 1: Lấy thông tin transaction hiện tại
-  const transaction = await Transaction.findOne({
-    _id: transactionId,
-    userId,
-  });
-
-  if (!transaction) {
-    throw new Error("Transaction not found");
-  }
-
-  // Lưu thông tin danh mục cũ nếu danh mục sẽ bị thay đổi
-  let categoryChanged = false;
-  let oldCategoryId = null;
-  let newCategoryId = null;
-
-  // Xử lý category nếu có
-  if (updateData.category) {
-    // Lấy ID của category cũ
-    const oldCategoryIdStr = transaction.category.toString();
-
-    // Xử lý giá trị category mới
-    let newCategoryIdStr: string;
-    const category = updateData.category;
-
-    console.log(
-      "👉 Processing category in updateTransaction:",
-      JSON.stringify(category)
-    );
-
-    try {
-      // Nếu category là object
-      if (typeof category === "object" && category !== null) {
-        if (category._id) {
-          newCategoryIdStr = category._id.toString();
-          console.log(`🧩 Category from object, ID: ${newCategoryIdStr}`);
-        } else {
-          console.log(
-            "⚠️ Category object without _id:",
-            JSON.stringify(category)
-          );
-          throw new Error("Invalid category object: missing _id");
-        }
-      }
-      // Nếu category là string
-      else if (typeof category === "string") {
-        const categoryString: string = category; // Ép kiểu rõ ràng
-        // Kiểm tra xem có phải là JSON string không
-        if (categoryString.startsWith("{") && categoryString.endsWith("}")) {
-          try {
-            const catObj = JSON.parse(categoryString);
-            if (catObj && catObj._id) {
-              newCategoryIdStr = catObj._id.toString();
-              console.log(
-                `🧩 Category from JSON string, ID: ${newCategoryIdStr}`
-              );
-            } else {
-              newCategoryIdStr = categoryString;
-              console.log(
-                `🧩 Using category string as is (JSON without _id): ${newCategoryIdStr}`
-              );
-            }
-          } catch (e) {
-            // Nếu không parse được, giữ nguyên giá trị
-            newCategoryIdStr = categoryString;
-            console.log(
-              `🧩 Using category string as is (invalid JSON): ${newCategoryIdStr}`
-            );
-          }
-        } else {
-          newCategoryIdStr = categoryString;
-          console.log(`🧩 Using category string as is: ${newCategoryIdStr}`);
-        }
-      }
-      // Các trường hợp khác
-      else {
-        newCategoryIdStr = String(category);
-        console.log(`🧩 Category converted to string: ${newCategoryIdStr}`);
-      }
-
-      // So sánh ID của category cũ và mới
-      if (oldCategoryIdStr !== newCategoryIdStr) {
-        categoryChanged = true;
-        oldCategoryId = oldCategoryIdStr;
-        newCategoryId = newCategoryIdStr;
-
-        // Kiểm tra xem category ID có hợp lệ không
-        if (!mongoose.Types.ObjectId.isValid(newCategoryId)) {
-          console.error(`❌ Invalid category ID format: ${newCategoryId}`);
-          throw new Error(`Invalid category ID: ${newCategoryId}`);
-        }
-
-        // Kiểm tra xem category mới có tồn tại không
-        const categoryExists = await mongoose
-          .model("Category")
-          .findById(newCategoryId);
-
-        if (!categoryExists) {
-          console.error(`❌ Category not found with ID: ${newCategoryId}`);
-          throw new Error(`New category not found with ID: ${newCategoryId}`);
-        }
-
-        console.log(`✅ Category validated: ${newCategoryId}`);
-
-        // Cập nhật category trong updateData bằng ObjectId
-        updateData.category = new mongoose.Types.ObjectId(newCategoryId);
-      } else {
-        console.log(`🔍 Category unchanged: ${oldCategoryIdStr}`);
-      }
-    } catch (error) {
-      console.error(`❌ Error processing category:`, error);
+    logger.error(`Error getting transaction ${transactionId}:`, error);
+    if (error instanceof AppError) {
       throw error;
     }
+    throw new AppError(500, "Failed to get transaction");
   }
-
-  // Bước 2: Cập nhật transaction
-  let retryCount = 0;
-  let updatedTransaction = null;
-
-  while (retryCount < MAX_RETRIES) {
-    try {
-      updatedTransaction = await Transaction.findByIdAndUpdate(
-        transactionId,
-        { $set: updateData },
-        { new: true, runValidators: true }
-      ).populate({
-        path: "category",
-        select: "name icon color type",
-      });
-
-      if (!updatedTransaction) {
-        throw new Error("Failed to update transaction");
-      }
-
-      console.log("Transaction updated successfully");
-      break;
-    } catch (error) {
-      retryCount++;
-      console.log(
-        `Error updating transaction, retry attempt ${retryCount}/${MAX_RETRIES}`
-      );
-
-      if (retryCount >= MAX_RETRIES) {
-        console.error("Failed to update transaction after max retries");
-        throw error;
-      }
-
-      // Đợi trước khi thử lại
-      const delay = Math.floor(Math.random() * 300) + 100; // 100-400ms
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  // Nếu sau tất cả các lần retry vẫn không cập nhật được
-  if (!updatedTransaction) {
-    throw new Error("Failed to update transaction after max retries");
-  }
-
-  // Bước 3: Cập nhật danh mục nếu có thay đổi
-  if (categoryChanged && oldCategoryId && newCategoryId) {
-    retryCount = 0;
-
-    // Cập nhật danh mục cũ (giảm transaction count và xóa transaction khỏi mảng)
-    while (retryCount < MAX_RETRIES) {
-      try {
-        await mongoose.model("Category").findByIdAndUpdate(
-          oldCategoryId,
-          {
-            $inc: { transactionCount: -1 },
-            $pull: { transactions: transactionId },
-          },
-          { new: true }
-        );
-        console.log("Old category updated successfully");
-        break;
-      } catch (error) {
-        retryCount++;
-        console.log(
-          `Error updating old category, retry attempt ${retryCount}/${MAX_RETRIES}`
-        );
-
-        if (retryCount >= MAX_RETRIES) {
-          console.error("Failed to update old category after max retries");
-          // Chỉ log lỗi, không throw để không làm gián đoạn luồng
-          break;
-        }
-
-        const delay = Math.floor(Math.random() * 300) + 100;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-
-    // Cập nhật danh mục mới (tăng transaction count và thêm transaction vào mảng)
-    retryCount = 0;
-    while (retryCount < MAX_RETRIES) {
-      try {
-        await mongoose.model("Category").findByIdAndUpdate(
-          newCategoryId,
-          {
-            $inc: { transactionCount: 1 },
-            $push: { transactions: transactionId },
-          },
-          { new: true }
-        );
-        console.log("New category updated successfully");
-        break;
-      } catch (error) {
-        retryCount++;
-        console.log(
-          `Error updating new category, retry attempt ${retryCount}/${MAX_RETRIES}`
-        );
-
-        if (retryCount >= MAX_RETRIES) {
-          console.error("Failed to update new category after max retries");
-          // Chỉ log lỗi, không throw
-          break;
-        }
-
-        const delay = Math.floor(Math.random() * 300) + 100;
-        await new Promise((resolve) => setTimeout(resolve, delay));
-      }
-    }
-  }
-
-  return updatedTransaction;
 };
 
-/**
- * Xóa giao dịch
- */
-export const deleteTransaction = async (
+// Create a new transaction
+export const createTransaction = async (
   userId: string,
-  transactionId: string
+  transactionData: {
+    amount: number;
+    description: string;
+    date: Date;
+    type: "income" | "expense" | "transfer";
+    category: string;
+    walletId: string;
+    toWalletId?: string;
+    paymentMethod?: string;
+    location?: string;
+    tags?: string[];
+    attachments?: string[];
+    isRecurring?: boolean;
+    recurringDetails?: {
+      frequency: "daily" | "weekly" | "monthly" | "yearly";
+      interval: number;
+      endDate?: Date;
+    };
+  }
 ) => {
-  const MAX_RETRIES = 3;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-  if (!transactionId || !mongoose.Types.ObjectId.isValid(transactionId)) {
-    throw new Error("Invalid transaction ID");
+  try {
+    // Validate required fields
+    if (
+      !transactionData.amount ||
+      !transactionData.description ||
+      !transactionData.type ||
+      !transactionData.category ||
+      !transactionData.walletId
+    ) {
+      throw new AppError(400, "Missing required transaction fields");
+    }
+
+    // For transfer transactions, validate destination wallet
+    if (transactionData.type === "transfer" && !transactionData.toWalletId) {
+      throw new AppError(
+        400,
+        "Destination wallet is required for transfer transactions"
+      );
+    }
+
+    // Get source wallet to update balance
+    const sourceWallet = await Wallet.findOne({
+      _id: transactionData.walletId,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).session(session);
+
+    if (!sourceWallet) {
+      throw new AppError(404, "Source wallet not found");
+    }
+
+    // Get destination wallet for transfers
+    let destWallet = null;
+    if (transactionData.type === "transfer" && transactionData.toWalletId) {
+      destWallet = await Wallet.findOne({
+        _id: transactionData.toWalletId,
+        userId: new mongoose.Types.ObjectId(userId),
+      }).session(session);
+
+      if (!destWallet) {
+        throw new AppError(404, "Destination wallet not found");
+      }
+    }
+
+    // Verify the category exists
+    const category = await Category.findOne({
+      _id: transactionData.category,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).session(session);
+
+    if (!category) {
+      throw new AppError(404, "Category not found");
+    }
+
+    // Create new transaction
+    const newTransaction = new Transaction({
+      ...transactionData,
+      userId: new mongoose.Types.ObjectId(userId),
+      category: new mongoose.Types.ObjectId(transactionData.category),
+      walletId: new mongoose.Types.ObjectId(transactionData.walletId),
+      toWalletId: transactionData.toWalletId
+        ? new mongoose.Types.ObjectId(transactionData.toWalletId)
+        : undefined,
+    });
+
+    await newTransaction.save({ session });
+
+    // Update wallet balances based on transaction type
+    if (transactionData.type === "income") {
+      sourceWallet.balance += transactionData.amount;
+      await sourceWallet.save({ session });
+    } else if (transactionData.type === "expense") {
+      sourceWallet.balance -= transactionData.amount;
+      await sourceWallet.save({ session });
+    } else if (transactionData.type === "transfer") {
+      sourceWallet.balance -= transactionData.amount;
+      if (destWallet) {
+        destWallet.balance += transactionData.amount;
+        await sourceWallet.save({ session });
+        await destWallet.save({ session });
+      } else {
+        await sourceWallet.save({ session });
+        throw new AppError(404, "Destination wallet not found for transfer");
+      }
+    }
+
+    await session.commitTransaction();
+
+    // Populate the created transaction with references
+    const populatedTransaction = await Transaction.findById(newTransaction._id)
+      .populate("category", "name icon color")
+      .populate("walletId", "name icon color balance currency")
+      .populate("toWalletId", "name icon color balance currency");
+
+    return populatedTransaction;
+  } catch (error) {
+    await session.abortTransaction();
+    logger.error("Error creating transaction:", error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(500, "Failed to create transaction");
+  } finally {
+    session.endSession();
   }
+};
 
-  if (!userId || !mongoose.Types.ObjectId.isValid(userId)) {
-    throw new Error("Invalid user ID");
+// Update an existing transaction
+export const updateTransaction = async (
+  transactionId: string,
+  userId: string,
+  updates: any
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Find the transaction to update
+    const transaction = await Transaction.findOne({
+      _id: transactionId,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).session(session);
+
+    if (!transaction) {
+      throw new AppError(404, "Transaction not found");
+    }
+
+    // Get the original wallet and amount values before updating
+    const originalType = transaction.type;
+    const originalAmount = transaction.amount;
+    const originalWalletId = transaction.walletId;
+    const originalToWalletId = transaction.toWalletId;
+
+    // If walletId is being updated, verify the new wallet exists
+    let sourceWallet = null;
+    if (updates.walletId && updates.walletId !== originalWalletId.toString()) {
+      sourceWallet = await Wallet.findOne({
+        _id: updates.walletId,
+        userId: new mongoose.Types.ObjectId(userId),
+      }).session(session);
+
+      if (!sourceWallet) {
+        throw new AppError(404, "Source wallet not found");
+      }
+    } else {
+      sourceWallet = await Wallet.findById(originalWalletId).session(session);
+    }
+
+    // If category is being updated, verify the new category exists
+    if (updates.category) {
+      const category = await Category.findOne({
+        _id: updates.category,
+        userId: new mongoose.Types.ObjectId(userId),
+      }).session(session);
+
+      if (!category) {
+        throw new AppError(404, "Category not found");
+      }
+    }
+
+    // If toWalletId is being updated for a transfer, verify the destination wallet
+    let destWallet = null;
+    if (
+      (originalType === "transfer" || updates.type === "transfer") &&
+      (updates.toWalletId || originalToWalletId)
+    ) {
+      const toWalletId = updates.toWalletId || originalToWalletId;
+      destWallet = await Wallet.findOne({
+        _id: toWalletId,
+        userId: new mongoose.Types.ObjectId(userId),
+      }).session(session);
+
+      if (
+        !destWallet &&
+        (originalType === "transfer" || updates.type === "transfer")
+      ) {
+        throw new AppError(404, "Destination wallet not found");
+      }
+    }
+
+    // Revert the effects of the original transaction
+    if (!sourceWallet) {
+      throw new AppError(404, "Source wallet not found");
+    }
+
+    if (originalType === "income") {
+      sourceWallet.balance -= originalAmount;
+    } else if (originalType === "expense") {
+      sourceWallet.balance += originalAmount;
+    } else if (originalType === "transfer" && originalToWalletId) {
+      sourceWallet.balance += originalAmount;
+      const originalDestWallet = await Wallet.findById(
+        originalToWalletId
+      ).session(session);
+      if (originalDestWallet) {
+        originalDestWallet.balance -= originalAmount;
+        await originalDestWallet.save({ session });
+      }
+    }
+
+    // Update the transaction with new values
+    const allowedUpdates = [
+      "amount",
+      "description",
+      "date",
+      "type",
+      "category",
+      "walletId",
+      "toWalletId",
+      "paymentMethod",
+      "location",
+      "tags",
+      "attachments",
+      "isRecurring",
+      "recurringDetails",
+    ];
+
+    Object.keys(updates).forEach((key) => {
+      if (allowedUpdates.includes(key)) {
+        if (key === "category" || key === "walletId" || key === "toWalletId") {
+          transaction.set(key, new mongoose.Types.ObjectId(updates[key]));
+        } else {
+          transaction.set(key, updates[key]);
+        }
+      }
+    });
+
+    await transaction.save({ session });
+
+    // Apply the effects of the updated transaction
+    const updatedType = updates.type || originalType;
+    const updatedAmount = updates.amount || originalAmount;
+
+    if (updatedType === "income") {
+      sourceWallet.balance += updatedAmount;
+    } else if (updatedType === "expense") {
+      sourceWallet.balance -= updatedAmount;
+    } else if (updatedType === "transfer") {
+      sourceWallet.balance -= updatedAmount;
+
+      const updatedToWalletId = updates.toWalletId || originalToWalletId;
+      const updatedDestWallet =
+        destWallet ||
+        (await Wallet.findById(updatedToWalletId).session(session));
+
+      if (updatedDestWallet) {
+        updatedDestWallet.balance += updatedAmount;
+        await updatedDestWallet.save({ session });
+      }
+    }
+
+    await sourceWallet.save({ session });
+    await session.commitTransaction();
+
+    // Return the updated transaction with populated references
+    const updatedTransaction = await Transaction.findById(transactionId)
+      .populate("category", "name icon color")
+      .populate("walletId", "name icon color balance currency")
+      .populate("toWalletId", "name icon color balance currency");
+
+    return updatedTransaction;
+  } catch (error) {
+    await session.abortTransaction();
+    logger.error(`Error updating transaction ${transactionId}:`, error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(500, "Failed to update transaction");
+  } finally {
+    session.endSession();
   }
+};
 
-  // Bước 1: Lấy thông tin giao dịch trước khi xóa
-  const transaction = await Transaction.findOne({
-    _id: transactionId,
-    userId,
+// Delete a transaction
+export const deleteTransaction = async (
+  transactionId: string,
+  userId: string
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // Find the transaction to delete
+    const transaction = await Transaction.findOne({
+      _id: transactionId,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).session(session);
+
+    if (!transaction) {
+      throw new AppError(404, "Transaction not found");
+    }
+
+    // Revert the effects of the transaction on wallet balances
+    const sourceWallet = await Wallet.findById(transaction.walletId).session(
+      session
+    );
+
+    if (sourceWallet) {
+      if (transaction.type === "income") {
+        sourceWallet.balance -= transaction.amount;
+      } else if (transaction.type === "expense") {
+        sourceWallet.balance += transaction.amount;
+      } else if (transaction.type === "transfer" && transaction.toWalletId) {
+        sourceWallet.balance += transaction.amount;
+
+        const destWallet = await Wallet.findById(
+          transaction.toWalletId
+        ).session(session);
+        if (destWallet) {
+          destWallet.balance -= transaction.amount;
+          await destWallet.save({ session });
+        }
+      }
+
+      await sourceWallet.save({ session });
+    }
+
+    // Delete the transaction
+    await Transaction.findByIdAndDelete(transactionId).session(session);
+
+    await session.commitTransaction();
+    return { success: true, message: "Transaction deleted successfully" };
+  } catch (error) {
+    await session.abortTransaction();
+    logger.error(`Error deleting transaction ${transactionId}:`, error);
+    if (error instanceof AppError) {
+      throw error;
+    }
+    throw new AppError(500, "Failed to delete transaction");
+  } finally {
+    session.endSession();
+  }
+};
+
+// Get transaction statistics
+export const getTransactionStats = async (
+  userId: string,
+  startDate: Date,
+  endDate: Date,
+  walletId?: string
+) => {
+  try {
+    const query: any = {
+      userId: new mongoose.Types.ObjectId(userId),
+      date: {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
+      },
+    };
+
+    if (walletId) {
+      query.walletId = new mongoose.Types.ObjectId(walletId);
+    }
+
+    // Get all transactions for the period
+    const transactions = await Transaction.find(query)
+      .populate("category", "name icon color")
+      .lean();
+
+    // Calculate income, expense, and balance
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    const incomeTransactions = transactions.filter((t) => t.type === "income");
+    const expenseTransactions = transactions.filter(
+      (t) => t.type === "expense"
+    );
+
+    incomeTransactions.forEach((t) => {
+      totalIncome += t.amount;
+    });
+
+    expenseTransactions.forEach((t) => {
+      totalExpense += t.amount;
+    });
+
+    const netBalance = totalIncome - totalExpense;
+
+    // Group by category
+    const categoryStats = await getCategoryStats(
+      expenseTransactions,
+      "expense"
+    );
+    const incomeCategoryStats = await getCategoryStats(
+      incomeTransactions,
+      "income"
+    );
+
+    // Daily stats
+    const dailyStats = await getDailyTransactionStats(
+      transactions,
+      startDate,
+      endDate
+    );
+
+    return {
+      totalIncome,
+      totalExpense,
+      netBalance,
+      categoryStats,
+      incomeCategoryStats,
+      dailyStats,
+    };
+  } catch (error) {
+    logger.error("Error getting transaction statistics:", error);
+    throw new AppError(500, "Failed to get transaction statistics");
+  }
+};
+
+// Helper function to get category statistics
+const getCategoryStats = async (
+  transactions: any[],
+  type: "income" | "expense"
+) => {
+  const categoryMap = new Map();
+
+  transactions.forEach((transaction) => {
+    const categoryId = transaction.category._id.toString();
+    const categoryName = transaction.category.name;
+    const categoryIcon = transaction.category.icon;
+    const categoryColor = transaction.category.color;
+    const amount = transaction.amount;
+
+    if (categoryMap.has(categoryId)) {
+      const category = categoryMap.get(categoryId);
+      category.amount += amount;
+      category.count += 1;
+    } else {
+      categoryMap.set(categoryId, {
+        _id: categoryId,
+        name: categoryName,
+        icon: categoryIcon,
+        color: categoryColor,
+        amount,
+        count: 1,
+        type,
+      });
+    }
   });
 
-  if (!transaction) {
-    throw new Error("Transaction not found");
-  }
+  // Convert map to array and sort by amount
+  const categoryStats = Array.from(categoryMap.values()).sort(
+    (a, b) => b.amount - a.amount
+  );
 
-  // Lưu categoryId trước khi xóa transaction
-  const categoryId = transaction.category.toString();
+  // Calculate percentages
+  const total = categoryStats.reduce(
+    (sum, category) => sum + category.amount,
+    0
+  );
 
-  // Kiểm tra xem category có tồn tại không
-  const categoryExists = await mongoose.model("Category").findById(categoryId);
-  if (!categoryExists) {
-    throw new Error("Category not found for this transaction");
-  }
+  categoryStats.forEach((category) => {
+    category.percentage = total > 0 ? (category.amount / total) * 100 : 0;
+  });
 
-  // Bước 2: Xóa giao dịch
-  let retryCount = 0;
-  let isDeleted = false;
-
-  while (retryCount < MAX_RETRIES && !isDeleted) {
-    try {
-      const deleteResult = await Transaction.deleteOne({ _id: transactionId });
-
-      if (deleteResult.deletedCount === 0) {
-        retryCount++;
-        console.log(
-          `Transaction not deleted, retry attempt ${retryCount}/${MAX_RETRIES}`
-        );
-
-        if (retryCount >= MAX_RETRIES) {
-          throw new Error("Failed to delete transaction");
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        continue;
-      }
-
-      console.log("Transaction deleted successfully");
-      isDeleted = true;
-    } catch (error) {
-      retryCount++;
-      console.log(
-        `Error deleting transaction, retry attempt ${retryCount}/${MAX_RETRIES}`
-      );
-
-      if (retryCount >= MAX_RETRIES) {
-        console.error("Failed to delete transaction after max retries");
-        throw error;
-      }
-
-      // Đợi trước khi thử lại
-      const delay = Math.floor(Math.random() * 300) + 100; // 100-400ms
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  // Bước 3: Cập nhật danh mục (giảm transaction count và xóa referecnce)
-  retryCount = 0;
-  let categoryUpdated = false;
-
-  while (retryCount < MAX_RETRIES && !categoryUpdated) {
-    try {
-      await mongoose.model("Category").findByIdAndUpdate(categoryId, {
-        $inc: { transactionCount: -1 },
-        $pull: { transactions: transactionId },
-      });
-
-      console.log("Category updated successfully");
-      categoryUpdated = true;
-    } catch (error) {
-      retryCount++;
-      console.log(
-        `Error updating category, retry attempt ${retryCount}/${MAX_RETRIES}`
-      );
-
-      if (retryCount >= MAX_RETRIES) {
-        console.error("Failed to update category after max retries");
-        // Log lỗi nhưng không throw để không làm gián đoạn luồng
-        break;
-      }
-
-      const delay = Math.floor(Math.random() * 300) + 100;
-      await new Promise((resolve) => setTimeout(resolve, delay));
-    }
-  }
-
-  return { success: true, message: "Transaction deleted successfully" };
+  return categoryStats;
 };
 
-/**
- * Lấy giao dịch theo khoảng thời gian
- */
-export const getTransactionsByDateRange = async (
-  userId: string,
+// Helper function to get daily transaction statistics
+const getDailyTransactionStats = async (
+  transactions: any[],
   startDate: Date,
   endDate: Date
 ) => {
-  try {
-    const transactions = await Transaction.find({
-      userId,
-      date: { $gte: startDate, $lte: endDate },
-    })
-      .sort({ date: -1 })
-      .populate({
-        path: "category",
-        select: "name icon color type",
-      });
-    return transactions;
-  } catch (error) {
-    console.error("Error in getTransactionsByDateRange service:", error);
-    throw error;
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const dailyData: any = {};
+
+  // Initialize daily data with zero values
+  for (let day = new Date(start); day <= end; day.setDate(day.getDate() + 1)) {
+    const dateStr = day.toISOString().split("T")[0];
+    dailyData[dateStr] = {
+      date: dateStr,
+      income: 0,
+      expense: 0,
+      balance: 0,
+    };
   }
-};
 
-/**
- * Cập nhật số dư của người dùng sau khi thêm/xóa/cập nhật giao dịch
- * @param userId ID của người dùng
- * @param amountChange Số tiền thay đổi (dương cho thu nhập, âm cho chi tiêu)
- */
-export const updateUserBalance = async (
-  userId: string,
-  amountChange: number
-) => {
-  try {
-    const User = mongoose.model("User");
-    const user = await User.findById(userId);
+  // Populate with actual transaction data
+  transactions.forEach((transaction) => {
+    const date = new Date(transaction.date).toISOString().split("T")[0];
 
-    if (!user) {
-      throw new Error("User not found");
-    }
-
-    // Cập nhật số dư
-    user.totalBalance = (user.totalBalance || 0) + amountChange;
-
-    // Khởi tạo stats nếu chưa có
-    if (!user.stats) {
-      user.stats = {
-        totalIncome: 0,
-        totalExpense: 0,
-        avgMonthlyIncome: 0,
-        avgMonthlyExpense: 0,
-        lastUpdated: new Date(),
-      };
-    }
-
-    // Cập nhật thống kê
-    if (amountChange > 0) {
-      user.stats.totalIncome = (user.stats.totalIncome || 0) + amountChange;
-    } else if (amountChange < 0) {
-      user.stats.totalExpense = (user.stats.totalExpense || 0) - amountChange;
-    }
-
-    user.stats.lastUpdated = new Date();
-
-    await user.save();
-    return user;
-  } catch (error) {
-    console.error("Error updating user balance:", error);
-    throw error;
-  }
-};
-
-/**
- * Cập nhật thống kê của danh mục
- * @param categoryId ID của danh mục
- * @param userId ID của người dùng
- * @param amount Số tiền của giao dịch
- */
-export const updateCategoryStats = async (
-  categoryId: any,
-  userId: string,
-  amount: number
-) => {
-  try {
-    // Đảm bảo categoryId là string MongoDB ObjectId hợp lệ
-    let categoryIdStr = "";
-
-    // Xử lý các kiểu dữ liệu đầu vào khác nhau
-    if (categoryId instanceof mongoose.Types.ObjectId) {
-      // Nếu là MongoDB ObjectId
-      categoryIdStr = categoryId.toString();
-    } else if (typeof categoryId === "object" && categoryId !== null) {
-      // Nếu là object thông thường có _id
-      if (categoryId._id) {
-        categoryIdStr = categoryId._id.toString();
-      } else {
-        throw new Error(
-          `Invalid category object without ID: ${JSON.stringify(categoryId)}`
-        );
+    if (dailyData[date]) {
+      if (transaction.type === "income") {
+        dailyData[date].income += transaction.amount;
+      } else if (transaction.type === "expense") {
+        dailyData[date].expense += transaction.amount;
       }
-    } else if (typeof categoryId === "string") {
-      // Nếu đã là string
-      categoryIdStr = categoryId;
-    } else {
-      // Các kiểu dữ liệu khác
-      throw new Error(`Unsupported category ID type: ${typeof categoryId}`);
+
+      dailyData[date].balance =
+        dailyData[date].income - dailyData[date].expense;
     }
+  });
 
-    // Kiểm tra tính hợp lệ của ID
-    if (!mongoose.Types.ObjectId.isValid(categoryIdStr)) {
-      throw new Error(`Invalid category ID format: ${categoryIdStr}`);
-    }
+  // Convert to array and sort by date
+  return Object.values(dailyData).sort(
+    (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
+};
 
-    // Tìm category trong database
-    const Category = mongoose.model("Category");
-    const category = await Category.findById(categoryIdStr);
+// Get transactions by category
+export const getTransactionsByCategory = async (
+  userId: string,
+  categoryId: string,
+  startDate?: Date,
+  endDate?: Date,
+  paginationOptions: PaginationOptions = { page: 1, limit: 20 }
+) => {
+  try {
+    const query: any = {
+      userId: new mongoose.Types.ObjectId(userId),
+      category: new mongoose.Types.ObjectId(categoryId),
+    };
 
-    if (!category) {
-      throw new Error(`Category not found with ID: ${categoryIdStr}`);
-    }
-
-    // Khởi tạo thống kê nếu chưa có
-    if (!category.stats) {
-      category.stats = {
-        totalAmount: 0,
-        transactionCount: 0,
-        averageAmount: 0,
+    if (startDate && endDate) {
+      query.date = {
+        $gte: new Date(startDate),
+        $lte: new Date(endDate),
       };
     }
 
-    // Cập nhật thống kê danh mục
-    category.stats.totalAmount = (category.stats.totalAmount || 0) + amount;
-    category.stats.transactionCount =
-      (category.stats.transactionCount || 0) + 1;
+    // Calculate pagination
+    const skip = (paginationOptions.page - 1) * paginationOptions.limit;
+    const limit = paginationOptions.limit;
 
-    if (category.stats.transactionCount > 0) {
-      category.stats.averageAmount =
-        category.stats.totalAmount / category.stats.transactionCount;
-    }
+    // Get total count for pagination
+    const total = await Transaction.countDocuments(query);
+    const totalPages = Math.ceil(total / limit);
 
-    // Lưu thay đổi vào database
-    await category.save();
-    console.log(
-      `📊 Category stats updated for ${categoryIdStr} with amount ${amount}`
-    );
+    // Execute query with pagination
+    const transactions = await Transaction.find(query)
+      .populate("category", "name icon color")
+      .populate("walletId", "name icon color balance currency")
+      .populate("toWalletId", "name icon color balance currency")
+      .sort({ date: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
 
-    return category;
+    // Group transactions by date
+    const groupedTransactions = groupTransactionsByDate(transactions);
+
+    return {
+      data: groupedTransactions,
+      pagination: {
+        total,
+        page: paginationOptions.page,
+        limit: paginationOptions.limit,
+        totalPages,
+      },
+    };
   } catch (error) {
-    console.error(`❌ Error updating category stats: ${error}`);
-    throw error;
+    logger.error(
+      `Error getting transactions for category ${categoryId}:`,
+      error
+    );
+    throw new AppError(500, "Failed to get transactions by category");
   }
 };

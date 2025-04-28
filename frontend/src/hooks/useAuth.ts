@@ -1,11 +1,19 @@
 import { useState } from "react";
 import { useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { login as loginApi } from "../services/authService";
+import authService from "../services/authService";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../types/navigation";
 
 type AuthNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+// Define a more permissive login response type
+interface LoginResponse {
+  token?: string;
+  success?: boolean;
+  message?: string;
+  [key: string]: any;
+}
 
 export const useAuth = () => {
   const navigation = useNavigation<AuthNavigationProp>();
@@ -20,9 +28,19 @@ export const useAuth = () => {
       setLoading(true);
       setError(null);
 
-      const response = await loginApi({ email, password });
+      console.log("📱 [useAuth] Attempting login with:", {
+        email,
+        password: "****",
+      });
 
-      if (response.success && response.token) {
+      // Use a type assertion to handle the response
+      const response = (await authService.login(
+        email,
+        password
+      )) as LoginResponse;
+      console.log("📱 [useAuth] Login response:", response);
+
+      if (response.token) {
         navigation.replace("TabNavigator");
         return { success: true };
       }
@@ -33,9 +51,15 @@ export const useAuth = () => {
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } catch (err: any) {
-      // Trường hợp này hiếm khi xảy ra vì loginApi đã xử lý hầu hết các lỗi
-      const errorMessage = "An unexpected error occurred. Please try again.";
-      console.error("Unexpected login error:", err);
+      // Log the full error
+      console.error("📱 [useAuth] Login error:", err);
+
+      // Extract message from error response
+      const errorMessage =
+        err.response?.data?.message ||
+        err.message ||
+        "An unexpected error occurred. Please try again.";
+
       setError(errorMessage);
       return { success: false, error: errorMessage };
     } finally {

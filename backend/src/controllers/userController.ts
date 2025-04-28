@@ -19,8 +19,12 @@ export const getProfile = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    console.log("🔍 getProfile controller called");
+    console.log("🔍 Request user object:", req.user);
+
+    const userId = req.user?.userId;
     if (!userId) {
+      console.log("❌ [userController] User ID not found in request");
       res.status(401).json({ message: "Unauthorized" });
       return;
     }
@@ -29,6 +33,7 @@ export const getProfile = async (
 
     const user = await getUserById(userId);
     if (!user) {
+      console.log(`❌ [userController] User not found for ID: ${userId}`);
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -49,7 +54,7 @@ export const updateProfile = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
@@ -72,7 +77,7 @@ export const changePassword = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const {
       currentPassword,
       newPassword,
@@ -146,7 +151,7 @@ export const sendPasswordChangeCode = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
@@ -178,7 +183,7 @@ export const updateNotifications = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
@@ -207,7 +212,7 @@ export const deleteAccount = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;
@@ -251,7 +256,7 @@ export const uploadAvatar = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
       return;

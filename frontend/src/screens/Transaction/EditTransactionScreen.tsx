@@ -33,6 +33,10 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationProp, ParamListBase } from "@react-navigation/native";
 import { checkServerConnection } from "../../services/apiService";
 import { useToast } from "../../components/ToastProvider";
+import {
+  addListener,
+  categorySelectEventKey,
+} from "../../screens/Category/SelectCategoryScreen";
 
 type RouteParams = {
   EditTransaction: {
@@ -83,6 +87,21 @@ const EditTransactionScreen: React.FC = () => {
   const deleteModalScale = useRef(new Animated.Value(0.85)).current;
   const deleteModalOpacity = useRef(new Animated.Value(0)).current;
   const deleteModalBackdropOpacity = useRef(new Animated.Value(0)).current;
+
+  // Create a unique listener ID
+  const categoryListenerIdRef = useRef(`edit_transaction_${Date.now()}`);
+
+  // Set up category selection listener
+  useEffect(() => {
+    // Add listener for category selection events
+    const cleanup = addListener(
+      `${categorySelectEventKey}_${categoryListenerIdRef.current}`,
+      (category: Category) => handleSelectCategory(category)
+    );
+
+    // Clean up the listener when component unmounts
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     Animated.parallel([
@@ -180,6 +199,15 @@ const EditTransactionScreen: React.FC = () => {
   const handleSelectCategory = (category: Category) => {
     setSelectedCategory(category);
     setShowCategoryModal(false);
+  };
+
+  // Điều hướng đến màn hình chọn danh mục
+  const navigateToSelectCategory = () => {
+    navigation.navigate("SelectCategory", {
+      selectedCategoryId: selectedCategory?._id,
+      type: transactionType,
+      listenerId: categoryListenerIdRef.current,
+    });
   };
 
   // Thử kết nối lại với server
@@ -633,7 +661,7 @@ const EditTransactionScreen: React.FC = () => {
                     <Text style={styles.sectionTitle}>Category</Text>
                     <TouchableOpacity
                       style={styles.sectionCard}
-                      onPress={() => setShowCategoryModal(true)}
+                      onPress={navigateToSelectCategory}
                     >
                       {selectedCategory ? (
                         <View style={styles.selectedCategory}>
@@ -821,39 +849,6 @@ const EditTransactionScreen: React.FC = () => {
               </TouchableOpacity>
             </Modal>
           )}
-
-          {/* Category Selection Modal */}
-          <Modal
-            visible={showCategoryModal}
-            transparent={true}
-            animationType="slide"
-            onRequestClose={() => setShowCategoryModal(false)}
-          >
-            <View style={styles.modalContainer}>
-              <View style={styles.modalContent}>
-                <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>Select Category</Text>
-                  <TouchableOpacity
-                    onPress={() => setShowCategoryModal(false)}
-                    style={styles.closeButton}
-                  >
-                    <Ionicons name="close" size={24} color="#333333" />
-                  </TouchableOpacity>
-                </View>
-                <FlatList
-                  data={categories.filter(
-                    (cat) =>
-                      cat.type === transactionType ||
-                      cat.type === ("both" as CategoryType)
-                  )}
-                  renderItem={renderCategoryItem}
-                  keyExtractor={(item) => item._id}
-                  style={styles.categoryList}
-                  showsVerticalScrollIndicator={false}
-                />
-              </View>
-            </View>
-          </Modal>
 
           {/* Delete Confirmation Modal */}
           <Modal

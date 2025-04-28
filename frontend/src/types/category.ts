@@ -5,15 +5,17 @@ export interface Category {
   name: string;
   icon: IconName;
   color: string;
-  type: "expense" | "income";
+  type: "expense" | "income" | "debt_loan";
   budget?: number;
   budget_of_category?: number;
   rules?: {
     keyword: string;
     isEnabled: boolean;
   }[];
-  userId: string;
+  userId?: string;
   isDefault?: boolean;
+  parent?: string | null;
+  isSubcategory?: boolean;
   transactionCount?: number;
   createdAt?: string;
   updatedAt?: string;

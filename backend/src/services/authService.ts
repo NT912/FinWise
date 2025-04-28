@@ -55,17 +55,27 @@ export const registerUser = async (
 
 // 📌 Đăng nhập người dùng
 export const loginUser = async (email: string, password: string) => {
+  console.log("🔍 [authService] Attempting login for email:", email);
+
   const user = await User.findOne({ email });
-  if (!user) throw new Error("Email does not exist!");
+  if (!user) {
+    console.log("❌ [authService] User not found for email:", email);
+    throw new Error("Email does not exist!");
+  }
 
   if (!user.password) {
+    console.log("❌ [authService] No password set for user:", email);
     throw new Error("This account was created using Google/Facebook login.");
   }
 
   const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) throw new Error("Incorrect password!");
+  if (!isMatch) {
+    console.log("❌ [authService] Password mismatch for user:", email);
+    throw new Error("Incorrect password!");
+  }
 
-  return generateToken(user._id.toHexString());
+  console.log("✅ [authService] Login successful for user:", email);
+  return generateToken(user._id.toString());
 };
 
 // 📌 Đăng nhập bằng Google

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, ErrorInfo } from "react";
+import React, { useEffect, useState } from "react";
 import { NavigationContainer } from "@react-navigation/native";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import AppNavigator from "./src/navigation/AppNavigator";
@@ -6,18 +6,20 @@ import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   checkServerConnection,
-  updateApiUrl,
-  clearStoredUrl,
   checkCurrentToken,
   initializeApi,
-  saveApiUrl,
 } from "./src/services/apiService";
-import { LogBox, Platform, Alert, View, Text } from "react-native";
+import {
+  LogBox,
+  View,
+  Text,
+  ActivityIndicator,
+  StyleSheet,
+} from "react-native";
 import NetworkStatusMonitor from "./src/components/NetworkStatusMonitor";
 import AlertProvider from "./src/components/common/AlertProvider";
 import ToastProvider from "./src/components/ToastProvider";
 import api from "./src/services/apiService";
-import { loadFonts } from "./src/utils/loadFonts";
 import * as SplashScreen from "expo-splash-screen";
 import { RootStackParamList } from "./src/navigation/AppNavigator";
 import {
@@ -27,6 +29,7 @@ import {
   Roboto_700Bold,
   Roboto_300Light,
 } from "@expo-google-fonts/roboto";
+import apiClient from "./src/services/apiClient";
 
 // Bỏ qua một số cảnh báo không cần thiết
 LogBox.ignoreLogs([
@@ -56,13 +59,30 @@ const App = () => {
   const [isReady, setIsReady] = useState(false);
   const [initialRoute, setInitialRoute] =
     useState<keyof RootStackParamList>("Login");
-  const [errorInfo, setErrorInfo] = useState<ErrorInfo | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     async function prepare() {
       try {
-        // Khởi tạo API client
+        console.log("🚀 Bắt đầu khởi tạo ứng dụng...");
+
+        // Khởi tạo API client từ apiService trước
         await initializeApi();
+        console.log("🔍 apiService baseURL:", api.defaults.baseURL);
+
+        // Đảm bảo apiClient được đồng bộ
+        // Đảm bảo cả hai service dùng cùng một baseURL
+        if (apiClient.defaults.baseURL !== api.defaults.baseURL) {
+          console.log("⚠️ Phát hiện baseURL không đồng bộ, đang cập nhật...");
+          console.log("- apiClient:", apiClient.defaults.baseURL);
+          console.log("- apiService:", api.defaults.baseURL);
+
+          // Đồng bộ URL
+          apiClient.defaults.baseURL = api.defaults.baseURL;
+          console.log("✅ Đã đồng bộ URL API: ", apiClient.defaults.baseURL);
+        } else {
+          console.log("✅ baseURL đã đồng bộ: ", api.defaults.baseURL);
+        }
 
         // Kiểm tra kết nối server
         const isConnected = await checkServerConnection();
@@ -75,9 +95,11 @@ const App = () => {
         }
 
         setIsReady(true);
+        setIsLoading(false);
       } catch (e) {
         console.warn("⚠️ Lỗi khi khởi tạo ứng dụng:", e);
         setIsReady(true); // Vẫn đặt là sẵn sàng để người dùng có thể thao tác
+        setIsLoading(false);
       } finally {
         // Ẩn màn hình splash khi đã sẵn sàng
         if (fontsLoaded) {
@@ -105,6 +127,15 @@ const App = () => {
     return null;
   }
 
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#00875F" />
+        <Text style={styles.loadingText}>Đang tải...</Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaProvider>
       <StatusBar style="auto" />
@@ -119,5 +150,19 @@ const App = () => {
     </SafeAreaProvider>
   );
 };
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: "#666",
+  },
+});
 
 export default App;

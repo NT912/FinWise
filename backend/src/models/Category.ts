@@ -4,95 +4,54 @@ export interface ICategory extends Document {
   name: string;
   icon: string;
   color: string;
-  type: "expense" | "income";
-  budget?: number;
-  budget_of_category?: number;
-  rules?: {
-    keywords: string[];
-    amount?: {
-      min?: number;
-      max?: number;
-    };
-  }[];
+  type: "income" | "expense" | "debt_loan";
+  userId: mongoose.Types.ObjectId;
+  parent?: string;
   isDefault: boolean;
-  userId: string;
-  transactionCount?: number;
-  transactions?: mongoose.Types.ObjectId[];
-  stats?: {
-    totalAmount: number;
-    transactionCount: number;
-    averageAmount: number;
-    lastUpdated?: Date;
-  };
+  isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-const CategorySchema = new Schema(
+const categorySchema = new Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: [true, "Category name is required"],
       trim: true,
+      maxlength: [50, "Category name cannot exceed 50 characters"],
     },
     icon: {
       type: String,
-      required: true,
+      required: [true, "Category icon is required"],
+      default: "tag",
     },
     color: {
       type: String,
-      required: true,
+      required: [true, "Category color is required"],
+      default: "#6B7280",
     },
     type: {
       type: String,
-      enum: ["expense", "income"],
-      required: true,
+      enum: ["income", "expense", "debt_loan"],
+      required: [true, "Category type is required"],
     },
-    budget: {
-      type: Number,
-      default: 0,
+    userId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
     },
-    budget_of_category: {
-      type: Number,
-      default: 0,
+    parent: {
+      type: String,
+      default: null,
     },
-    rules: [
-      {
-        keywords: [
-          {
-            type: String,
-            trim: true,
-          },
-        ],
-        amount: {
-          min: Number,
-          max: Number,
-        },
-      },
-    ],
     isDefault: {
       type: Boolean,
       default: false,
     },
-    userId: {
-      type: String,
-      required: true,
-    },
-    transactionCount: {
-      type: Number,
-      default: 0,
-    },
-    transactions: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: "Transaction",
-      },
-    ],
-    stats: {
-      totalAmount: { type: Number, default: 0 },
-      transactionCount: { type: Number, default: 0 },
-      averageAmount: { type: Number, default: 0 },
-      lastUpdated: { type: Date, default: Date.now },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   {
@@ -100,7 +59,13 @@ const CategorySchema = new Schema(
   }
 );
 
-// Create a compound index on name and user to ensure uniqueness per user
-CategorySchema.index({ name: 1, userId: 1 }, { unique: true });
+// Add composite indexes for common query patterns
+categorySchema.index({ userId: 1, type: 1 });
+categorySchema.index({ userId: 1, isDefault: 1 });
+categorySchema.index({ userId: 1, isActive: 1 });
+categorySchema.index({ parent: 1 });
 
-export default mongoose.model<ICategory>("Category", CategorySchema);
+// Create the model from the schema
+const Category = mongoose.model<ICategory>("Category", categorySchema);
+
+export default Category;

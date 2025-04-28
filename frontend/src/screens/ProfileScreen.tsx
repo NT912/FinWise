@@ -49,7 +49,7 @@ const ProfileScreen = ({
   const fetchUserProfile = async () => {
     try {
       setLoading(true);
-      const token = await AsyncStorage.getItem("userToken");
+      const token = await AsyncStorage.getItem("token");
 
       if (!token) {
         navigation.navigate("Login");
@@ -96,7 +96,9 @@ const ProfileScreen = ({
       "Are you sure you want to log out of your account?",
       async () => {
         try {
-          await AsyncStorage.removeItem("userToken");
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("user");
+          await AsyncStorage.removeItem("userId");
           showSuccess(
             "Logout Successful",
             "You have been logged out of your account"
@@ -127,7 +129,6 @@ const ProfileScreen = ({
             showBackButton={false}
             showAvatar={true}
             userName={user.fullName}
-            userAvatar={user.avatar || "https://via.placeholder.com/150"}
             backgroundColor="#F5F5F5"
           />
 

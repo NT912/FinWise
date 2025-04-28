@@ -1,14 +1,24 @@
 import { Request, Response } from "express";
 import { getHomeDataService } from "../services/homeService";
-import { getTransactionsByDateRange } from "../services/transactionService";
 import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+
+// Định nghĩa kiểu dữ liệu cho giao dịch
+interface HomeTransaction {
+  id?: string;
+  amount: number;
+  description: string;
+  date: Date;
+  type: "income" | "expense" | "transfer";
+  category: string;
+  walletId?: string;
+}
 
 export const getHomeData = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const timeFilter = (req.query.timeFilter as string) || "monthly";
 
     if (!userId) {
@@ -40,7 +50,7 @@ export const getHomeTransactions = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = req.user?.id;
+    const userId = req.user?.userId;
     const timeFilter = (req.query.timeFilter as string) || "monthly";
 
     if (!userId) {
@@ -72,11 +82,8 @@ export const getHomeTransactions = async (
       `✅ [homeController] Getting transactions for ${timeFilter} period: ${startDate.toISOString()} to ${now.toISOString()}`
     );
 
-    const transactions = await getTransactionsByDateRange(
-      userId,
-      startDate,
-      now
-    );
+    // TODO: Implement new transaction service
+    const transactions: HomeTransaction[] = []; // Tạm thời trả về mảng rỗng
 
     res.json(transactions);
   } catch (error) {

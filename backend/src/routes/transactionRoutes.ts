@@ -1,66 +1,38 @@
-import express, { Request, Response, NextFunction } from "express";
-import * as transactionController from "../controllers/transactionController";
+import express from "express";
 import { authenticateJWT } from "../middleware/authMiddleware";
-
-// Định nghĩa kiểu Request với user để phù hợp với controller
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email?: string;
-  };
-}
+import {
+  getTransactions,
+  getTransactionById,
+  createTransaction,
+  updateTransaction,
+  deleteTransaction,
+  getTransactionStats,
+  getTransactionsByDateRange,
+} from "../controllers/new-controllers/TransactionController";
+import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
+import { Response } from "express";
 
 const router = express.Router();
 
-// Áp dụng middleware xác thực cho tất cả routes
-router.use(authenticateJWT);
+// Get all transactions with filter
+router.get("/", authenticateJWT, getTransactions);
 
-// Wrapper để chuyển đổi kiểu giữa controller và router
-const asyncHandler =
-  (fn: Function) => (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
+// Get transaction statistics (like Money Lover)
+router.get("/stats", authenticateJWT, getTransactionStats);
 
-// Lấy tất cả giao dịch
-router.get(
-  "/transactions",
-  asyncHandler(transactionController.getAllTransactions)
-);
+// Get transactions by date range
+router.get("/date-range", authenticateJWT, getTransactionsByDateRange);
 
-// Lấy giao dịch theo khoảng thời gian
-router.get(
-  "/transactions/date-range",
-  asyncHandler(transactionController.getTransactionsByDateRange)
-);
+// Get transaction by ID - IMPORTANT: This must come after other specific routes
+router.get("/:id", authenticateJWT, getTransactionById);
 
-// Lấy giao dịch theo danh mục
-router.get(
-  "/transactions/category/:categoryId",
-  asyncHandler(transactionController.getTransactionsByCategory)
-);
+// Create new transaction
+router.post("/", authenticateJWT, createTransaction);
 
-// Lấy chi tiết một giao dịch
-router.get(
-  "/transactions/:transactionId",
-  asyncHandler(transactionController.getTransactionById)
-);
+// Update transaction
+router.put("/:id", authenticateJWT, updateTransaction);
 
-// Tạo giao dịch mới
-router.post(
-  "/transactions",
-  asyncHandler(transactionController.createTransaction)
-);
-
-// Cập nhật giao dịch
-router.put(
-  "/transactions/:transactionId",
-  asyncHandler(transactionController.updateTransaction)
-);
-
-// Xóa giao dịch
-router.delete(
-  "/transactions/:transactionId",
-  asyncHandler(transactionController.deleteTransaction)
-);
+// Delete transaction
+router.delete("/:id", authenticateJWT, deleteTransaction);
 
 export default router;

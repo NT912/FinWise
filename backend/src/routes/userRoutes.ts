@@ -48,6 +48,7 @@ const upload = multer({
 
 // Routes
 router.get("/profile", authenticateJWT, getProfile);
+
 router.put("/profile/update", authenticateJWT, updateProfile);
 router.post("/profile/change-password", authenticateJWT, changePassword);
 router.post(

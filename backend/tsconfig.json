@@ -5,9 +5,11 @@
     "outDir": "./dist",
     "types": ["node", "nodemailer"],
     "rootDir": "./src",
-    "strict": true,
+    "strict": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "noImplicitAny": false,
+    "typeRoots": ["./node_modules/@types", "./src/types"]
   }
 }

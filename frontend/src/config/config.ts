@@ -1,6 +1,14 @@
+// Define a single API URL that will be used throughout the app
+// Sử dụng URL từ biến môi trường, nếu không có thì dùng URL local
+const API_BASE_URL =
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.2.2:3002";
+
+// Log URL để debug
+console.log("📡 CONFIG: API BASE URL is set to:", API_BASE_URL);
+
 export const config = {
   api: {
-    baseUrl: process.env.EXPO_PUBLIC_API_URL || "http://192.168.2.2:3002",
+    baseUrl: API_BASE_URL,
     timeout: 30000,
   },
   app: {
@@ -15,5 +23,5 @@ export const config = {
 
 export type Config = typeof config;
 
-export const API_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://localhost:3000";
+// Export API_URL for backward compatibility
+export const API_URL = API_BASE_URL;

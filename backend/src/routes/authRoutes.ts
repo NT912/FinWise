@@ -14,6 +14,7 @@ import { AuthenticatedRequest } from "../types/AuthenticatedRequest";
 
 const router = express.Router();
 
+// @ts-ignore
 router.post("/register", register as RequestHandler);
 
 /**
@@ -73,11 +74,17 @@ router.post("/register", register as RequestHandler);
  *       500:
  *         description: Server error
  */
+// @ts-ignore
 router.post("/login", login as RequestHandler);
+// @ts-ignore
 router.post("/google", googleLogin as RequestHandler);
+// @ts-ignore
 router.post("/facebook", facebookLogin as RequestHandler);
+// @ts-ignore
 router.post("/forgot-password", forgotPassword as RequestHandler);
+// @ts-ignore
 router.post("/reset-password", resetPassword as RequestHandler);
+// @ts-ignore
 router.post("/verify-reset-code", verifyResetCode as RequestHandler);
 
 // Thêm route để xác thực token

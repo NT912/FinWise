@@ -2,35 +2,49 @@ import React from "react";
 import {
   View,
   Text,
-  StyleSheet,
-  TouchableOpacity,
   Modal,
+  TouchableOpacity,
+  StyleSheet,
   FlatList,
-  Dimensions,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { colors } from "../../theme";
+
+// Bảng màu cho danh mục
+const CATEGORY_COLORS = [
+  "#3D5A80", // Blue
+  "#4CAF50", // Green
+  "#FFC107", // Yellow
+  "#FF5722", // Orange
+  "#9C27B0", // Purple
+  "#F44336", // Red
+  "#2196F3", // Light Blue
+  "#00BCD4", // Cyan
+  "#009688", // Teal
+  "#8BC34A", // Light Green
+  "#CDDC39", // Lime
+  "#795548", // Brown
+  "#607D8B", // Blue Grey
+  "#E91E63", // Pink
+  "#673AB7", // Deep Purple
+  "#3F51B5", // Indigo
+  "#00ACC1", // Cyan
+  "#FF9800", // Dark Orange
+  "#FF4081", // Pink Accent
+  "#7C4DFF", // Deep Purple Accent
+  "#448AFF", // Blue Accent
+  "#40C4FF", // Light Blue Accent
+  "#64FFDA", // Teal Accent
+  "#69F0AE", // Green Accent
+];
 
 interface ColorPickerProps {
   visible: boolean;
   onClose: () => void;
   onSelectColor: (color: string) => void;
-  selectedColor: string;
+  selectedColor?: string;
 }
-
-const COLORS = [
-  "#FF6B6B", // Red
-  "#FF9F69", // Orange
-  "#FFC84E", // Yellow
-  "#4CAF50", // Green
-  "#00D09E", // Teal
-  "#4DC0F5", // Light Blue
-  "#2196F3", // Blue
-  "#8D76E8", // Purple
-  "#F06292", // Pink
-  "#9575CD", // Violet
-  "#78909C", // Blue Grey
-  "#607D8B", // Grey
-];
 
 const ColorPicker: React.FC<ColorPickerProps> = ({
   visible,
@@ -38,74 +52,62 @@ const ColorPicker: React.FC<ColorPickerProps> = ({
   onSelectColor,
   selectedColor,
 }) => {
-  const handleColorSelect = (color: string) => {
-    console.log("Color selected:", color);
-    onSelectColor(color);
-  };
+  const renderColorItem = ({ item }: { item: string }) => {
+    const isSelected = item === selectedColor;
 
-  const handleClose = () => {
-    console.log("Closing color picker");
-    onClose();
+    return (
+      <TouchableOpacity
+        style={[
+          styles.colorItem,
+          { backgroundColor: item },
+          isSelected && styles.selectedColorItem,
+        ]}
+        onPress={() => onSelectColor(item)}
+      >
+        {isSelected && <Ionicons name="checkmark" size={24} color="#FFFFFF" />}
+      </TouchableOpacity>
+    );
   };
-
-  const renderColorItem = ({ item: color }: { item: string }) => (
-    <TouchableOpacity
-      style={[
-        styles.colorItem,
-        { backgroundColor: color },
-        selectedColor === color && styles.selectedColorItem,
-      ]}
-      onPress={() => handleColorSelect(color)}
-    >
-      {selectedColor === color && (
-        <Ionicons name="checkmark" size={24} color="#FFFFFF" />
-      )}
-    </TouchableOpacity>
-  );
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
       transparent={true}
-      onRequestClose={handleClose}
-      statusBarTranslucent={true}
+      onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Color</Text>
-            <TouchableOpacity onPress={handleClose}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.overlay}>
+          <TouchableWithoutFeedback>
+            <View style={styles.modalContent}>
+              <View style={styles.header}>
+                <Text style={styles.title}>Select Color</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <Ionicons name="close" size={24} color="#666666" />
+                </TouchableOpacity>
+              </View>
 
-          <FlatList
-            data={COLORS}
-            renderItem={renderColorItem}
-            keyExtractor={(item) => item}
-            numColumns={4}
-            contentContainerStyle={styles.colorGrid}
-          />
-
-          <TouchableOpacity style={styles.doneButton} onPress={handleClose}>
-            <Text style={styles.doneButtonText}>Done</Text>
-          </TouchableOpacity>
+              <FlatList
+                data={CATEGORY_COLORS}
+                renderItem={renderColorItem}
+                keyExtractor={(item) => item}
+                numColumns={5}
+                contentContainerStyle={styles.colorList}
+              />
+            </View>
+          </TouchableWithoutFeedback>
         </View>
-      </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
 
-const { width } = Dimensions.get("window");
-const colorItemSize = (width - 80) / 4;
-
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
   },
   modalContent: {
     width: "90%",
@@ -113,50 +115,50 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     padding: 16,
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    marginHorizontal: "5%",
-    marginBottom: 20,
+    paddingBottom: 24,
   },
-  modalHeader: {
+  header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 16,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: "#EEEEEE",
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
+  title: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333333",
   },
-  colorGrid: {
-    padding: 8,
+  closeButton: {
+    padding: 4,
+  },
+  colorList: {
+    paddingVertical: 8,
+    alignItems: "center",
   },
   colorItem: {
-    width: colorItemSize,
-    height: colorItemSize,
-    borderRadius: colorItemSize / 2,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     justifyContent: "center",
     alignItems: "center",
     margin: 8,
+    borderWidth: 1,
+    borderColor: "#EEEEEE",
   },
   selectedColorItem: {
     borderWidth: 2,
     borderColor: "#FFFFFF",
-  },
-  doneButton: {
-    backgroundColor: "#00D09E",
-    padding: 12,
-    borderRadius: 8,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  doneButtonText: {
-    color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "bold",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
   },
 });
 

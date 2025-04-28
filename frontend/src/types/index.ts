@@ -41,7 +41,26 @@ export type IconName =
   | "people-outline"
   | "pizza-outline"
   | "pricetag-outline"
-  | "school-outline";
+  | "school-outline"
+  | "fast-food-outline"
+  | "desktop-outline"
+  | "wifi-outline"
+  | "musical-note-outline"
+  | "globe-outline"
+  | "pin-outline"
+  | "subway-outline"
+  | "bicycle-outline"
+  | "color-palette-outline"
+  | "hammer-outline"
+  | "glasses-outline"
+  | "umbrella-outline"
+  | "alarm-outline"
+  | "receipt-outline"
+  | "cube-outline"
+  | "document-outline"
+  | "paw-outline"
+  | "shirt-outline"
+  | "phone-portrait-outline";
 
 export interface User {
   _id: string;
@@ -62,10 +81,11 @@ export interface User {
 
 export interface Transaction {
   _id: string;
-  title: string;
+  title?: string;
+  description: string;
   amount: number;
   date: string;
-  type: "expense" | "income";
+  type: "expense" | "income" | "transfer";
   category: {
     _id: string;
     name: string;
@@ -74,8 +94,19 @@ export interface Transaction {
     type?: "expense" | "income";
     userId?: string;
   };
+  walletId: string;
+  toWalletId?: string;
+  paymentMethod?: string;
+  location?: string;
+  tags?: string[];
   note?: string;
   attachments?: string[];
+  isRecurring?: boolean;
+  recurringDetails?: {
+    frequency: "daily" | "weekly" | "monthly" | "yearly";
+    interval: number;
+    endDate?: string;
+  };
   createdAt: string;
   updatedAt: string;
   userId: string;

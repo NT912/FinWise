@@ -1,14 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import Toast from "./Toast";
+import React, { createContext, useContext } from "react";
+import Toast from "react-native-toast-message";
+import { toastConfigMap, showToast, ToastType } from "../utils/toast";
 
-type ToastType = "success" | "error" | "info" | "warning";
-
+// Tạo context cho Toast
 interface ToastContextProps {
   showToast: (message: string, type?: ToastType, duration?: number) => void;
 }
 
 const ToastContext = createContext<ToastContextProps | undefined>(undefined);
 
+// Hook để sử dụng Toast từ các components
 export const useToast = () => {
   const context = useContext(ToastContext);
   if (!context) {
@@ -17,41 +18,28 @@ export const useToast = () => {
   return context;
 };
 
-interface ToastProviderProps {
-  children: ReactNode;
-}
+type ToastProviderProps = {
+  children: React.ReactNode;
+};
 
-export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
-  const [visible, setVisible] = useState(false);
-  const [message, setMessage] = useState("");
-  const [type, setType] = useState<ToastType>("info");
-  const [duration, setDuration] = useState(3000);
-
-  const showToast = (
+/**
+ * Component cung cấp hệ thống Toast thông báo cho toàn bộ ứng dụng
+ * Cần được đặt ở mức cao nhất của ứng dụng (thường là App.tsx)
+ */
+const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
+  // Hàm hiển thị Toast sử dụng hàm từ utils/toast.tsx
+  const handleShowToast = (
     message: string,
     type: ToastType = "info",
     duration: number = 3000
   ) => {
-    setMessage(message);
-    setType(type);
-    setDuration(duration);
-    setVisible(true);
-  };
-
-  const hideToast = () => {
-    setVisible(false);
+    showToast(type, message, undefined, duration);
   };
 
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={{ showToast: handleShowToast }}>
       {children}
-      <Toast
-        visible={visible}
-        message={message}
-        type={type}
-        duration={duration}
-        onHide={hideToast}
-      />
+      <Toast config={toastConfigMap} />
     </ToastContext.Provider>
   );
 };

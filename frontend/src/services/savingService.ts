@@ -1,6 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_URL } from "../config/config";
+import apiClient from "./apiClient";
 
 export interface SavingsData {
   totalSavings: number;
@@ -69,9 +70,7 @@ export const fetchSavingsData = async (
   period: string
 ): Promise<SavingsData> => {
   try {
-    const response = await axios.get(
-      `${API_URL}/api/home?timeFilter=${period}`
-    );
+    const response = await apiClient.get(`/api/home?timeFilter=${period}`);
     const { savingsOnGoals } = response.data;
 
     // Generate labels based on period
@@ -139,25 +138,14 @@ export const createSavingGoal = async (
   data: Omit<SavingGoal, "_id" | "createdAt">
 ) => {
   try {
-    const token = await AsyncStorage.getItem("token");
-    if (!token) {
-      throw new Error("No token found");
-    }
-
     // Gọi API tạo mục tiêu tiết kiệm
-    const response = await axios.post(
-      `${API_URL}/api/savings/create-goal`,
-      {
-        goalName: data.goalName,
-        targetAmount: data.targetAmount,
-        currentAmount: data.currentAmount || 0,
-        month: data.month,
-        year: data.year,
-      },
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    const response = await apiClient.post("/api/savings/create-goal", {
+      goalName: data.goalName,
+      targetAmount: data.targetAmount,
+      currentAmount: data.currentAmount || 0,
+      month: data.month,
+      year: data.year,
+    });
 
     console.log("Create saving goal response:", response.data);
     return response.data;
@@ -192,19 +180,11 @@ export const updateSavingGoal = async (
   data: Partial<SavingGoal>
 ) => {
   try {
-    const token = await AsyncStorage.getItem("token");
-    if (!token) {
-      throw new Error("No token found");
-    }
-
     console.log(`Updating saving goal ${goalId} with data:`, data);
 
-    const response = await axios.put(
-      `${API_URL}/api/savings/update-goal/${goalId}`,
-      data,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
+    const response = await apiClient.put(
+      `/api/savings/update-goal/${goalId}`,
+      data
     );
 
     console.log("Update saving goal response:", response.data);
@@ -227,19 +207,12 @@ export const updateSavingGoal = async (
 
 export const getSavingsSummary = async (period?: string) => {
   try {
-    const token = await AsyncStorage.getItem("token");
-    if (!token) {
-      throw new Error("No token found");
-    }
-
     // Add period as query parameter if provided
     const url = period
-      ? `${API_URL}/api/savings/summary?period=${period}`
-      : `${API_URL}/api/savings/summary`;
+      ? `/api/savings/summary?period=${period}`
+      : `/api/savings/summary`;
 
-    const response = await axios.get(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const response = await apiClient.get(url);
 
     // Log response để debug
     console.log("Savings summary API response:", response.data);

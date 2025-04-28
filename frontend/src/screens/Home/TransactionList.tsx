@@ -177,7 +177,9 @@ const TransactionList: React.FC<TransactionListProps> = ({
         <View style={styles.detailsContainer}>
           <View style={styles.leftContent}>
             <Text style={styles.title} numberOfLines={1}>
-              {transaction.title || transaction.category?.name || "Unknown"}
+              {transaction.description ||
+                transaction.category?.name ||
+                "Unknown"}
             </Text>
             <Text style={styles.date}>
               {moment(transaction.date).format("MMM DD, YYYY")}

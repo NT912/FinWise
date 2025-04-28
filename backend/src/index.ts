@@ -1,4 +1,5 @@
 import express from "express";
+import mongoose from "mongoose";
 import cors from "cors";
 import dotenv from "dotenv";
 import path from "path";
@@ -7,10 +8,11 @@ import connectDB from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import homeRoutes from "./routes/homeRoutes";
 import userRoutes from "./routes/userRoutes";
-import categoryRoutes from "./routes/categoryRoutes";
-import transactionRoutes from "./routes/transactionRoutes";
-import savingsRoutes from "./routes/savingsRoutes";
+import walletRoutes from "./routes/walletRoutes";
+import transactionRoutes from "./routes/new-routes/transactionRoutes";
+import categoryRoutes from "./routes/new-routes/categoryRoutes";
 import { specs, swaggerUi } from "./config/swagger";
+import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
 
@@ -41,39 +43,39 @@ console.log(`🔗 API Base URL: ${process.env.API_BASE_URL}`);
 app.use(express.json());
 
 // Cấu hình CORS
-app.use(
-  cors({
-    origin: [
-      "http://localhost:3000",
-      "http://localhost:3001",
-      "http://127.0.0.1:3000",
-      "http://127.0.0.1:3001",
-      "http://3.87.47.184:3000",
-      "http://3.87.47.184",
-      "http://3.0.248.48:3000",
-      "http://3.0.248.48",
-      "exp://192.168.1.3:8081",
-      "exp://192.168.1.4:8081",
-      "http://192.168.1.3:8081",
-      "http://192.168.1.4:8081",
-      "http://192.168.1.3:3000",
-      "http://192.168.1.3:3001",
-      "http://192.168.1.4:3000",
-      "http://192.168.1.4:3001",
-      "exp://192.168.1.10:3000",
-      "http://192.168.2.2:3000",
-      "http://192.168.2.2:3001",
-      "http://192.168.2.2:3002",
-      "exp://192.168.2.2:8081",
-      "http://192.168.2.2:8081",
-      "*",
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    exposedHeaders: ["Content-Range", "X-Content-Range"],
-  })
-);
+const corsOptions = {
+  origin: [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://3.87.47.184:3000",
+    "http://3.87.47.184",
+    "http://3.0.248.48:3000",
+    "http://3.0.248.48",
+    "exp://192.168.1.3:8081",
+    "exp://192.168.1.4:8081",
+    "http://192.168.1.3:8081",
+    "http://192.168.1.4:8081",
+    "http://192.168.1.3:3000",
+    "http://192.168.1.3:3001",
+    "http://192.168.1.4:3000",
+    "http://192.168.1.4:3001",
+    "exp://192.168.1.10:3000",
+    "http://192.168.2.2:3000",
+    "http://192.168.2.2:3001",
+    "http://192.168.2.2:3002",
+    "exp://192.168.2.2:8081",
+    "http://192.168.2.2:8081",
+    "*",
+  ],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"],
+  credentials: true,
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
+};
+
+app.use(cors(corsOptions));
 
 // Serve static files
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
@@ -112,25 +114,12 @@ app.get("/api", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api", homeRoutes);
 app.use("/api/user", userRoutes);
+app.use("/api/wallets", walletRoutes);
+app.use("/api/transactions", transactionRoutes);
 app.use("/api/categories", categoryRoutes);
-app.use("/api", transactionRoutes);
-app.use("/api/savings", savingsRoutes);
 
 // Error handling middleware
-app.use(
-  (
-    err: any,
-    req: express.Request,
-    res: express.Response,
-    next: express.NextFunction
-  ) => {
-    console.error("Error:", err);
-    res.status(500).json({
-      message: err.message || "Internal server error",
-      success: false,
-    });
-  }
-);
+app.use(errorHandler);
 
 connectDB()
   .then(() => {

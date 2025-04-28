@@ -106,7 +106,7 @@ const register = async (req: Request, res: Response) => {
 const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    console.log("👤 Login attempt for email:", email);
+    console.log("👤 Login attempt for email:", { email, password: "****" });
 
     // Validate input
     if (!email || !password) {
@@ -124,7 +124,6 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
     if (!user) {
       console.log("❌ User not found in database for email:", email);
-      console.log("📝 Request body:", req.body);
       res.status(401).json({
         message: "Invalid email or password",
         success: false,
@@ -151,7 +150,7 @@ const login = async (req: Request, res: Response): Promise<void> => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user._id },
+      { userId: user._id.toString() },
       process.env.JWT_SECRET || "your-secret-key",
       { expiresIn: "30d" }
     );

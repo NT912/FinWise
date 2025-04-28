@@ -1,10 +1,10 @@
-import api from "./apiService";
+import apiClient from "./apiClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Get user profile information
 export const getUserProfile = async () => {
   try {
-    const response = await api.get("/api/user/profile");
+    const response = await apiClient.get("/api/user/profile");
     return response.data;
   } catch (error) {
     console.error("Error fetching user profile:", error);
@@ -15,7 +15,10 @@ export const getUserProfile = async () => {
 // Update profile information
 export const updateUserProfile = async (profileData: any) => {
   try {
-    const response = await api.put("/api/user/profile/update", profileData);
+    const response = await apiClient.put(
+      "/api/user/profile/update",
+      profileData
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating profile:", error);
@@ -31,7 +34,10 @@ export const changePassword = async (data: {
   verificationCode?: string;
 }) => {
   try {
-    const response = await api.post("/api/user/profile/change-password", data);
+    const response = await apiClient.post(
+      "/api/user/profile/change-password",
+      data
+    );
     return response.data;
   } catch (error) {
     console.error("Error changing password:", error);
@@ -42,7 +48,7 @@ export const changePassword = async (data: {
 // Send password change verification code via email
 export const sendPasswordChangeCode = async () => {
   try {
-    const response = await api.post(
+    const response = await apiClient.post(
       "/api/user/profile/send-password-change-code"
     );
     return response.data;
@@ -61,7 +67,10 @@ export const updateNotificationSettings = async (settings: {
   billReminders?: boolean;
 }) => {
   try {
-    const response = await api.put("/api/user/profile/notifications", settings);
+    const response = await apiClient.put(
+      "/api/user/profile/notifications",
+      settings
+    );
     return response.data;
   } catch (error) {
     console.error("Error updating notification settings:", error);
@@ -72,7 +81,7 @@ export const updateNotificationSettings = async (settings: {
 // Upload avatar
 export const uploadAvatar = async (formData: FormData) => {
   try {
-    const response = await api.post(
+    const response = await apiClient.post(
       "/api/user/profile/upload-avatar",
       formData,
       {
@@ -94,7 +103,7 @@ export const deleteAccount = async (password: string) => {
     console.log("🚨 Attempting to delete account...");
 
     // Sử dụng delete với body
-    const response = await api.delete("/api/user/profile/delete", {
+    const response = await apiClient.delete("/api/user/profile/delete", {
       data: { password },
     });
 

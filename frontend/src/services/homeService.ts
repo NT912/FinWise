@@ -1,6 +1,7 @@
-import api from "./apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as savingService from "./savingService";
+import * as walletService from "./walletService";
+import apiClient from "./apiClient";
 
 // Hàm utility để lấy năm và tháng hiện tại
 export const getCurrentYearMonth = () => {
@@ -22,118 +23,108 @@ export const fetchHomeData = async (filter = "monthly") => {
   try {
     const token = await AsyncStorage.getItem("token");
     if (!token) {
-      throw new Error("🚨 Token không tồn tại!");
+      throw new Error("No token found");
     }
 
-    console.log("✅ Gửi request với token:", token);
-    console.log(`✅ Đang gọi API /api/home?timeFilter=${filter}`);
+    // Get user data - using a more resilient approach
+    let userName = "User";
+    let userAvatar = "";
 
-    // Lấy dữ liệu home
-    const homeResponse = await api.get(`/api/home?timeFilter=${filter}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    console.log("✅ API /api/home trả về:", homeResponse.data);
-
-    // Kiểm tra dữ liệu người dùng
-    if (!homeResponse.data.userName) {
-      console.warn("⚠️ API không trả về userName, sử dụng giá trị mặc định");
-    } else {
-      console.log("✅ API trả về userName:", homeResponse.data.userName);
-    }
-
-    // Lấy tổng ngân sách của tháng hiện tại
-    let monthlyBudget = 20000000; // Giá trị mặc định
     try {
-      const currentMonth = getCurrentMonthString();
-      monthlyBudget = await savingService.getTotalBudget(currentMonth);
-      console.log("✅ Tổng ngân sách tháng hiện tại:", monthlyBudget);
-    } catch (budgetError) {
+      // Try to get user data, but don't let it block the whole function if it fails
+      const userResponse = await apiClient.get("/api/user/profile");
+      console.log("✅ User response:", userResponse.data);
+
+      userName = userResponse.data.fullName || userResponse.data.name || "User";
+      userAvatar = userResponse.data.avatar || "";
+      console.log("✅ User data retrieved successfully:", userName);
+    } catch (error: any) {
       console.warn(
-        "⚠️ Không thể lấy tổng ngân sách, sử dụng giá trị mặc định:",
-        budgetError
+        "⚠️ Failed to get user profile, continuing with defaults:",
+        error.message
       );
+      // Continue with default values
     }
 
-    // Trả về dữ liệu từ API home
+    // Get total balance from wallets service - this will handle fallbacks internally
+    const totalBalance = await walletService.fetchTotalBalance();
+
     return {
-      userName: homeResponse.data.userName || "User",
-      userAvatar: homeResponse.data.userAvatar || "",
-      totalBalance: homeResponse.data.totalBalance || 0,
-      totalExpense: homeResponse.data.totalExpense || 0,
-      savingsOnGoals: homeResponse.data.savingsOnGoals || 0,
-      goalPercentage: homeResponse.data.goalPercentage || 0,
-      revenueLostWeek: homeResponse.data.revenueLostWeek || 0,
-      foodLastWeek: homeResponse.data.foodLastWeek || 0,
-      monthlyBudget: monthlyBudget,
-      budgetPercentage:
-        monthlyBudget > 0
-          ? Math.min(
-              Math.round(
-                ((homeResponse.data.totalExpense || 0) / monthlyBudget) * 100
-              ),
-              100
-            )
-          : 0,
+      userName,
+      userAvatar,
+      totalBalance,
+      totalExpense: 0, // This will be calculated from transactions in HomeScreen
+      monthlyIncome: 0, // This will be calculated from transactions in HomeScreen
+      monthlyExpense: 0, // This will be calculated from transactions in HomeScreen
     };
-  } catch (error: any) {
-    // ✅ Xử lý lỗi đúng cách
-    if (error instanceof Error) {
-      console.error("🚨 Lỗi lấy dữ liệu Home:", error.message);
-    } else {
-      console.error("🚨 Lỗi không xác định khi lấy dữ liệu Home:", error);
-    }
-
-    // In thêm thông tin chi tiết của lỗi nếu có
-    if (error.response) {
-      console.error("🚨 Chi tiết lỗi:", {
-        status: error.response.status,
-        data: error.response.data,
-        url: error.config?.url,
-        method: error.config?.method,
-      });
-    }
-
-    // Trả về dữ liệu mặc định trong trường hợp lỗi
+  } catch (error) {
+    console.error("Error fetching home data:", error);
     return {
       userName: "User",
       userAvatar: "",
       totalBalance: 0,
       totalExpense: 0,
-      savingsOnGoals: 1500000,
-      goalPercentage: 45,
-      revenueLostWeek: 2500000,
-      foodLastWeek: 750000,
-      transactions: [],
-      monthlyBudget: 20000000,
-      budgetPercentage: 0,
+      monthlyIncome: 0,
+      monthlyExpense: 0,
     };
   }
 };
 
 // 📝 Lấy dữ liệu giao dịch gần đây
-export const fetchTransactions = async (filter = "monthly") => {
+export const fetchTransactions = async (
+  filter = "monthly",
+  startDate?: Date,
+  endDate?: Date
+) => {
   try {
-    const token = await AsyncStorage.getItem("token");
-    if (!token) {
-      throw new Error("🚨 Token does not exist!");
-    }
+    console.log("🔄 Fetching transactions with filter:", filter);
+    console.log("📅 Start date:", startDate?.toISOString());
+    console.log("📅 End date:", endDate?.toISOString());
 
-    // Chuyển đổi filter sang timeFilter cho endpoint
-    const endpoint = `/api/transactions?timeFilter=${filter}`;
+    // Tạo query params
+    const params = new URLSearchParams();
+    params.append("timeFilter", filter);
+    if (startDate) params.append("startDate", startDate.toISOString());
+    if (endDate) params.append("endDate", endDate.toISOString());
 
-    console.log(`✅ Calling API: ${endpoint}`);
+    console.log(
+      `🔄 Calling API: /api/transactions/date-range?${params.toString()}`
+    );
 
-    // Lấy dữ liệu giao dịch
-    const response = await api.get(endpoint, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
+    const response = await apiClient.get(
+      `/api/transactions/date-range?${params.toString()}`
+    );
     console.log("✅ API transactions response:", response.data);
 
     // Kiểm tra định dạng dữ liệu trả về
-    if (response.data && Array.isArray(response.data.transactions)) {
-      return response.data.transactions;
+    if (response.data && response.data.transactions) {
+      // Phát hiện cấu trúc dữ liệu mới: response.data.transactions là object với key là ngày
+      if (
+        typeof response.data.transactions === "object" &&
+        !Array.isArray(response.data.transactions)
+      ) {
+        // Chuyển đổi từ {date: transaction[]} sang mảng phẳng
+        const flattenedTransactions = [];
+        for (const date in response.data.transactions) {
+          if (
+            Object.prototype.hasOwnProperty.call(
+              response.data.transactions,
+              date
+            )
+          ) {
+            const transactionsForDate = response.data.transactions[date];
+            if (Array.isArray(transactionsForDate)) {
+              flattenedTransactions.push(...transactionsForDate);
+            }
+          }
+        }
+        console.log(
+          `✅ Flattened ${flattenedTransactions.length} transactions from date-grouped format`
+        );
+        return flattenedTransactions;
+      } else if (Array.isArray(response.data.transactions)) {
+        return response.data.transactions;
+      }
     } else if (Array.isArray(response.data)) {
       return response.data;
     } else {
@@ -141,14 +132,8 @@ export const fetchTransactions = async (filter = "monthly") => {
       return [];
     }
   } catch (error: any) {
-    // ✅ Xử lý lỗi
-    if (error instanceof Error) {
-      console.error("🚨 Error fetching transactions:", error.message);
-    } else {
-      console.error("🚨 Unknown error when fetching transactions:", error);
-    }
+    console.error("🚨 Error fetching transactions:", error.message);
 
-    // In thêm thông tin chi tiết của lỗi nếu có
     if (error.response) {
       console.error("🚨 Error details:", {
         status: error.response.status,
@@ -158,42 +143,7 @@ export const fetchTransactions = async (filter = "monthly") => {
       });
     }
 
-    // Return sample data in case of error
-    return [
-      {
-        date: "Today",
-        transactions: [
-          {
-            id: "1",
-            title: "Salary",
-            type: "income",
-            amount: 15000000,
-            date: new Date(),
-            category: "Salary",
-          },
-          {
-            id: "2",
-            title: "Restaurant",
-            type: "expense",
-            amount: 350000,
-            date: new Date(Date.now() - 86400000), // Yesterday
-            category: "Food & Drink",
-          },
-        ],
-      },
-      {
-        date: "Yesterday",
-        transactions: [
-          {
-            id: "3",
-            title: "Transportation",
-            type: "expense",
-            amount: 85000,
-            date: new Date(Date.now() - 86400000 * 2),
-            category: "Transportation",
-          },
-        ],
-      },
-    ];
+    // Trả về mảng rỗng thay vì throw error
+    return [];
   }
 };

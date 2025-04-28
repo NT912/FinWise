@@ -1,4 +1,4 @@
-import api from "./apiService";
+import apiClient from "./apiClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { config } from "../config/config";
@@ -24,48 +24,46 @@ interface AuthResponse {
 }
 
 // Đăng ký tài khoản
-export const register = async (data: RegisterData): Promise<AuthResponse> => {
-  try {
-    const response = await axios.post(
-      `${config.api.baseUrl}/api/auth/register`,
-      data
-    );
-    const { token, user } = response.data;
+export const register = async (
+  email: string,
+  password: string
+): Promise<AuthResponse> => {
+  const response = await apiClient.post("/api/auth/register", {
+    email,
+    password,
+  });
+  const { token, user } = response.data;
 
-    await AsyncStorage.setItem(config.auth.tokenKey, token);
-    await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
+  await AsyncStorage.setItem(config.auth.tokenKey, token);
+  await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
 
-    return response.data;
-  } catch (error) {
-    console.error("Register error:", error);
-    throw error;
-  }
+  return response.data;
 };
 
 // Đăng nhập
 export const login = async (
-  credentials: LoginCredentials
+  email: string,
+  password: string
 ): Promise<AuthResponse> => {
-  try {
-    const response = await axios.post(
-      `${config.api.baseUrl}/api/auth/login`,
-      credentials
-    );
-    const { token, user } = response.data;
+  const response = await apiClient.post("/api/auth/login", { email, password });
+  const { token, user } = response.data;
 
-    await AsyncStorage.setItem(config.auth.tokenKey, token);
-    await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
+  await AsyncStorage.setItem(config.auth.tokenKey, token);
+  await AsyncStorage.setItem(config.auth.userKey, JSON.stringify(user));
+  await AsyncStorage.setItem("userId", user.id);
 
-    return response.data;
-  } catch (error) {
-    console.error("Login error:", error);
-    throw error;
-  }
+  console.log("🔐 Login success - Stored data:", {
+    token: token ? `${token.substring(0, 20)}...` : null,
+    userId: user.id,
+    user: user,
+  });
+
+  return response.data;
 };
 
 // Đăng nhập bằng Google
 export const loginWithGoogle = async (idToken: string) => {
-  const response = await api.post("/api/auth/google", { idToken });
+  const response = await apiClient.post("/api/auth/google", { idToken });
   await AsyncStorage.setItem("token", response.data.token);
   return response.data.token;
 };
@@ -74,7 +72,9 @@ export const loginWithGoogle = async (idToken: string) => {
 export const loginWithFacebook = async (accessToken: string) => {
   try {
     console.log("📤 Gửi token Facebook đến server...");
-    const response = await api.post("/api/auth/facebook", { accessToken });
+    const response = await apiClient.post("/api/auth/facebook", {
+      accessToken,
+    });
 
     if (response.data.token) {
       await AsyncStorage.setItem("token", response.data.token);
@@ -91,88 +91,33 @@ export const loginWithFacebook = async (accessToken: string) => {
 };
 
 // Forgot password - request reset code
-export const forgotPassword = async (email: string) => {
-  try {
-    console.log("📤 Sending forgot password request for:", email);
-    const response = await axios.post(
-      `${config.api.baseUrl}/api/auth/forgot-password`,
-      {
-        email,
-      }
-    );
-    console.log("✅ Forgot password response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error(
-      "❌ Forgot password error:",
-      error.response?.data || error.message
-    );
-    throw new Error(
-      error.response?.data?.message || "Failed to send reset code"
-    );
-  }
+export const forgotPassword = async (email: string): Promise<any> => {
+  const response = await apiClient.post("/api/auth/forgot-password", { email });
+  return response.data;
 };
 
 // Reset password with code
-export const resetPassword = async (email: string, resetCode: string) => {
-  try {
-    console.log("📤 Verifying reset code for:", email);
-    console.log("Reset code:", resetCode);
-
-    const response = await axios.post(
-      `${config.api.baseUrl}/api/auth/verify-reset-code`,
-      {
-        email,
-        resetCode,
-      }
-    );
-
-    console.log("✅ Reset code verification response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    // Trả về response data từ server nếu có
-    if (error.response?.data) {
-      return error.response.data;
-    }
-
-    // Nếu không có response data, throw error
-    throw new Error("Failed to verify code. Please try again.");
-  }
-};
-
-// Update password with new password
-export const updatePassword = async (
+export const resetPassword = async (
   email: string,
-  resetCode: string,
+  code: string,
   newPassword: string
-) => {
-  try {
-    console.log("📤 Updating password for:", email);
-    const response = await axios.post(
-      `${config.api.baseUrl}/api/auth/reset-password`,
-      {
-        email,
-        resetCode,
-        newPassword,
-      }
-    );
-    console.log("✅ Password update response:", response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error(
-      "❌ Password update error:",
-      error.response?.data || error.message
-    );
-    throw new Error(
-      error.response?.data?.message || "Failed to update password"
-    );
-  }
+): Promise<any> => {
+  const response = await apiClient.post("/api/auth/reset-password", {
+    email,
+    code,
+    newPassword,
+  });
+  return response.data;
 };
 
 // Đăng xuất
 export const logout = async (): Promise<void> => {
   try {
-    await AsyncStorage.multiRemove([config.auth.tokenKey, config.auth.userKey]);
+    await AsyncStorage.multiRemove([
+      config.auth.tokenKey,
+      config.auth.userKey,
+      "userId",
+    ]);
   } catch (error) {
     console.error("Logout error:", error);
     throw error;
@@ -201,6 +146,21 @@ export const isAuthenticated = async (): Promise<boolean> => {
   }
 };
 
+export const verifyEmail = async (email: string, code: string) => {
+  const response = await apiClient.post("/api/auth/verify-email", {
+    email,
+    code,
+  });
+  return response.data;
+};
+
+export const resendVerificationCode = async (email: string) => {
+  const response = await apiClient.post("/api/auth/resend-verification", {
+    email,
+  });
+  return response.data;
+};
+
 export default {
   register,
   login,
@@ -209,7 +169,8 @@ export default {
   loginWithFacebook,
   forgotPassword,
   resetPassword,
-  updatePassword,
+  verifyEmail,
+  resendVerificationCode,
   getCurrentUser,
   isAuthenticated,
 };

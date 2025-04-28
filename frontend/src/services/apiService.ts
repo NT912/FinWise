@@ -3,6 +3,17 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform, Alert } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
 import { config } from "../config/config";
+import apiClient from "./apiClient";
+
+// Array of fallback IP addresses to try if main URL fails
+const FALLBACK_IPS = [
+  config.api.baseUrl, // Thử URL từ config trước
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
+  "http://10.0.2.2:3002", // Android emulator default
+  "http://192.168.1.2:3002",
+  "http://172.20.10.2:3002",
+];
 
 // Lưu API URL vào AsyncStorage
 export const saveApiUrl = async (url: string) => {
@@ -42,22 +53,68 @@ const getBaseUrl = async () => {
   return config.api.baseUrl;
 };
 
-// Tạo API client với baseURL mặc định
-const api = axios.create({
-  baseURL: config.api.baseUrl,
-  headers: {
-    "Content-Type": "application/json",
-    Accept: "application/json",
-  },
-  timeout: config.api.timeout,
-});
+// Function to try connecting to all fallback IPs
+const tryFallbackIps = async () => {
+  console.log("🔄 Trying fallback IP addresses...");
+
+  // Check if we need to add the current baseURL to the fallback list
+  if (!FALLBACK_IPS.includes(apiClient.defaults.baseURL as string)) {
+    FALLBACK_IPS.unshift(apiClient.defaults.baseURL as string);
+  }
+
+  for (const ip of FALLBACK_IPS) {
+    console.log(`🔄 Trying IP: ${ip}`);
+    try {
+      const response = await axios.get(`${ip}/api/health`, {
+        timeout: 5000,
+      });
+
+      if (response.status === 200 || response.status === 401) {
+        console.log(`✅ Successfully connected to ${ip}`);
+        apiClient.defaults.baseURL = ip;
+        saveApiUrl(ip);
+        return true;
+      }
+    } catch (error: any) {
+      if (error.response && error.response.status === 401) {
+        console.log(
+          `✅ Successfully connected to ${ip} (401 is ok for health endpoint)`
+        );
+        apiClient.defaults.baseURL = ip;
+        saveApiUrl(ip);
+        return true;
+      }
+      console.log(`❌ Failed to connect to ${ip}: ${error.message}`);
+    }
+  }
+
+  console.error("❌ All fallback IPs failed");
+  return false;
+};
 
 // Khởi tạo API client với URL từ AsyncStorage hoặc giá trị mặc định
 export const initializeApi = async () => {
   try {
     const baseUrl = await getBaseUrl();
-    api.defaults.baseURL = baseUrl;
+    apiClient.defaults.baseURL = baseUrl;
     console.log("🚀 Khởi tạo API client với baseURL:", baseUrl);
+
+    // Test the connection to see if we need to use fallbacks
+    try {
+      await checkServerConnection();
+    } catch (error) {
+      console.log("⚠️ Initial connection failed, trying fallbacks");
+
+      const success = await tryFallbackIps();
+      if (success) {
+        // Cập nhật biến API_URL để đồng bộ với các module khác
+        console.log("✅ Fallback successful, updating API URL");
+
+        // Đảm bảo URL này là URL chung được sử dụng xuyên suốt ứng dụng
+        exports.API_URL = apiClient.defaults.baseURL;
+      }
+    }
+
     return true;
   } catch (error) {
     console.error("❌ Lỗi khởi tạo API client:", error);
@@ -68,20 +125,87 @@ export const initializeApi = async () => {
 // Gọi hàm khởi tạo ngay lập tức
 initializeApi();
 
+// Thêm hàm retry để thử lại request nhiều lần nếu có lỗi kết nối
+export const retryRequest = async (
+  requestFn: () => Promise<any>,
+  maxRetries = 3
+) => {
+  let lastError;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await requestFn();
+    } catch (error: any) {
+      console.log(`🔄 Attempt ${attempt + 1} failed: ${error.message}`);
+      lastError = error;
+
+      // If we've already retried several times, try fallback IPs
+      if (attempt === 1) {
+        console.log("⚠️ Trying fallback IPs after request failure");
+        await tryFallbackIps();
+      }
+
+      // Wait a bit before retry (exponential backoff)
+      await new Promise((resolve) =>
+        setTimeout(resolve, 1000 * Math.pow(2, attempt))
+      );
+    }
+  }
+
+  throw lastError;
+};
+
 // Log mỗi request để debug
-api.interceptors.request.use((request) => {
+apiClient.interceptors.request.use((request) => {
   console.log("🔄 Request:", request.url);
   return request;
 });
 
 // Log mỗi response để debug
-api.interceptors.response.use(
+apiClient.interceptors.response.use(
   (response) => {
     console.log("✅ Response:", response.status, response.config.url);
     return response;
   },
-  (error) => {
+  async (error) => {
     console.log("🚨 API Error:", error.message, error.config?.url);
+
+    // Xử lý lỗi mạng và thử kết nối lại
+    if (error.message === "Network Error" || !error.response) {
+      console.log("⚠️ Lỗi mạng, thử kết nối lại với các IP dự phòng");
+
+      try {
+        // Lưu lại request gốc
+        const originalRequest = error.config;
+
+        // Thử với các IP dự phòng
+        const success = await tryFallbackIps();
+
+        if (success && originalRequest) {
+          // Thử lại request với URL mới
+          console.log(
+            "🔄 Thử lại request với URL mới:",
+            apiClient.defaults.baseURL
+          );
+
+          // Cập nhật cài đặt trong request gốc
+          originalRequest.baseURL = apiClient.defaults.baseURL;
+
+          // Thông báo rõ ràng
+          console.log(
+            `🔄 Thử lại request với URL mới: ${originalRequest.baseURL}${originalRequest.url}`
+          );
+
+          // Thử lại request
+          return axios(originalRequest);
+        } else {
+          console.error("❌ Không tìm thấy URL hoạt động nào!");
+        }
+      } catch (fallbackError) {
+        console.error("❌ Lỗi khi thử kết nối lại:", fallbackError);
+      }
+    }
+
     return Promise.reject(error);
   }
 );
@@ -110,113 +234,46 @@ export const checkCurrentToken = async () => {
 // Kiểm tra kết nối server
 export const checkServerConnection = async () => {
   try {
-    console.log(`🔍 Kiểm tra kết nối đến: ${api.defaults.baseURL}/api/health`);
-    const response = await axios.get(`${api.defaults.baseURL}/api/health`, {
-      timeout: 10000,
-      headers: {
-        // Không gửi token cho health check
-        Authorization: undefined,
-      },
-    });
+    console.log(
+      `🔍 Kiểm tra kết nối đến: ${apiClient.defaults.baseURL}/api/health`
+    );
+    const response = await axios.get(
+      `${apiClient.defaults.baseURL}/api/health`,
+      {
+        timeout: 5000, // Reduced timeout for faster feedback
+      }
+    );
     console.log(`✅ Kết nối thành công, status: ${response.status}`);
-    return response.status === 200;
+    return true;
   } catch (error: any) {
+    console.error(
+      `❌ Lỗi kết nối đến ${apiClient.defaults.baseURL}:`,
+      error.message
+    );
+
     if (error.response) {
       // Server trả về response với status code không phải 2xx
-      console.error(
-        `❌ Lỗi kết nối server: Server trả về status ${error.response.status}`
-      );
-      console.error(`📄 Response data:`, error.response.data);
+      console.log(`⚠️ Server response: ${error.response.status}`);
 
       // Nếu server trả về 401, vẫn coi là kết nối thành công vì endpoint health không yêu cầu token
       if (error.response.status === 401) {
         console.log(`⚠️ Server yêu cầu xác thực, nhưng kết nối cơ bản là OK`);
         return true;
       }
-    } else if (error.request) {
-      // Request được gửi nhưng không nhận được response
-      console.error(`❌ Lỗi kết nối server: Không nhận được response`);
-
-      // Thử kết nối đến IP 192.168.1.8:3002 nếu đang dùng localhost hoặc 127.0.0.1
-      if (
-        api.defaults.baseURL &&
-        (api.defaults.baseURL.includes("localhost") ||
-          api.defaults.baseURL.includes("127.0.0.1"))
-      ) {
-        const alternativeUrl = "http://192.168.1.8:3002";
-        console.log(`🔄 Thử tự động chuyển sang ${alternativeUrl}`);
-
-        try {
-          const altResponse = await axios.get(`${alternativeUrl}/api/health`, {
-            timeout: 10000,
-            headers: {
-              // Không gửi token cho health check
-              Authorization: undefined,
-            },
-          });
-
-          if (altResponse.status === 200) {
-            api.defaults.baseURL = alternativeUrl;
-            console.log(`✅ Tự động cập nhật URL thành: ${alternativeUrl}`);
-            return true;
-          }
-        } catch (altError: any) {
-          if (altError.response && altError.response.status === 401) {
-            api.defaults.baseURL = alternativeUrl;
-            console.log(`✅ Tự động cập nhật URL thành: ${alternativeUrl}`);
-            return true;
-          }
-        }
-      }
-    } else {
-      // Có lỗi khi thiết lập request
-      console.error(`❌ Lỗi thiết lập request:`, error.message);
     }
-    return false;
-  }
-};
 
-// Cập nhật API URL
-export const updateApiUrl = async (newUrl: string) => {
-  try {
-    console.log(`🔄 Đang thử kết nối đến URL mới: ${newUrl}/api/health`);
-    const response = await axios.get(`${newUrl}/api/health`, {
-      timeout: 10000,
-    });
-    if (response.status === 200) {
-      api.defaults.baseURL = newUrl;
-      console.log("✅ Đã cập nhật API URL:", newUrl);
-      return true;
+    // Nếu là lỗi mạng, thử lại với các IP dự phòng
+    if (error.message === "Network Error" || error.code === "ECONNREFUSED") {
+      console.log("⚠️ Lỗi kết nối mạng, thử các IP dự phòng");
+      return await tryFallbackIps();
     }
-    return false;
-  } catch (error: any) {
-    if (error.response) {
-      // Server trả về response với status code không phải 2xx
-      console.error(
-        `❌ Lỗi cập nhật API URL: Server trả về status ${error.response.status}`
-      );
-      console.error(`📄 Response data:`, error.response.data);
-      // Nếu server trả về 401 Unauthorized, chúng ta vẫn coi là kết nối thành công
-      if (error.response.status === 401) {
-        console.log(`⚠️ Server yêu cầu xác thực, nhưng kết nối cơ bản là OK`);
-        api.defaults.baseURL = newUrl;
-        console.log("✅ Đã cập nhật API URL:", newUrl);
-        return true;
-      }
-    } else if (error.request) {
-      // Request được gửi nhưng không nhận được response
-      console.error(`❌ Lỗi cập nhật API URL: Không nhận được response`);
-      console.error(`🔄 Request:`, error.request);
-    } else {
-      // Có lỗi khi thiết lập request
-      console.error(`❌ Lỗi thiết lập request:`, error.message);
-    }
+
     return false;
   }
 };
 
 // Interceptor request
-api.interceptors.request.use(
+apiClient.interceptors.request.use(
   async (config) => {
     try {
       const netInfo = await NetInfo.fetch();
@@ -229,90 +286,16 @@ api.interceptors.request.use(
       // Nếu có token, thêm vào header
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
-      } else {
-        // Danh sách các endpoint không yêu cầu token
-        const publicEndpoints = [
-          "/api/health",
-          "/api/auth/login",
-          "/api/auth/register",
-          "/api/auth/forgot-password",
-          "/api/auth/reset-password",
-          "/api/auth/google",
-          "/api/auth/facebook",
-        ];
-
-        // Kiểm tra xem endpoint hiện tại có trong danh sách public không
-        const isPublicEndpoint = publicEndpoints.some(
-          (endpoint) => config.url && config.url.includes(endpoint)
-        );
-
-        // Nếu không phải endpoint public và không có token
-        if (!isPublicEndpoint) {
-          console.log("⚠️ Yêu cầu token cho endpoint:", config.url);
-          // Lưu lại URL để chuyển hướng sau khi đăng nhập
-          await AsyncStorage.setItem("lastRequestUrl", config.url || "");
-
-          // Không throw error ở đây để tiếp tục request và handle lỗi 401 trong response interceptor
-        }
       }
-
-      return config;
     } catch (error) {
-      return Promise.reject(error);
+      console.error("❌ Lỗi trong interceptor request:", error);
     }
+
+    return config;
   },
   (error) => {
-    console.error("❌ Lỗi request:", error);
     return Promise.reject(error);
   }
 );
 
-// Interceptor response
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error) => {
-    if (!error.response) {
-      console.error("🚨 Network Error:", error.message);
-      const netInfo = await NetInfo.fetch();
-      if (!netInfo.isConnected) {
-        throw new Error("Không có kết nối internet");
-      }
-      throw new Error("Không thể kết nối đến máy chủ");
-    }
-
-    if (error.response.status === 401) {
-      console.log("🔑 Lỗi xác thực 401, xóa token hiện tại");
-
-      // Chỉ xóa token nếu error không phải từ các endpoint xác thực
-      const authEndpoints = [
-        "/api/auth/login",
-        "/api/auth/register",
-        "/api/auth/forgot-password",
-      ];
-      const isAuthEndpoint = authEndpoints.some(
-        (endpoint) =>
-          error.config &&
-          error.config.url &&
-          error.config.url.includes(endpoint)
-      );
-
-      if (!isAuthEndpoint) {
-        await AsyncStorage.removeItem("token");
-
-        // Lưu lại URL hiện tại để có thể chuyển hướng sau khi đăng nhập lại
-        if (error.config && error.config.url) {
-          await AsyncStorage.setItem("lastRequestUrl", error.config.url);
-        }
-      }
-
-      // Chỉ log lỗi thay vì throw error
-      console.error("Phiên đăng nhập hết hạn hoặc không hợp lệ");
-    }
-
-    return Promise.reject(error);
-  }
-);
-
-export default api;
+export default apiClient;

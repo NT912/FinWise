@@ -1,329 +1,207 @@
-import api from "./apiService";
-import { Transaction } from "../types";
+import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { config } from "../config/config";
+import { API_URL } from "../config/config";
 
-const API_URL = config.api.baseUrl;
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 500; // ms
+// Transaction Interface
+export interface Transaction {
+  _id: string;
+  title: string;
+  amount: number;
+  date: string;
+  category:
+    | string
+    | {
+        _id: string;
+        name: string;
+        icon: string;
+        color: string;
+        type: string;
+      };
+  type: "income" | "expense";
+  note?: string;
+  userId: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
-/**
- * Fetch all transactions for the current user
- * @returns Array of transactions
- */
-export const getAllTransactions = async (): Promise<Transaction[]> => {
+// Lấy tất cả giao dịch với bộ lọc thời gian
+export const fetchTransactions = async (timeFilter = "monthly") => {
   try {
-    console.log("🔄 Đang lấy tất cả giao dịch...");
-    const response = await api.get("/api/transactions");
-    console.log(`✅ Đã lấy ${response.data.length || 0} giao dịch`);
-    return response.data;
-  } catch (error) {
-    console.error("❌ Lỗi khi lấy giao dịch:", error);
-    throw error;
-  }
-};
-
-/**
- * Fetch transactions for a specific category
- * @param categoryId The ID of the category
- * @returns Array of transactions for the category
- */
-export const getTransactionsByCategory = async (
-  categoryId: string
-): Promise<Transaction[]> => {
-  try {
-    console.log(`🔄 Đang lấy giao dịch cho danh mục: ${categoryId}`);
-    const response = await api.get(`/api/transactions/category/${categoryId}`);
-    console.log(
-      `✅ Đã lấy ${response.data.length || 0} giao dịch cho danh mục`
-    );
-    return response.data;
-  } catch (error) {
-    console.error(
-      `❌ Lỗi khi lấy giao dịch theo danh mục ${categoryId}:`,
-      error
-    );
-    throw error;
-  }
-};
-
-/**
- * Fetch a specific transaction by ID
- * @param transactionId The ID of the transaction
- * @returns Transaction details
- */
-export const getTransactionById = async (
-  transactionId: string
-): Promise<Transaction> => {
-  try {
-    console.log(`🔄 Đang lấy chi tiết giao dịch: ${transactionId}`);
-    const response = await api.get(`/api/transactions/${transactionId}`);
-    console.log(`✅ Đã lấy chi tiết giao dịch: ${transactionId}`);
-    return response.data;
-  } catch (error) {
-    console.error(`❌ Lỗi khi lấy chi tiết giao dịch ${transactionId}:`, error);
-    throw error;
-  }
-};
-
-// Helper function to wait for a specified time
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-// Function to create a new transaction with retry mechanism
-export const createTransaction = async (transactionData: any): Promise<any> => {
-  let retries = 0;
-
-  while (retries < MAX_RETRIES) {
-    try {
-      const token = await AsyncStorage.getItem("token");
-
-      console.log("🔄 Đang tạo giao dịch mới...", transactionData);
-      console.log("🔄 Request: /api/transactions");
-
-      const response = await api.post("/api/transactions", transactionData, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      console.log("✅ Đã tạo giao dịch mới:", response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error("❌ Lỗi khi tạo giao dịch:", error);
-
-      // Check if it's a WriteConflict error
-      if (
-        error.response?.status === 500 &&
-        (error.response?.data?.retryable ||
-          (error.response?.data?.error &&
-            error.response?.data?.error.includes("WriteConflict")))
-      ) {
-        retries++;
-        console.log(
-          `⚠️ Lỗi WriteConflict, thử lại lần ${retries}/${MAX_RETRIES}`
-        );
-
-        if (retries < MAX_RETRIES) {
-          // Wait a bit before retrying (exponential backoff)
-          const delay = RETRY_DELAY * Math.pow(2, retries - 1);
-          await wait(delay);
-          continue;
-        }
-      }
-
-      // If it's not a WriteConflict error or we've reached max retries, throw the error
-      throw error;
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
     }
-  }
 
-  throw new Error("Exceeded maximum retry attempts");
+    const response = await axios.get(
+      `${API_URL}/api/transactions?timeFilter=${timeFilter}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    return Array.isArray(response.data)
+      ? response.data
+      : response.data.transactions || [];
+  } catch (error) {
+    console.error("Error fetching transactions:", error);
+    return [];
+  }
 };
 
-/**
- * Update an existing transaction
- * @param transactionId The ID of the transaction to update
- * @param transactionData The updated data
- * @returns Updated transaction
- */
+// Lấy chi tiết một giao dịch
+export const getTransactionById = async (transactionId: string) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    const response = await axios.get(
+      `${API_URL}/api/transactions/${transactionId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching transaction ${transactionId}:`, error);
+    throw error;
+  }
+};
+
+// Tạo một giao dịch mới
+export const createTransaction = async (transactionData: any) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    const response = await axios.post(
+      `${API_URL}/api/transactions`,
+      transactionData,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error creating transaction:", error);
+    throw error;
+  }
+};
+
+// Cập nhật một giao dịch
 export const updateTransaction = async (
   transactionId: string,
-  transactionData: Partial<Transaction>
-): Promise<Transaction> => {
-  let retries = 0;
-
-  while (retries < MAX_RETRIES) {
-    try {
-      console.log(`🔄 Đang cập nhật giao dịch: ${transactionId}`);
-      console.log(
-        "📦 Dữ liệu gửi đi:",
-        JSON.stringify(transactionData, null, 2)
-      );
-
-      const response = await api.put(
-        `/api/transactions/${transactionId}`,
-        transactionData
-      );
-
-      // Xử lý phản hồi có thể cấu trúc khác nhau
-      const result = response.data.transaction || response.data;
-      console.log(`✅ Đã cập nhật giao dịch: ${transactionId}`);
-      return result;
-    } catch (error: any) {
-      console.error(`❌ Lỗi khi cập nhật giao dịch ${transactionId}:`, error);
-
-      // Check if it's a WriteConflict error or other server error that might be resolved with a retry
-      if (
-        error.response?.status === 500 ||
-        (error.response?.data?.message &&
-          (error.response?.data?.message.includes("WriteConflict") ||
-            error.response?.data?.message.includes("CastError")))
-      ) {
-        retries++;
-        console.log(`⚠️ Lỗi server, thử lại lần ${retries}/${MAX_RETRIES}`);
-
-        if (retries < MAX_RETRIES) {
-          // Wait before retrying (exponential backoff)
-          const delay = RETRY_DELAY * Math.pow(2, retries - 1);
-          await wait(delay);
-          continue;
-        }
-      }
-
-      // If it's not a retryable error or we've reached max retries, throw the error
-      throw error;
-    }
-  }
-
-  throw new Error("Exceeded maximum retry attempts");
-};
-
-/**
- * Delete a transaction
- * @param transactionId The ID of the transaction to delete
- * @returns Success message
- */
-export const deleteTransaction = async (
-  transactionId: string
-): Promise<{ success: boolean; message: string }> => {
-  let retryCount = 0;
-  const maxRetries = 5; // Tăng số lần thử
-
-  const performDelete = async (): Promise<{
-    success: boolean;
-    message: string;
-  }> => {
-    try {
-      // Thêm timeout dài hơn
-      const timeout = 15000; // 15 seconds
-
-      console.log(
-        `🔄 Đang xóa giao dịch: ${transactionId} (Lần thử ${retryCount + 1}/${
-          maxRetries + 1
-        })`
-      );
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-      try {
-        const response = await api.delete(
-          `/api/transactions/${transactionId}`,
-          {
-            signal: controller.signal,
-          }
-        );
-        clearTimeout(timeoutId);
-
-        console.log(`✅ Đã xóa giao dịch: ${transactionId}`);
-
-        // Trả về kết quả từ server nếu có
-        if (response.data && typeof response.data === "object") {
-          return response.data;
-        }
-
-        // Nếu server không trả về đúng định dạng, tạo một response chuẩn
-        return { success: true, message: "Transaction deleted successfully" };
-      } catch (e) {
-        clearTimeout(timeoutId);
-        throw e; // Re-throw để xử lý ở catch bên ngoài
-      }
-    } catch (error: any) {
-      // Chỉ ghi log lỗi ở lần cuối hoặc khi cần debug
-      if (retryCount === maxRetries) {
-        console.error(`❌ Lỗi khi xóa giao dịch ${transactionId}:`, error);
-      }
-
-      // Xử lý response lỗi từ server
-      if (error.response && error.response.data) {
-        // Giảm số lượng log
-        if (retryCount === maxRetries) {
-          console.error("Server error response:", error.response.data);
-        }
-
-        // Kiểm tra xem có phải lỗi xung đột ghi không
-        const errorMessage = error.response.data.message || "";
-        if (
-          (errorMessage.includes("Write conflict") ||
-            errorMessage.includes("Caused by") ||
-            error.response.status === 500) &&
-          retryCount < maxRetries
-        ) {
-          retryCount++;
-          // Đợi một khoảng thời gian dài hơn trước khi thử lại
-          const delay = Math.floor(Math.random() * 2000) + 1000; // 1000-3000ms
-          console.log(
-            `⚠️ Xung đột khi lưu, thử lại lần ${retryCount} sau ${delay}ms...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return performDelete(); // Thử lại
-        }
-
-        throw new Error(errorMessage || "Failed to delete transaction");
-      }
-
-      // Xử lý timeout
-      if (error.name === "AbortError") {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          console.log(`⏱️ Hết thời gian chờ, thử lại lần ${retryCount}...`);
-          return performDelete(); // Thử lại
-        }
-        throw new Error("Connection timeout. Please try again later.");
-      }
-
-      // Xử lý lỗi network hoặc không có response
-      if (error.request) {
-        if (retryCount < maxRetries) {
-          retryCount++;
-          const delay = Math.floor(Math.random() * 1000) + 500;
-          console.log(
-            `🔄 Lỗi kết nối, thử lại lần ${retryCount} sau ${delay}ms...`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-          return performDelete(); // Thử lại
-        }
-        throw new Error(
-          "Network error. Please check your connection and try again."
-        );
-      }
-
-      throw new Error(error.message || "Failed to delete transaction");
-    }
-  };
-
-  return performDelete();
-};
-
-/**
- * Get transactions by date range
- * @param startDate Start date (ISO string)
- * @param endDate End date (ISO string)
- * @returns Array of transactions within the date range
- */
-export const getTransactionsByDateRange = async (
-  startDate: string,
-  endDate: string
-): Promise<Transaction[]> => {
+  transactionData: any
+) => {
   try {
-    console.log(`🔄 Đang lấy giao dịch từ ${startDate} đến ${endDate}`);
-    const response = await api.get("/api/transactions/date-range", {
-      params: { startDate, endDate },
-    });
-    console.log(
-      `✅ Đã lấy ${response.data.length || 0} giao dịch theo khoảng thời gian`
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    const response = await axios.put(
+      `${API_URL}/api/transactions/${transactionId}`,
+      transactionData,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
     );
+
     return response.data;
   } catch (error) {
-    console.error("❌ Lỗi khi lấy giao dịch theo khoảng thời gian:", error);
+    console.error(`Error updating transaction ${transactionId}:`, error);
     throw error;
   }
 };
 
-export default {
-  getAllTransactions,
-  getTransactionsByCategory,
-  getTransactionsByDateRange,
-  createTransaction,
-  updateTransaction,
-  deleteTransaction,
-  getTransactionById,
+// Xóa một giao dịch
+export const deleteTransaction = async (transactionId: string) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    const response = await axios.delete(
+      `${API_URL}/api/transactions/${transactionId}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(`Error deleting transaction ${transactionId}:`, error);
+    throw error;
+  }
+};
+
+// Lấy thống kê cho biểu đồ
+export const getTransactionStats = async (period = "monthly") => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    const response = await axios.get(
+      `${API_URL}/api/transactions/stats?period=${period}`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching transaction stats:", error);
+    return {
+      totalIncome: 0,
+      totalExpense: 0,
+      balance: 0,
+      categories: [],
+    };
+  }
+};
+
+// Lấy báo cáo chi tiết cho màn hình báo cáo
+export const fetchMonthlyReport = async (
+  period: string = "monthly",
+  walletId?: string
+) => {
+  try {
+    const token = await AsyncStorage.getItem("token");
+    if (!token) {
+      throw new Error("No authentication token found");
+    }
+
+    let url = `${API_URL}/api/transactions/report?period=${period}`;
+    if (walletId && walletId !== "all") {
+      url += `&walletId=${walletId}`;
+    }
+
+    const response = await axios.get(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching monthly report:", error);
+    return {
+      summary: {
+        totalIncome: 0,
+        totalExpense: 0,
+        balance: 0,
+      },
+      periods: [],
+      categories: {
+        income: [],
+        expense: [],
+      },
+    };
+  }
 };

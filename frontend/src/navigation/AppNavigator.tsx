@@ -12,7 +12,7 @@ import ForgotPasswordScreen from "../screens/Auth/ForgotPasswordScreen";
 import SecurityPinScreen from "../screens/Auth/SecurityPinScreen";
 import ResetPasswordScreen from "../screens/Auth/ResetPasswordScreen";
 import HomeScreen from "../screens/Home/HomeScreen";
-import CategoryScreen from "../screens/Category/CategoryScreen";
+import TransactionScreen from "../screens/Transaction/TransactionScreen";
 import ChartsScreen from "../screens/ChartsScreen";
 import ProfileScreen from "../screens/Profile/ProfileScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
@@ -26,97 +26,31 @@ import DeleteAccountScreen from "../screens/Profile/DeleteAccountScreen";
 import TermsAndConditionsScreen from "../screens/Profile/TermsAndConditionsScreen";
 import LogoutScreen from "../screens/Profile/LogoutScreen";
 import ChangePasswordScreen from "../screens/Profile/ChangePasswordScreen";
-import CategoryDetailScreen from "../screens/Category/CategoryDetailScreen";
 import AddTransactionScreen from "../screens/Transaction/AddTransactionScreen";
 import EditTransactionScreen from "../screens/Transaction/EditTransactionScreen";
+import WalletScreen from "../screens/Wallet/WalletScreen";
+import SelectWalletScreen from "../screens/Wallet/SelectWalletScreen";
+import SelectCategoryScreen from "../screens/Category/SelectCategoryScreen";
 import { User } from "../types";
 import CustomTabBar from "../components/CustomTabBar";
 import ChangePinScreen from "../screens/Security/ChangePinScreen";
 import SavingScreen from "../screens/Saving/SavingScreen";
-
-export type RootStackParamList = {
-  Launch: undefined;
-  Login: undefined;
-  Register: undefined;
-  Onboarding: undefined;
-  TabNavigator: undefined;
-  Categories: undefined;
-  Settings: undefined;
-  Notifications: undefined;
-  NotificationScreen: undefined;
-  ForgotPassword: undefined;
-  SecurityPin: { email: string };
-  ResetPassword: { email: string; resetCode: string };
-  PrivacyPolicyScreen: undefined;
-  SettingsScreen: undefined;
-  EditProfile: { user: User };
-  SecurityScreen: undefined;
-  NotificationSettingsScreen: undefined;
-  HelpScreen: undefined;
-  LogoutScreen: undefined;
-  DeleteAccountScreen: undefined;
-  TermsAndConditionsScreen: undefined;
-  ChangePasswordScreen: undefined;
-  Security: undefined;
-  ChangePin: undefined;
-  TermsAndConditions: undefined;
-  TermsOfUse: undefined;
-  PrivacyPolicy: undefined;
-};
-
-export type HomeStackParamList = {
-  Home: undefined;
-  AddTransaction:
-    | {
-        preSelectedCategory?: string;
-        type?: "expense" | "income";
-      }
-    | undefined;
-  EditTransaction: {
-    transactionId: string;
-  };
-  NotificationScreen: undefined;
-};
-
-export type CategoryStackParamList = {
-  Category: undefined;
-  CategoryDetail: {
-    categoryId: string;
-    categoryName: string;
-    categoryIcon: string;
-    categoryColor: string;
-  };
-  AddTransaction:
-    | {
-        preSelectedCategory?: string;
-        type?: "expense" | "income";
-      }
-    | undefined;
-  EditTransaction: {
-    transactionId: string;
-  };
-};
-
-export type ChartsStackParamList = {
-  Charts: undefined;
-};
-
-export type ProfileStackParamList = {
-  Profile: undefined;
-  Settings: undefined;
-  EditProfile: { user: User };
-  Security: undefined;
-  NotificationSettings: undefined;
-  Help: undefined;
-  Terms: undefined;
-  ChangePassword: undefined;
-  DeleteAccount: undefined;
-  Logout: undefined;
-};
-
-export type SavingStackParamList = {
-  Saving: undefined;
-};
+import CreateWalletScreen from "../screens/Wallet/CreateWalletScreen";
+import EditWalletScreen from "../screens/Wallet/EditWalletScreen";
+import IncomeExpenseReportScreen from "../screens/Reports/IncomeExpenseReportScreen";
+import BudgetScreen from "../screens/Budget/BudgetScreen";
+import { colors } from "../theme";
+import {
+  RootStackParamList,
+  HomeStackParamList,
+  ProfileStackParamList,
+  SavingStackParamList,
+  TransactionStackParamList,
+  ChartsStackParamList,
+  TabParamList,
+} from "./types";
+import CreateCategoryScreen from "../screens/Category/CreateCategoryScreen";
+import AddNoteScreen from "../screens/Transaction/AddNoteScreen";
 
 interface AppNavigatorProps {
   initialAuthenticated?: boolean;
@@ -126,7 +60,7 @@ interface AppNavigatorProps {
 
 const Stack = createStackNavigator<RootStackParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
-const CategoryStack = createStackNavigator<CategoryStackParamList>();
+const TransactionStack = createStackNavigator<TransactionStackParamList>();
 const ChartsStack = createStackNavigator<ChartsStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 const SavingStack = createStackNavigator<SavingStackParamList>();
@@ -141,26 +75,28 @@ const HomeStackNavigator = () => (
       name="EditTransaction"
       component={EditTransactionScreen}
     />
+    <HomeStack.Screen name="WalletScreen" component={WalletScreen} />
+    <HomeStack.Screen
+      name="CreateWalletScreen"
+      component={CreateWalletScreen}
+    />
+    <HomeStack.Screen name="EditWalletScreen" component={EditWalletScreen} />
   </HomeStack.Navigator>
 );
 
-// Category Stack
-const CategoryStackNavigator = () => (
-  <CategoryStack.Navigator screenOptions={{ headerShown: false }}>
-    <CategoryStack.Screen name="Category" component={CategoryScreen} />
-    <CategoryStack.Screen
-      name="CategoryDetail"
-      component={CategoryDetailScreen}
-    />
-    <CategoryStack.Screen
+// Replace CategoryStack with TransactionStack
+const TransactionStackNavigator = () => (
+  <TransactionStack.Navigator screenOptions={{ headerShown: false }}>
+    <TransactionStack.Screen name="Transaction" component={TransactionScreen} />
+    <TransactionStack.Screen
       name="AddTransaction"
       component={AddTransactionScreen}
     />
-    <CategoryStack.Screen
+    <TransactionStack.Screen
       name="EditTransaction"
       component={EditTransactionScreen}
     />
-  </CategoryStack.Navigator>
+  </TransactionStack.Navigator>
 );
 
 // Charts Stack
@@ -200,19 +136,108 @@ const ProfileStackNavigator = () => (
 );
 
 // Tab Navigator - This is where our TabBar lives
-const TabNavigator = () => (
-  <Tab.Navigator
-    screenOptions={{
-      headerShown: false,
-    }}
-    tabBar={(props) => <CustomTabBar {...props} />}
-  >
-    <Tab.Screen name="HomeTab" component={HomeStackNavigator} />
-    <Tab.Screen name="CategoryTab" component={CategoryStackNavigator} />
-    <Tab.Screen name="SavingTab" component={SavingStackNavigator} />
-    <Tab.Screen name="ProfileTab" component={ProfileStackNavigator} />
-  </Tab.Navigator>
-);
+const TabNavigator = () => {
+  return (
+    <Tab.Navigator
+      tabBar={(props) => <CustomTabBar {...props} />}
+      screenOptions={{
+        headerShown: false,
+        tabBarShowLabel: true,
+        tabBarStyle: {
+          position: "absolute",
+          bottom: 20,
+          left: 20,
+          right: 20,
+          elevation: 0,
+          backgroundColor: "#ffffff",
+          borderRadius: 15,
+          height: 70,
+          paddingBottom: 10,
+          shadowColor: "#000",
+          shadowOffset: {
+            width: 0,
+            height: 2,
+          },
+          shadowOpacity: 0.25,
+          shadowRadius: 3.84,
+        },
+      }}
+    >
+      <Tab.Screen
+        name="HomeTab"
+        component={HomeStackNavigator}
+        options={{
+          tabBarLabel: "Home",
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "home" : "home-outline"}
+                size={24}
+                color={focused ? colors.primary : colors.textSecondary}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="TransactionTab"
+        component={TransactionStackNavigator}
+        options={{
+          tabBarLabel: "Transactions",
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "wallet" : "wallet-outline"}
+                size={24}
+                color={focused ? colors.primary : colors.textSecondary}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ChartsTab"
+        component={ChartsStackNavigator}
+        options={{
+          tabBarLabel: "Charts",
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "bar-chart" : "bar-chart-outline"}
+                size={24}
+                color={focused ? colors.primary : colors.textSecondary}
+              />
+            </View>
+          ),
+        }}
+      />
+      <Tab.Screen
+        name="ProfileTab"
+        component={ProfileStackNavigator}
+        options={{
+          tabBarLabel: "Profile",
+          tabBarIcon: ({ focused }) => (
+            <View style={styles.tabIconContainer}>
+              <Ionicons
+                name={focused ? "person" : "person-outline"}
+                size={24}
+                color={focused ? colors.primary : colors.textSecondary}
+              />
+            </View>
+          ),
+        }}
+      />
+    </Tab.Navigator>
+  );
+};
+
+const styles = StyleSheet.create({
+  tabIconContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    top: 10,
+  },
+});
 
 export default function AppNavigator({
   initialAuthenticated = false,
@@ -325,6 +350,90 @@ export default function AppNavigator({
         component={NotificationScreen}
         options={{ headerShown: false }}
       />
+      <Stack.Screen
+        name="WalletScreen"
+        component={WalletScreen}
+        options={{
+          headerShown: false,
+          cardStyleInterpolator: ({ current, layouts }) => {
+            return {
+              cardStyle: {
+                transform: [
+                  {
+                    translateX: current.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [layouts.screen.width, 0],
+                    }),
+                  },
+                ],
+              },
+            };
+          },
+        }}
+      />
+      <Stack.Screen
+        name="CreateWalletScreen"
+        component={CreateWalletScreen}
+        options={{
+          headerShown: false,
+          cardStyleInterpolator: ({ current, layouts }) => {
+            return {
+              cardStyle: {
+                transform: [
+                  {
+                    translateX: current.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [layouts.screen.width, 0],
+                    }),
+                  },
+                ],
+              },
+            };
+          },
+        }}
+      />
+      <Stack.Screen
+        name="EditWalletScreen"
+        component={EditWalletScreen}
+        options={{
+          headerShown: false,
+          cardStyleInterpolator: ({ current, layouts }) => {
+            return {
+              cardStyle: {
+                transform: [
+                  {
+                    translateX: current.progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [layouts.screen.width, 0],
+                    }),
+                  },
+                ],
+              },
+            };
+          },
+        }}
+      />
+      <Stack.Screen
+        name="IncomeExpenseReportScreen"
+        component={IncomeExpenseReportScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SelectWallet"
+        component={SelectWalletScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="SelectCategory"
+        component={SelectCategoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="CreateCategory"
+        component={CreateCategoryScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen name="AddNote" component={AddNoteScreen} />
     </Stack.Navigator>
   );
 }
