@@ -22,6 +22,7 @@ lerna-debug.log*
 .env.test
 .env.production
 .env*.local
+.env.backup
 
 # Database files
 *.sqlite
