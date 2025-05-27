@@ -1,15 +1,17 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "module": "CommonJS",
+    "target": "es6",
+    "module": "commonjs",
     "outDir": "./dist",
-    "types": ["node", "nodemailer"],
     "rootDir": "./src",
     "strict": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true,
     "typeRoots": ["./node_modules/@types", "./src/types"]
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }

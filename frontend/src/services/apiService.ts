@@ -49,7 +49,16 @@ const getBaseUrl = async () => {
     return storedUrl;
   }
 
-  // Nếu không có URL đã lưu, sử dụng config mặc định
+  // Nếu không có URL đã lưu, xác định dựa trên platform
+  if (Platform.OS === "android") {
+    if (Platform.constants.Release === null) {
+      // Android Emulator
+      return "http://10.0.2.2:3002";
+    }
+    // Android Device
+    return config.api.baseUrl;
+  }
+  // iOS hoặc platform khác
   return config.api.baseUrl;
 };
 

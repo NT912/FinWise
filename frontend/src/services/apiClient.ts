@@ -43,6 +43,12 @@ const saveApiUrl = async (url: string) => {
 
 // Đồng bộ với cấu hình từ apiService để đảm bảo tất cả các gọi API đều sử dụng cùng URL base
 const getApiUrl = () => {
+  // Ưu tiên sử dụng biến môi trường API_URL nếu có
+  if (process.env.API_URL) {
+    console.log("🔍 Sử dụng API_URL từ .env:", process.env.API_URL);
+    return process.env.API_URL;
+  }
+
   // Sử dụng URL từ config hoặc dùng URL fallback nếu không có
   const url = config.api.baseUrl || "http://192.168.2.2:3002";
   console.log("🔍 API URL from config:", url);

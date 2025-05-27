@@ -11,7 +11,7 @@ import userRoutes from "./routes/userRoutes";
 import walletRoutes from "./routes/walletRoutes";
 import transactionRoutes from "./routes/new-routes/transactionRoutes";
 import categoryRoutes from "./routes/new-routes/categoryRoutes";
-import { specs, swaggerUi } from "./config/swagger";
+import { specs, swaggerUi, setupSwagger } from "./config/swagger";
 import { errorHandler } from "./middleware/errorHandler";
 
 dotenv.config();
@@ -81,19 +81,7 @@ app.use(cors(corsOptions));
 app.use("/uploads", express.static(path.join(__dirname, "../uploads")));
 
 // Cấu hình Swagger
-app.use(
-  "/api-docs",
-  swaggerUi.serve,
-  swaggerUi.setup(specs, {
-    explorer: true,
-    swaggerOptions: {
-      validatorUrl: null,
-      withCredentials: true,
-      displayRequestDuration: true,
-      filter: true,
-    },
-  })
-);
+setupSwagger(app);
 
 // Public routes - không yêu cầu xác thực
 app.get("/api/health", (req, res) => {
@@ -137,30 +125,4 @@ connectDB()
 // Xử lý graceful shutdown
 process.on("SIGTERM", () => {
   console.log("📢 Nhận tín hiệu SIGTERM - Chuẩn bị tắt server...");
-  // ... existing shutdown logic ...
 });
-
-// Thêm middleware để set header CORS trước khi định nghĩa routes
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, DELETE, OPTIONS, PATCH"
-  );
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization"
-  );
-  next();
-});
-
-// Middleware
-app.use(
-  cors({
-    origin: "*", // Cho phép tất cả các origin trong môi trường development
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: true,
-    exposedHeaders: ["Content-Range", "X-Content-Range"],
-  })
-);

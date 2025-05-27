@@ -18,8 +18,13 @@ const connectDB = async () => {
       throw new Error("MongoDB URI is not defined in environment variables");
     }
 
+    // Thêm tên database vào URI nếu chưa có
+    const uriWithDB = mongoURI.includes("finance_manager_db")
+      ? mongoURI
+      : `${mongoURI.split("?")[0]}finance_manager_db?${mongoURI.split("?")[1]}`;
+
     console.log("Đang kết nối tới MongoDB...");
-    const conn = await mongoose.connect(mongoURI);
+    const conn = await mongoose.connect(uriWithDB);
 
     isConnected = true;
     console.log(`MongoDB Connected: ${conn.connection.host}`);
