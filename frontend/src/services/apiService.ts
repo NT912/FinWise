@@ -11,8 +11,7 @@ const FALLBACK_IPS = [
   "http://localhost:3002",
   "http://127.0.0.1:3002",
   "http://10.0.2.2:3002", // Android emulator default
-  "http://192.168.1.2:3002",
-  "http://172.20.10.2:3002",
+  "http://192.168.2.5:3002",
 ];
 
 // Lưu API URL vào AsyncStorage

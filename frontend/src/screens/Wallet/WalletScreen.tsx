@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   BackHandler,
   Dimensions,
+  Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -163,15 +164,20 @@ const WalletScreen = () => {
   // Handle the hardware back button
   useFocusEffect(
     useCallback(() => {
-      const onBackPress = () => {
-        handleClose();
-        return true; // Prevent default behavior
-      };
+      if (Platform.OS === "android") {
+        const onBackPress = () => {
+          handleClose();
+          return true; // Prevent default behavior
+        };
 
-      BackHandler.addEventListener("hardwareBackPress", onBackPress);
+        const subscription = BackHandler.addEventListener(
+          "hardwareBackPress",
+          onBackPress
+        );
 
-      return () =>
-        BackHandler.removeEventListener("hardwareBackPress", onBackPress);
+        return () => subscription.remove();
+      }
+      return undefined;
     }, [navigation])
   );
 

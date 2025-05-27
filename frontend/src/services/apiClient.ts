@@ -2,16 +2,17 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NetInfo from "@react-native-community/netinfo";
 import { config } from "../config/config";
+import { API_CONFIG } from "../env.config";
 import { Platform } from "react-native";
 
 // Danh sách các địa chỉ IP dự phòng để thử kết nối
 const FALLBACK_IPS = [
-  config.api.baseUrl, // Thử URL từ config trước
+  API_CONFIG.API_URL, // Thử URL từ env config trước
+  config.api.baseUrl, // Thử URL từ config
   "http://localhost:3002",
   "http://127.0.0.1:3002",
   "http://10.0.2.2:3002", // Địa chỉ localhost cho Android Emulator
-  "http://192.168.1.2:3002",
-  "http://172.20.10.2:3002",
+  "http://192.168.2.5:3002",
 ];
 
 // Lấy API URL đã lưu từ AsyncStorage
@@ -50,7 +51,7 @@ const getApiUrl = () => {
   }
 
   // Sử dụng URL từ config hoặc dùng URL fallback nếu không có
-  const url = config.api.baseUrl || "http://192.168.2.2:3002";
+  const url = config.api.baseUrl || "http://192.168.2.5:3002";
   console.log("🔍 API URL from config:", url);
   return url;
 };

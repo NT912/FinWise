@@ -1,7 +1,7 @@
 // Define a single API URL that will be used throughout the app
 // Sử dụng URL từ biến môi trường, nếu không có thì dùng URL local
 const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || "http://192.168.2.2:3002";
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.2.5:3002";
 
 // Log URL để debug
 console.log("📡 CONFIG: API BASE URL is set to:", API_BASE_URL);
