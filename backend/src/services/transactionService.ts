@@ -3,6 +3,11 @@ import Transaction from "../models/new-models/Transaction";
 import Wallet from "../models/Wallet";
 import Category from "../models/Category";
 import { ApiError as AppError } from "../utils/ApiError";
+import Budget from "../models/new-models/Budget";
+console.log(
+  "Budget model path:",
+  require.resolve("../models/new-models/Budget")
+);
 // Create a simple logger since the import is missing
 const logger = {
   info: (message: string, ...args: any[]) =>
@@ -485,6 +490,12 @@ export const deleteTransaction = async (
   transactionId: string,
   userId: string
 ) => {
+  console.log(
+    ">>> [DEBUG] Đã gọi vào deleteTransaction với transactionId:",
+    transactionId,
+    "userId:",
+    userId
+  );
   const session = await mongoose.startSession();
   session.startTransaction();
 
@@ -526,6 +537,9 @@ export const deleteTransaction = async (
 
     // Delete the transaction
     await Transaction.findByIdAndDelete(transactionId).session(session);
+
+    // Cập nhật lại số liệu budget
+    await recalculateBudgetsForUser(userId);
 
     await session.commitTransaction();
     return { success: true, message: "Transaction deleted successfully" };
@@ -765,5 +779,46 @@ export const getTransactionsByCategory = async (
       error
     );
     throw new AppError(500, "Failed to get transactions by category");
+  }
+};
+
+export const recalculateBudgetsForUser = async (userId: string) => {
+  console.log("[DEBUG] Gọi recalculateBudgetsForUser cho user:", userId);
+  const budgets = await Budget.find({ userId });
+  console.log(
+    "Recalculating budgets for user:",
+    userId,
+    "Total budgets:",
+    budgets.length
+  );
+
+  for (const budget of budgets) {
+    console.log("Budget categories:", budget.categories);
+    const filter = {
+      userId: new mongoose.Types.ObjectId(userId),
+      walletId: new mongoose.Types.ObjectId(budget.walletId),
+      date: { $gte: budget.startDate, $lte: budget.endDate },
+      type: "expense",
+      category: {
+        $in: budget.categories.map((cat) => new mongoose.Types.ObjectId(cat)),
+      },
+    };
+    console.log("Transaction filter:", filter);
+
+    const totalSpent = await Transaction.aggregate([
+      { $match: filter },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$amount" },
+        },
+      },
+    ]);
+
+    const spent = totalSpent[0]?.total || 0;
+    console.log("Budget:", budget._id, "Spent:", spent);
+
+    budget.currentAmount = spent;
+    await budget.save();
   }
 };

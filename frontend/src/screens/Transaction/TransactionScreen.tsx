@@ -30,7 +30,6 @@ import { format, subMonths, getMonth, getYear } from "date-fns";
 import { useWallet } from "../../hooks/useWallet";
 import { useTransaction, Transaction } from "../../hooks/useTransaction";
 import { formatCurrency } from "../../utils/currency";
-import * as TransactionDebug from "../../debug-logs/transaction-debug";
 
 // Update the Period type to include specific month options
 type Period = "THIS_MONTH" | "LAST_MONTH" | "FUTURE" | string; // For month-specific periods like "12/2024"
@@ -173,19 +172,6 @@ const TransactionScreen = () => {
 
     console.log("🔄 Grouping transactions by date...");
 
-    // Debug each transaction type
-    transactions.forEach((transaction, index) => {
-      if (index < 5) {
-        // Limit to first 5 for brevity
-        console.log(
-          `Transaction ${index + 1}: type=${transaction.type}, amount=${
-            transaction.amount
-          }`
-        );
-        TransactionDebug.logTransactionDisplay(transaction);
-      }
-    });
-
     // Sort by date (newest first)
     const sorted = transactions.sort(
       (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -203,10 +189,6 @@ const TransactionScreen = () => {
 
     const result = Object.entries(grouped).map(([dateKey, transactions]) => {
       const totalAmount = transactions.reduce((sum, t) => {
-        // Debug calculation
-        console.log(
-          `Calculating for ${t._id}: type=${t.type}, amount=${t.amount}, current sum=${sum}`
-        );
         return t.type === "income" ? sum + t.amount : sum - t.amount;
       }, 0);
 
@@ -215,11 +197,6 @@ const TransactionScreen = () => {
         transactions,
         totalAmount,
       };
-
-      // Debug the first few groups
-      if (dateKey === Object.keys(grouped)[0]) {
-        TransactionDebug.logTransactionGrouping(group);
-      }
 
       return group;
     });
@@ -250,14 +227,8 @@ const TransactionScreen = () => {
 
       if (effectiveType === "income") {
         ending += transaction.amount;
-        console.log(
-          `Income transaction: ${transaction._id}, amount: ${transaction.amount}, balance: ${prevEnding} -> ${ending}`
-        );
       } else if (effectiveType === "expense") {
         ending -= transaction.amount;
-        console.log(
-          `Expense transaction: ${transaction._id}, amount: ${transaction.amount}, balance: ${prevEnding} -> ${ending}`
-        );
       } else {
         console.log(
           `Unknown transaction type: ${effectiveType} for transaction ${transaction._id}`
@@ -613,6 +584,12 @@ const TransactionScreen = () => {
     </View>
   );
 
+  const handleTransactionPress = (transaction: Transaction) => {
+    navigation.navigate("EditTransaction", {
+      transactionId: transaction._id,
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -670,7 +647,7 @@ const TransactionScreen = () => {
                   </View>
                   <View style={styles.transactionsContainer}>
                     {group.transactions.map((transaction, index) => (
-                      <View
+                      <TouchableOpacity
                         key={transaction._id || Math.random().toString()}
                         style={[
                           styles.transactionRow,
@@ -678,6 +655,8 @@ const TransactionScreen = () => {
                             ? { marginBottom: 16 }
                             : {},
                         ]}
+                        onPress={() => handleTransactionPress(transaction)}
+                        activeOpacity={0.7}
                       >
                         <View style={styles.transactionInfo}>
                           <View
@@ -724,7 +703,7 @@ const TransactionScreen = () => {
                           {transaction.type === "income" ? "+" : "-"}
                           {formatCurrency(transaction.amount)}
                         </Text>
-                      </View>
+                      </TouchableOpacity>
                     ))}
                   </View>
                 </View>

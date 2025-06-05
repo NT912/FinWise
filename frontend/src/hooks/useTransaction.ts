@@ -1,7 +1,6 @@
 import { useState } from "react";
 import apiClient from "../services/apiClient";
 import { Transaction as TransactionType } from "../types";
-import * as TransactionDebug from "../debug-logs/transaction-debug";
 
 export type Transaction = TransactionType;
 
@@ -19,7 +18,7 @@ export const useTransaction = () => {
     startDate?: string;
     endDate?: string;
     walletId?: string;
-    timeFilter?: "week" | "month" | "lastMonth" | "future";
+    timeFilter?: "week" | "month" | "year" | "custom";
   }) => {
     setLoading(true);
     setError(null);
@@ -85,18 +84,12 @@ export const useTransaction = () => {
               `✅ Flattened ${flattenedTransactions.length} transactions from date-grouped format`
             );
 
-            // Add debug log for transactions
-            TransactionDebug.logTransactionsLoaded(flattenedTransactions);
-
             setTransactions(flattenedTransactions);
             return flattenedTransactions;
           } else if (Array.isArray(response.data.transactions)) {
             console.log(
               `✅ Received ${response.data.transactions.length} transactions in array format`
             );
-
-            // Add debug log for transactions
-            TransactionDebug.logTransactionsLoaded(response.data.transactions);
 
             setTransactions(response.data.transactions);
             return response.data.transactions;
@@ -109,9 +102,6 @@ export const useTransaction = () => {
           console.log(
             `✅ Received ${allTransactions.length} transactions from date-range API (legacy format)`
           );
-
-          // Add debug log for transactions
-          TransactionDebug.logTransactionsLoaded(allTransactions);
 
           setTransactions(allTransactions);
           return allTransactions;
@@ -188,11 +178,93 @@ export const useTransaction = () => {
     }
   };
 
+  const getTransactionById = async (id: string) => {
+    try {
+      const response = await apiClient.get(`/api/transactions/${id}`);
+      return response.data;
+    } catch (err) {
+      console.error("Error fetching transaction:", err);
+      throw err;
+    }
+  };
+
+  const updateTransaction = async (
+    id: string,
+    data: {
+      amount: number;
+      description?: string;
+      type: "income" | "expense";
+      category: string;
+      walletId: string;
+      date: Date;
+      note?: string;
+    }
+  ) => {
+    try {
+      const response = await apiClient.put(`/api/transactions/${id}`, data);
+      return response.data;
+    } catch (err) {
+      console.error("Error updating transaction:", err);
+      throw err;
+    }
+  };
+
+  const deleteTransaction = async (id: string) => {
+    try {
+      // 1. Lấy thông tin transaction trước khi xóa để biết số tiền và category
+      const transactionToDelete = await getTransactionById(id);
+
+      // 2. Xóa transaction
+      await apiClient.delete(`/api/transactions/${id}`);
+
+      // 3. Nếu transaction là expense và có category, cập nhật lại budget
+      if (
+        transactionToDelete.type === "expense" &&
+        transactionToDelete.category
+      ) {
+        try {
+          // Lấy thông tin budget hiện tại
+          const budgetResponse = await apiClient.get(
+            `/api/budgets/${transactionToDelete.category}`
+          );
+          const currentBudget = budgetResponse.data;
+
+          // Cập nhật lại số tiền đã chi tiêu
+          const updatedSpent = Math.max(
+            0,
+            currentBudget.currentAmount - transactionToDelete.amount
+          );
+
+          // Gửi request cập nhật budget
+          await apiClient.put(`/api/budgets/${transactionToDelete.category}`, {
+            ...currentBudget,
+            currentAmount: updatedSpent,
+          });
+
+          console.log(
+            `✅ Updated budget spent amount after deleting transaction: ${updatedSpent}`
+          );
+        } catch (budgetError) {
+          console.error(
+            "Error updating budget after transaction deletion:",
+            budgetError
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Error deleting transaction:", err);
+      throw err;
+    }
+  };
+
   return {
     transactions,
     loading,
     error,
     getTransactions,
+    getTransactionById,
+    updateTransaction,
+    deleteTransaction,
     clearTransactions,
   };
 };

@@ -39,7 +39,7 @@ interface Category {
   color: string;
 }
 
-interface BudgetWithCategories extends Omit<Budget, "categories"> {
+export interface BudgetWithCategories extends Omit<Budget, "categories"> {
   categories: Category[];
 }
 
@@ -103,10 +103,7 @@ const BudgetScreen = () => {
 
   const handleEditBudget = (budget: BudgetWithCategories) => {
     navigation.navigate("EditBudget", {
-      budget: {
-        ...budget,
-        categories: budget.categories.map((cat) => cat._id),
-      },
+      budgetId: budget._id,
     });
   };
 
@@ -419,11 +416,11 @@ const BudgetScreen = () => {
                     </View>
 
                     <View style={styles.progressContainer}>
-                      <View key="progress-bar" style={styles.progressBar}>
+                      <View key="progress-bar" style={styles.progressBarModern}>
                         <View
                           key="progress-fill"
                           style={[
-                            styles.progressFill,
+                            styles.progressFillModern,
                             {
                               width: `${Math.min(
                                 (budget.currentAmount / budget.amount) * 100,
@@ -439,14 +436,22 @@ const BudgetScreen = () => {
                                   : "#00D09E",
                             },
                           ]}
-                        />
+                        >
+                          <Text
+                            style={[
+                              styles.progressLabelModern,
+                              (budget.currentAmount / budget.amount) * 100 > 50
+                                ? { color: "#FFF" }
+                                : { color: "#222" },
+                            ]}
+                          >
+                            {Math.round(
+                              (budget.currentAmount / budget.amount) * 100
+                            )}
+                            %
+                          </Text>
+                        </View>
                       </View>
-                      <Text key="progress-text" style={styles.progressText}>
-                        {Math.round(
-                          (budget.currentAmount / budget.amount) * 100
-                        )}
-                        %
-                      </Text>
                     </View>
 
                     <View
@@ -808,6 +813,29 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "600",
+  },
+  progressBarModern: {
+    width: "100%",
+    height: 22,
+    backgroundColor: "#E8E8E8",
+    borderRadius: 11,
+    overflow: "hidden",
+    justifyContent: "center",
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  progressFillModern: {
+    height: "100%",
+    borderRadius: 11,
+    justifyContent: "center",
+    alignItems: "center",
+    flexDirection: "row",
+  },
+  progressLabelModern: {
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "center",
+    width: "100%",
   },
 });
 

@@ -95,9 +95,8 @@ const TransactionList: React.FC<TransactionListProps> = ({
   const navigation = useNavigation<HomeScreenNavigationProp>();
 
   const handleTransactionPress = (transaction: TransactionItem) => {
-    navigation.navigate("EditTransaction" as never, {
-      transactionId: transaction._id,
-    });
+    // TODO: Implement edit transaction
+    console.log("Edit transaction:", transaction._id);
   };
 
   const fetchTransactions = async () => {

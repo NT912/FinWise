@@ -63,10 +63,16 @@ export const getTransactionById = async (transactionId: string) => {
       }
     );
 
-    return response.data;
+    // Nếu trả về object có _id thì là transaction hợp lệ
+    if (response.data && response.data._id) {
+      return response.data;
+    } else {
+      // Nếu trả về message hoặc không có _id thì coi như không tìm thấy
+      return null;
+    }
   } catch (error) {
     console.error(`Error fetching transaction ${transactionId}:`, error);
-    throw error;
+    return null; // Để UI hiện lỗi rõ ràng
   }
 };
 

@@ -39,46 +39,31 @@ import { useToast } from "../../components/ToastProvider";
 import * as walletService from "../../services/walletService";
 import CustomAlert from "../../components/common/CustomAlert";
 
-// Define route params interface
-type EditBudgetRouteParams = {
-  budget: {
-    _id: string;
-    name: string;
-    amount: number;
-    startDate: string;
-    endDate: string;
-    categories: string[];
-    walletId: string;
-  };
-};
-
+// Định nghĩa params chỉ nhận budgetId
+type EditBudgetRouteParams = { budgetId: string };
 type EditBudgetScreenRouteProp = RouteProp<
   { EditBudget: EditBudgetRouteParams },
   "EditBudget"
 >;
-
 type EditBudgetScreenNavigationProp =
   NativeStackNavigationProp<RootStackParamList>;
 
 const EditBudgetScreen = () => {
   const navigation = useNavigation<EditBudgetScreenNavigationProp>();
   const route = useRoute<EditBudgetScreenRouteProp>();
-  const { budget } = route.params;
+  const { budgetId } = route.params;
   const toast = useToast();
 
   // Create a unique listener ID
   const categoryListenerIdRef = useRef(`edit_budget_${Date.now()}`);
 
-  // Form state
-  const [name, setName] = useState(budget.name);
-  const [amount, setAmount] = useState(budget.amount.toString());
-  const [startDate, setStartDate] = useState(new Date(budget.startDate));
-  const [endDate, setEndDate] = useState(new Date(budget.endDate));
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(
-    (budget.categories || []).filter(
-      (id: any) => typeof id === "string" && id && id !== "undefined"
-    )
-  );
+  // State khởi tạo rỗng, set sau khi fetch thành công
+  const [budget, setBudget] = useState<any>(null);
+  const [name, setName] = useState("");
+  const [amount, setAmount] = useState("");
+  const [startDate, setStartDate] = useState(new Date());
+  const [endDate, setEndDate] = useState(new Date());
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [selectedWallet, setSelectedWallet] = useState<{
     _id: string;
     color: string;
@@ -88,9 +73,7 @@ const EditBudgetScreen = () => {
   const [showStartDatePicker, setShowStartDatePicker] = useState(false);
   const [showEndDatePicker, setShowEndDatePicker] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedPeriod, setSelectedPeriod] = useState(
-    "This month (01/05 - 31/05)"
-  );
+  const [selectedPeriod, setSelectedPeriod] = useState("");
   const [selectedType, setSelectedType] = useState("Total");
   const [repeatBudget, setRepeatBudget] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -101,117 +84,83 @@ const EditBudgetScreen = () => {
   const [deleting, setDeleting] = useState(false);
   const [showPeriodModal, setShowPeriodModal] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
-
-  // Add state for category details
   const [categoryDetails, setCategoryDetails] = useState<
     Record<string, Category>
   >({});
-
-  // Add temp state for custom date selection
   const [tempStartDate, setTempStartDate] = useState<Date | null>(null);
   const [tempEndDate, setTempEndDate] = useState<Date | null>(null);
   const [showCustomDateModal, setShowCustomDateModal] = useState(false);
-
-  // Add wallet state
   const [wallets, setWallets] = useState<any[]>([]);
   const [loadingWallets, setLoadingWallets] = useState(false);
   const [tempSelectedWallet, setTempSelectedWallet] = useState<any | null>(
     null
   );
-
-  // Store the original budget data for comparison
-  const [originalBudget, setOriginalBudget] = useState<any>(budget);
-
-  // Add state for delete confirmation modal
+  const [originalBudget, setOriginalBudget] = useState<any>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  const fetchBudgetData = async () => {
-    try {
-      setLoading(true);
-      const token = await AsyncStorage.getItem(config.auth.tokenKey);
-      const headers = token ? { Authorization: `Bearer ${token}` } : {};
-
-      const response = await apiClient.get(`/api/budgets/${budget._id}`, {
-        headers,
-      });
-
-      // Log response API để debug
-      console.log("API budget nhận được:", response.data);
-
-      if (response.status === 200) {
-        const budgetData = response.data;
-        setOriginalBudget(budgetData);
-        setName(budgetData.name);
-        setAmount(budgetData.amount.toString());
-        setStartDate(new Date(budgetData.startDate));
-        setEndDate(new Date(budgetData.endDate));
-        // Lọc lại categories chỉ lấy các ID hợp lệ
-        const filteredCategories = (budgetData.categories || []).filter(
-          (id: any) => typeof id === "string" && id && id !== "undefined"
-        );
-        setSelectedCategories(filteredCategories);
-        // Log selectedCategories sau khi set
-        console.log("selectedCategories sau khi set:", filteredCategories);
-
-        // Fetch wallet details
-        const walletResponse = await apiClient.get(
-          `/api/wallets/${budgetData.walletId}`,
-          {
-            headers,
-          }
-        );
-
-        if (walletResponse.status === 200) {
-          const walletData = walletResponse.data;
-          setSelectedWallet({
-            _id: walletData.walletId,
-            color: walletData.color,
-            icon: walletData.icon,
-            name: walletData.name,
-          });
-        } else {
-          // If wallet fetch fails, set selectedWallet to a default object with _id matching originalBudget.walletId
-          setSelectedWallet({
-            _id: budgetData.walletId,
-            color: "#F0F0F0",
-            icon: "wallet-outline",
-            name: "Unknown Wallet",
-          });
-        }
-
-        setRepeatBudget(budgetData.isRecurring || false);
-
-        // Update period display
-        const formattedStart = new Date(
-          budgetData.startDate
-        ).toLocaleDateString("en-GB", {
-          day: "2-digit",
-          month: "2-digit",
-        });
-        const formattedEnd = new Date(budgetData.endDate).toLocaleDateString(
-          "en-GB",
-          {
-            day: "2-digit",
-            month: "2-digit",
-          }
-        );
-        setSelectedPeriod(`${formattedStart} - ${formattedEnd}`);
-      }
-    } catch (error) {
-      console.error("Error fetching budget:", error);
-      Alert.alert("Error", "Failed to fetch budget data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Load existing budget data
+  // Fetch budget data on mount
   useEffect(() => {
-    const fetchData = async () => {
-      await fetchBudgetData();
+    const fetchBudgetData = async () => {
+      try {
+        setLoading(true);
+        const token = await AsyncStorage.getItem(config.auth.tokenKey);
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const response = await apiClient.get(`/api/budgets/${budgetId}`, {
+          headers,
+        });
+        if (response.status === 200) {
+          const budgetData = response.data;
+          setBudget(budgetData);
+          setOriginalBudget(budgetData);
+          setName(budgetData.name);
+          setAmount(budgetData.amount.toString());
+          setStartDate(new Date(budgetData.startDate));
+          setEndDate(new Date(budgetData.endDate));
+          const filteredCategories = (budgetData.categories || []).filter(
+            (id: any) => typeof id === "string" && id && id !== "undefined"
+          );
+          setSelectedCategories(filteredCategories);
+          // Fetch wallet details
+          const walletResponse = await apiClient.get(
+            `/api/wallets/${budgetData.walletId}`,
+            { headers }
+          );
+          if (walletResponse.status === 200) {
+            const walletData = walletResponse.data;
+            setSelectedWallet({
+              _id: walletData.walletId,
+              color: walletData.color,
+              icon: walletData.icon,
+              name: walletData.name,
+            });
+          } else {
+            setSelectedWallet({
+              _id: budgetData.walletId,
+              color: "#F0F0F0",
+              icon: "wallet-outline",
+              name: "Unknown Wallet",
+            });
+          }
+          setRepeatBudget(budgetData.isRecurring || false);
+          const formattedStart = new Date(
+            budgetData.startDate
+          ).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit" });
+          const formattedEnd = new Date(budgetData.endDate).toLocaleDateString(
+            "en-GB",
+            { day: "2-digit", month: "2-digit" }
+          );
+          setSelectedPeriod(`${formattedStart} - ${formattedEnd}`);
+        }
+      } catch (error) {
+        console.error("Error fetching budget data:", error);
+        Alert.alert("Error", "Failed to load budget data.");
+      } finally {
+        setLoading(false);
+      }
     };
-    fetchData();
-  }, [budget._id]);
+
+    fetchBudgetData();
+  }, [budgetId]);
 
   // Add useEffect to fetch category details
   useEffect(() => {
@@ -232,6 +181,15 @@ const EditBudgetScreen = () => {
       fetchCategoryDetails();
     }
   }, [selectedCategories]);
+
+  // Set up category selection listener
+  useEffect(() => {
+    const cleanup = addListener(
+      `${categorySelectEventKey}_${categoryListenerIdRef.current}`,
+      (category: Category) => handleSelectCategory(category)
+    );
+    return cleanup;
+  }, []);
 
   // Format amount with dots separator
   const formatAmountWithDots = (value: string): string => {
@@ -436,7 +394,7 @@ const EditBudgetScreen = () => {
       const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
       const response = await apiClient.put(
-        `/api/budgets/${budget._id}`,
+        `/api/budgets/${budgetId}`,
         {
           name,
           amount: parseCurrency(amount),
@@ -487,15 +445,6 @@ const EditBudgetScreen = () => {
         .finally(() => setLoadingWallets(false));
     }
   }, [showWalletModal]);
-
-  useEffect(() => {
-    // Set up category selection listener
-    const cleanup = addListener(
-      `${categorySelectEventKey}_${categoryListenerIdRef.current}`,
-      (category: Category) => handleSelectCategory(category)
-    );
-    return cleanup;
-  }, []);
 
   // Update handleDelete to show the custom modal
   const handleDelete = () => {
@@ -1237,7 +1186,7 @@ const EditBudgetScreen = () => {
               const token = await AsyncStorage.getItem(config.auth.tokenKey);
               const headers = token ? { Authorization: `Bearer ${token}` } : {};
               const response = await apiClient.delete(
-                `/api/budgets/${budget._id}`,
+                `/api/budgets/${budgetId}`,
                 { headers }
               );
               if (response.status === 200) {

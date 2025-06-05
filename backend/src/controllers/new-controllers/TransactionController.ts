@@ -237,15 +237,7 @@ export const getTransactionById = async (
     const transaction = await Transaction.findOne({
       _id: id,
       userId,
-    })
-      .populate({
-        path: "category",
-        select: "name icon color",
-      })
-      .populate({
-        path: "walletId",
-        select: "name icon color balance currency",
-      });
+    });
 
     if (!transaction) {
       res.status(404).json({ message: "Transaction not found" });

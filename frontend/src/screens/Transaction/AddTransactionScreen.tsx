@@ -16,6 +16,8 @@ import {
   FlatList,
   Image,
   Animated,
+  Keyboard,
+  TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +40,6 @@ import {
   categorySelectEventKey,
 } from "../../screens/Category/SelectCategoryScreen";
 import apiClient from "../../services/apiClient";
-import * as TransactionDebug from "../../debug-logs/transaction-debug";
 
 type RouteParams = {
   AddTransaction: {
@@ -406,7 +407,6 @@ const AddTransactionScreen: React.FC = () => {
       };
 
       // Debug log
-      TransactionDebug.logTransactionCreation(transactionData);
       console.log(
         `📝 Creating ${finalTransactionType} transaction with amount ${amountValue}`
       );
@@ -588,339 +588,357 @@ const AddTransactionScreen: React.FC = () => {
   };
 
   return (
-    <View style={{ flex: 1, backgroundColor: "#F5F5F5" }}>
-      <SafeAreaView style={styles.safeAreaTop} />
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor={colors.primary}
-        translucent
-      />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={26} color="#FFFFFF" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Transaction</Text>
-        <View style={{ width: 40 }} />
-      </View>
-
-      {/* SHOW CONNECTION ERROR OR MAIN CONTENT */}
-      {connectionError ? (
-        <View style={styles.connectionErrorContainer}>
-          <View style={styles.errorCard}>
-            <Ionicons name="cloud-offline" size={60} color="#FF6B6B" />
-            <Text style={styles.connectionErrorTitle}>Connection Error</Text>
-            <Text style={styles.connectionErrorMessage}>
-              Cannot connect to the server. Please check your network connection
-              and try again.
-            </Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={retryConnection}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <Text style={styles.retryButtonText}>Retry Connection</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.errorBackButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Text style={styles.backButtonText}>Go Back</Text>
-            </TouchableOpacity>
-          </View>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <SafeAreaView style={{ flex: 1, backgroundColor: colors.primary }}>
+        <StatusBar barStyle="light-content" backgroundColor={colors.primary} />
+        <View style={styles.header}>
+          <TouchableOpacity onPress={handleGoBack} style={styles.backButton}>
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Add Transaction</Text>
+          <View style={styles.headerRight} />
         </View>
-      ) : (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
-          style={styles.keyboardAvoidingView}
-          keyboardVerticalOffset={Platform.OS === "ios" ? 64 : 0}
-        >
-          <View style={styles.mainContainer}>
-            <View style={styles.transactionCard}>
-              {/* Wallet Selector */}
+
+        {/* SHOW CONNECTION ERROR OR MAIN CONTENT */}
+        {connectionError ? (
+          <View style={styles.connectionErrorContainer}>
+            <View style={styles.errorCard}>
+              <Ionicons name="cloud-offline" size={60} color="#FF6B6B" />
+              <Text style={styles.connectionErrorTitle}>Connection Error</Text>
+              <Text style={styles.connectionErrorMessage}>
+                Cannot connect to the server. Please check your network
+                connection and try again.
+              </Text>
               <TouchableOpacity
-                style={styles.itemRow}
-                onPress={navigateToSelectWallet}
+                style={styles.retryButton}
+                onPress={retryConnection}
+                disabled={loading}
               >
-                <View style={styles.itemLeft}>
-                  <View
-                    style={[
-                      styles.walletIcon,
-                      { backgroundColor: selectedWallet?.color || "#FF9500" },
-                    ]}
-                  >
-                    {selectedWallet?.icon ? (
-                      selectedWallet.icon.includes("outline") ||
-                      selectedWallet.icon.includes("-") ? (
-                        <Ionicons
-                          name={selectedWallet.icon as any}
-                          size={20}
-                          color="#FFFFFF"
-                        />
-                      ) : (
-                        <Image
-                          source={{ uri: selectedWallet.icon }}
-                          style={{
-                            width: 20,
-                            height: 20,
-                            tintColor: "#FFFFFF",
-                          }}
-                          defaultSource={{
-                            uri: "https://example.com/default-wallet-icon.png",
-                          }}
-                          onError={() =>
-                            console.log("Error loading wallet icon")
-                          }
-                        />
-                      )
-                    ) : (
-                      <Ionicons
-                        name="wallet-outline"
-                        size={20}
-                        color="#FFFFFF"
-                      />
-                    )}
-                  </View>
-                  <Text style={styles.itemText}>
-                    {selectedWallet?.name || "Select wallet"}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
+                {loading ? (
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                ) : (
+                  <Text style={styles.retryButtonText}>Retry Connection</Text>
+                )}
               </TouchableOpacity>
-              <View style={styles.divider} />
-
-              {/* Amount */}
-              <View style={styles.amountContainer}>
-                <Text style={styles.amountLabel}>Amount</Text>
-                <View style={styles.amountInputRow}>
-                  <View style={styles.currencyContainer}>
-                    <Text style={styles.currencyText}>VND</Text>
-                  </View>
-                  <TextInput
-                    style={styles.amountInput}
-                    placeholder="0"
-                    value={amount}
-                    onChangeText={handleAmountChange}
-                    keyboardType="numeric"
-                    placeholderTextColor="#000000"
-                  />
-                </View>
-              </View>
-              <View style={styles.divider} />
-
-              {/* Category */}
               <TouchableOpacity
-                style={styles.itemRow}
-                onPress={navigateToSelectCategory}
+                style={styles.errorBackButton}
+                onPress={() => navigation.goBack()}
               >
-                <View style={styles.itemLeft}>
-                  {selectedCategory ? (
-                    <>
+                <Text style={styles.backButtonText}>Go Back</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <View style={styles.contentWrapper}>
+            <ScrollView
+              contentContainerStyle={{ flexGrow: 1 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              <View style={styles.mainContainer}>
+                <View style={styles.transactionCard}>
+                  {/* Wallet Selector */}
+                  <TouchableOpacity
+                    style={styles.itemRow}
+                    onPress={navigateToSelectWallet}
+                  >
+                    <View style={styles.itemLeft}>
                       <View
                         style={[
-                          styles.categoryIcon,
+                          styles.walletIcon,
                           {
-                            backgroundColor:
-                              selectedCategory.color || "#CCCCCC",
+                            backgroundColor: selectedWallet?.color || "#FF9500",
                           },
                         ]}
                       >
+                        {selectedWallet?.icon ? (
+                          selectedWallet.icon.includes("outline") ||
+                          selectedWallet.icon.includes("-") ? (
+                            <Ionicons
+                              name={selectedWallet.icon as any}
+                              size={20}
+                              color="#FFFFFF"
+                            />
+                          ) : (
+                            <Image
+                              source={{ uri: selectedWallet.icon }}
+                              style={{
+                                width: 20,
+                                height: 20,
+                                tintColor: "#FFFFFF",
+                              }}
+                              defaultSource={{
+                                uri: "https://example.com/default-wallet-icon.png",
+                              }}
+                              onError={() =>
+                                console.log("Error loading wallet icon")
+                              }
+                            />
+                          )
+                        ) : (
+                          <Ionicons
+                            name="wallet-outline"
+                            size={20}
+                            color="#FFFFFF"
+                          />
+                        )}
+                      </View>
+                      <Text style={styles.itemText}>
+                        {selectedWallet?.name || "Select wallet"}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#CCCCCC"
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.divider} />
+
+                  {/* Amount */}
+                  <View style={styles.amountContainer}>
+                    <Text style={styles.amountLabel}>Amount</Text>
+                    <View style={styles.amountInputRow}>
+                      <View style={styles.currencyContainer}>
+                        <Text style={styles.currencyText}>VND</Text>
+                      </View>
+                      <TextInput
+                        style={styles.amountInput}
+                        placeholder="0"
+                        value={amount}
+                        onChangeText={handleAmountChange}
+                        keyboardType="numeric"
+                        placeholderTextColor="#000000"
+                      />
+                    </View>
+                  </View>
+                  <View style={styles.divider} />
+
+                  {/* Category */}
+                  <TouchableOpacity
+                    style={styles.itemRow}
+                    onPress={navigateToSelectCategory}
+                  >
+                    <View style={styles.itemLeft}>
+                      {selectedCategory ? (
+                        <>
+                          <View
+                            style={[
+                              styles.categoryIcon,
+                              {
+                                backgroundColor:
+                                  selectedCategory.color || "#CCCCCC",
+                              },
+                            ]}
+                          >
+                            <Ionicons
+                              name={(selectedCategory.icon as any) || "list"}
+                              size={20}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                          <Text style={styles.itemText}>
+                            {selectedCategory.name}
+                          </Text>
+                        </>
+                      ) : (
+                        <>
+                          <View style={styles.emptyCategoryIcon} />
+                          <Text style={styles.placeholderText}>
+                            Select category
+                          </Text>
+                        </>
+                      )}
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#CCCCCC"
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.divider} />
+
+                  {/* Note */}
+                  <TouchableOpacity
+                    style={styles.itemRow}
+                    onPress={navigateToAddNote}
+                  >
+                    <View style={styles.itemLeft}>
+                      <View style={styles.noteIcon}>
                         <Ionicons
-                          name={(selectedCategory.icon as any) || "list"}
+                          name="document-text-outline"
                           size={20}
-                          color="#FFFFFF"
+                          color="#333333"
+                        />
+                      </View>
+                      <Text
+                        style={note ? styles.itemText : styles.placeholderText}
+                      >
+                        {note || "Add a note"}
+                      </Text>
+                    </View>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={20}
+                      color="#CCCCCC"
+                    />
+                  </TouchableOpacity>
+                  <View style={styles.divider} />
+
+                  {/* Date */}
+                  <TouchableOpacity
+                    style={styles.itemRow}
+                    onPress={() => setShowDatePicker(true)}
+                  >
+                    <View style={styles.itemLeft}>
+                      <View style={styles.dateIcon}>
+                        <Ionicons
+                          name="calendar-outline"
+                          size={20}
+                          color="#333333"
                         />
                       </View>
                       <Text style={styles.itemText}>
-                        {selectedCategory.name}
+                        {formatDate(selectedDate)}
                       </Text>
-                    </>
-                  ) : (
-                    <>
-                      <View style={styles.emptyCategoryIcon} />
-                      <Text style={styles.placeholderText}>
-                        Select category
-                      </Text>
-                    </>
-                  )}
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
-              </TouchableOpacity>
-              <View style={styles.divider} />
-
-              {/* Note */}
-              <TouchableOpacity
-                style={styles.itemRow}
-                onPress={navigateToAddNote}
-              >
-                <View style={styles.itemLeft}>
-                  <View style={styles.noteIcon}>
+                    </View>
                     <Ionicons
-                      name="document-text-outline"
+                      name="chevron-forward"
                       size={20}
-                      color="#333333"
+                      color="#CCCCCC"
                     />
-                  </View>
-                  <Text style={note ? styles.itemText : styles.placeholderText}>
-                    {note || "Add a note"}
-                  </Text>
+                  </TouchableOpacity>
                 </View>
-                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
-              </TouchableOpacity>
-              <View style={styles.divider} />
-
-              {/* Date */}
+              </View>
+            </ScrollView>
+            {/* Nút Save cố định dưới cùng contentWrapper */}
+            <View style={styles.saveButtonContainer}>
               <TouchableOpacity
-                style={styles.itemRow}
-                onPress={() => setShowDatePicker(true)}
+                style={[
+                  styles.saveButton,
+                  amount && selectedCategory && selectedWallet
+                    ? styles.saveButtonActive
+                    : null,
+                ]}
+                onPress={handleSubmit}
+                disabled={
+                  loading || !(amount && selectedCategory && selectedWallet)
+                }
               >
-                <View style={styles.itemLeft}>
-                  <View style={styles.dateIcon}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={20}
-                      color="#333333"
-                    />
-                  </View>
-                  <Text style={styles.itemText}>
-                    {formatDate(selectedDate)}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color="#CCCCCC" />
+                {loading ? (
+                  <ActivityIndicator color="#FFFFFF" size="small" />
+                ) : (
+                  <Text style={styles.saveButtonText}>Save</Text>
+                )}
               </TouchableOpacity>
             </View>
-
-            {/* Save Button */}
-            <TouchableOpacity
-              style={[
-                styles.saveButton,
-                amount && selectedCategory && selectedWallet
-                  ? styles.saveButtonActive
-                  : null,
-              ]}
-              onPress={handleSubmit}
-              disabled={
-                loading || !(amount && selectedCategory && selectedWallet)
-              }
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFFFFF" size="small" />
-              ) : (
-                <Text style={styles.saveButtonText}>Save</Text>
-              )}
-            </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
-      )}
+        )}
 
-      {/* Date Picker */}
-      {showDatePicker &&
-        (Platform.OS === "ios" ? (
+        {/* Date Picker */}
+        {showDatePicker &&
+          (Platform.OS === "ios" ? (
+            <Modal
+              visible={showDatePicker}
+              transparent={true}
+              animationType="slide"
+              onRequestClose={() => setShowDatePicker(false)}
+            >
+              <View style={styles.modalBackdrop}>
+                <View style={styles.datePickerModal}>
+                  <View style={styles.datePickerHeader}>
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={styles.datePickerButton}
+                    >
+                      <Text style={styles.datePickerButtonText}>Cancel</Text>
+                    </TouchableOpacity>
+
+                    <Text style={styles.datePickerTitle}>Select Date</Text>
+
+                    <TouchableOpacity
+                      onPress={() => setShowDatePicker(false)}
+                      style={styles.datePickerButton}
+                    >
+                      <Text style={styles.datePickerButtonText}>Done</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  <View style={styles.datePickerContainer}>
+                    <DateTimePicker
+                      value={selectedDate}
+                      mode="date"
+                      display="spinner"
+                      onChange={onDateChange}
+                      style={styles.iosDatePicker}
+                      themeVariant="light"
+                      textColor="#000000"
+                      accentColor={colors.primary}
+                    />
+                  </View>
+                </View>
+              </View>
+            </Modal>
+          ) : (
+            <DateTimePicker
+              value={selectedDate}
+              mode="date"
+              display="default"
+              onChange={onDateChange}
+              accentColor={colors.primary}
+            />
+          ))}
+
+        {/* Category Modal */}
+        {showCategoryModal && (
           <Modal
-            visible={showDatePicker}
+            visible={showCategoryModal}
             transparent={true}
             animationType="slide"
-            onRequestClose={() => setShowDatePicker(false)}
+            onRequestClose={toggleCategoryModal}
           >
             <View style={styles.modalBackdrop}>
-              <View style={styles.datePickerModal}>
+              <Animated.View
+                style={[
+                  styles.datePickerModal,
+                  {
+                    transform: [{ translateY: modalY }],
+                    opacity: modalOpacity,
+                    height: 500,
+                  },
+                ]}
+              >
                 <View style={styles.datePickerHeader}>
                   <TouchableOpacity
-                    onPress={() => setShowDatePicker(false)}
+                    onPress={toggleCategoryModal}
                     style={styles.datePickerButton}
                   >
                     <Text style={styles.datePickerButtonText}>Cancel</Text>
                   </TouchableOpacity>
-
-                  <Text style={styles.datePickerTitle}>Select Date</Text>
-
+                  <Text style={styles.datePickerTitle}>Select Category</Text>
                   <TouchableOpacity
-                    onPress={() => setShowDatePicker(false)}
+                    onPress={toggleCategoryModal}
                     style={styles.datePickerButton}
                   >
                     <Text style={styles.datePickerButtonText}>Done</Text>
                   </TouchableOpacity>
                 </View>
-
-                <View style={styles.datePickerContainer}>
-                  <DateTimePicker
-                    value={selectedDate}
-                    mode="date"
-                    display="spinner"
-                    onChange={onDateChange}
-                    style={styles.iosDatePicker}
-                    themeVariant="light"
-                    textColor="#000000"
-                    accentColor={colors.primary}
-                  />
-                </View>
-              </View>
+                <FlatList
+                  data={categories.filter(
+                    (cat) =>
+                      cat.type === transactionType ||
+                      cat.type === ("both" as CategoryType)
+                  )}
+                  renderItem={renderCategoryItem}
+                  keyExtractor={(item) => item._id}
+                  contentContainerStyle={{ paddingBottom: 20 }}
+                />
+              </Animated.View>
             </View>
           </Modal>
-        ) : (
-          <DateTimePicker
-            value={selectedDate}
-            mode="date"
-            display="default"
-            onChange={onDateChange}
-            accentColor={colors.primary}
-          />
-        ))}
-
-      {/* Category Modal */}
-      {showCategoryModal && (
-        <Modal
-          visible={showCategoryModal}
-          transparent={true}
-          animationType="slide"
-          onRequestClose={toggleCategoryModal}
-        >
-          <View style={styles.modalBackdrop}>
-            <Animated.View
-              style={[
-                styles.datePickerModal,
-                {
-                  transform: [{ translateY: modalY }],
-                  opacity: modalOpacity,
-                  height: 500,
-                },
-              ]}
-            >
-              <View style={styles.datePickerHeader}>
-                <TouchableOpacity
-                  onPress={toggleCategoryModal}
-                  style={styles.datePickerButton}
-                >
-                  <Text style={styles.datePickerButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <Text style={styles.datePickerTitle}>Select Category</Text>
-                <TouchableOpacity
-                  onPress={toggleCategoryModal}
-                  style={styles.datePickerButton}
-                >
-                  <Text style={styles.datePickerButtonText}>Done</Text>
-                </TouchableOpacity>
-              </View>
-              <FlatList
-                data={categories.filter(
-                  (cat) =>
-                    cat.type === transactionType ||
-                    cat.type === ("both" as CategoryType)
-                )}
-                renderItem={renderCategoryItem}
-                keyExtractor={(item) => item._id}
-                contentContainerStyle={{ paddingBottom: 20 }}
-              />
-            </Animated.View>
-          </View>
-        </Modal>
-      )}
-    </View>
+        )}
+      </SafeAreaView>
+    </TouchableWithoutFeedback>
   );
 };
 
@@ -935,13 +953,21 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
     backgroundColor: colors.primary,
-    height: Platform.OS === "ios" ? 50 : 60,
-    paddingTop: Platform.OS === "ios" ? 0 : 10,
-    paddingBottom: 10,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingTop:
+      Platform.OS === "android" ? (StatusBar.currentHeight || 0) + 15 : 15,
+    paddingBottom: 40,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
+  },
+  headerRight: {
+    width: 40,
   },
   backButton: {
     padding: 8,
@@ -1200,6 +1226,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#333333",
     marginLeft: 10,
+  },
+  contentWrapper: {
+    flex: 1,
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -30,
+    overflow: "hidden",
+  },
+  saveButtonContainer: {
+    backgroundColor: "#FFF",
+    padding: 16,
   },
 });
 

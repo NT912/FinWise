@@ -72,10 +72,6 @@ const HomeStackNavigator = () => (
   <HomeStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeStack.Screen name="Home" component={HomeScreen} />
     <HomeStack.Screen name="AddTransaction" component={AddTransactionScreen} />
-    <HomeStack.Screen
-      name="EditTransaction"
-      component={EditTransactionScreen}
-    />
     <HomeStack.Screen name="WalletScreen" component={WalletScreen} />
     <HomeStack.Screen
       name="CreateWalletScreen"
