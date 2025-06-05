@@ -11,6 +11,7 @@ import userRoutes from "./routes/userRoutes";
 import walletRoutes from "./routes/walletRoutes";
 import transactionRoutes from "./routes/new-routes/transactionRoutes";
 import categoryRoutes from "./routes/new-routes/categoryRoutes";
+import budgetRoutes from "./routes/budgetRoutes";
 import { specs, swaggerUi, setupSwagger } from "./config/swagger";
 import { errorHandler } from "./middleware/errorHandler";
 
@@ -53,13 +54,13 @@ const corsOptions = {
     "http://3.87.47.184",
     "http://3.0.248.48:3000",
     "http://3.0.248.48",
-    "exp://192.168.2.5:8081",
-    "exp://192.168.2.5:19000",
-    "http://192.168.2.5:8081",
-    "http://192.168.2.5:19000",
-    "http://192.168.2.5:3000",
-    "http://192.168.2.5:3001",
-    "http://192.168.2.5:3002",
+    "exp://192.168.2.15:8081",
+    "exp://192.168.2.15:19000",
+    "http://192.168.2.15:8081",
+    "http://192.168.2.15:19000",
+    "http://192.168.2.15:3000",
+    "http://192.168.2.15:3001",
+    "http://192.168.2.15:3002",
     "*",
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
@@ -98,6 +99,7 @@ app.use("/api/user", userRoutes);
 app.use("/api/wallets", walletRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/categories", categoryRoutes);
+app.use("/api/budgets", budgetRoutes);
 
 // Error handling middleware
 app.use(errorHandler);

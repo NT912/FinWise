@@ -2,6 +2,7 @@ import apiClient from "./apiClient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { config } from "../config/config";
 import axios from "axios";
+import { Budget } from "../types/budget";
 
 // Budget types
 export interface Budget {
@@ -313,4 +314,61 @@ export const forceRefreshBudgets = async (
     console.error("[budgetService] Error refreshing budget data:", error);
     throw error;
   }
+};
+
+export const budgetService = {
+  // Get all budgets
+  getBudgets: async (
+    walletId?: string
+  ): Promise<{ budgets: Budget[]; summary: BudgetSummary }> => {
+    try {
+      const params = walletId ? { walletId } : {};
+      const response = await axios.get("/budgets", { params });
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Get budget by ID
+  getBudgetById: async (budgetId: string): Promise<Budget> => {
+    try {
+      const response = await axios.get(`/budgets/${budgetId}`);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Create new budget
+  createBudget: async (budgetData: Partial<Budget>): Promise<Budget> => {
+    try {
+      const response = await axios.post("/budgets", budgetData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Update budget
+  updateBudget: async (
+    budgetId: string,
+    budgetData: Partial<Budget>
+  ): Promise<Budget> => {
+    try {
+      const response = await axios.put(`/budgets/${budgetId}`, budgetData);
+      return response.data;
+    } catch (error) {
+      throw error;
+    }
+  },
+
+  // Delete budget
+  deleteBudget: async (budgetId: string): Promise<void> => {
+    try {
+      await axios.delete(`/budgets/${budgetId}`);
+    } catch (error) {
+      throw error;
+    }
+  },
 };

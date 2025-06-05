@@ -27,19 +27,29 @@ import {
   categorySelectEventKey,
 } from "../Category/SelectCategoryScreen";
 import * as budgetService from "../../services/budgetService";
-
-// Define Category interface
-interface Category {
-  _id: string;
-  name: string;
-  color?: string;
-  icon?: string;
-  type: "expense" | "income" | "both";
-}
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import { RootStackParamList } from "../../navigation/types";
+import apiClient from "../../services/apiClient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { config } from "../../config/config";
+import { formatCurrency, parseCurrency } from "../../utils/formatters";
+import * as categoryService from "../../services/categoryService";
+import { Category } from "../../types/category";
+import { useToast } from "../../components/ToastProvider";
+import * as walletService from "../../services/walletService";
+import CustomAlert from "../../components/common/CustomAlert";
 
 // Define route params interface
 type EditBudgetRouteParams = {
-  budgetId: string;
+  budget: {
+    _id: string;
+    name: string;
+    amount: number;
+    startDate: string;
+    endDate: string;
+    categories: string[];
+    walletId: string;
+  };
 };
 
 type EditBudgetScreenRouteProp = RouteProp<
@@ -47,82 +57,137 @@ type EditBudgetScreenRouteProp = RouteProp<
   "EditBudget"
 >;
 
+type EditBudgetScreenNavigationProp =
+  NativeStackNavigationProp<RootStackParamList>;
+
 const EditBudgetScreen = () => {
-  const navigation = useNavigation<NavigationProp<ParamListBase>>();
+  const navigation = useNavigation<EditBudgetScreenNavigationProp>();
   const route = useRoute<EditBudgetScreenRouteProp>();
-  const { budgetId } = route.params;
+  const { budget } = route.params;
+  const toast = useToast();
 
   // Create a unique listener ID
   const categoryListenerIdRef = useRef(`edit_budget_${Date.now()}`);
 
   // Form state
-  const [loading, setLoading] = useState(true);
-  const [amount, setAmount] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState<Category | null>(
-    null
+  const [name, setName] = useState(budget.name);
+  const [amount, setAmount] = useState(budget.amount.toString());
+  const [startDate, setStartDate] = useState(new Date(budget.startDate));
+  const [endDate, setEndDate] = useState(new Date(budget.endDate));
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    (budget.categories || []).filter(
+      (id: any) => typeof id === "string" && id && id !== "undefined"
+    )
   );
+  const [selectedWallet, setSelectedWallet] = useState<{
+    _id: string;
+    color: string;
+    icon: string;
+    name: string;
+  } | null>(null);
+  const [showStartDatePicker, setShowStartDatePicker] = useState(false);
+  const [showEndDatePicker, setShowEndDatePicker] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState(
     "This month (01/05 - 31/05)"
   );
   const [selectedType, setSelectedType] = useState("Total");
   const [repeatBudget, setRepeatBudget] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [startDate, setStartDate] = useState(new Date());
-  const [endDate, setEndDate] = useState(
-    new Date(new Date().setMonth(new Date().getMonth() + 1))
-  );
   const [datePickerType, setDatePickerType] = useState<"start" | "end">(
     "start"
   );
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showPeriodModal, setShowPeriodModal] = useState(false);
+  const [showWalletModal, setShowWalletModal] = useState(false);
 
-  // Load existing budget data
-  useEffect(() => {
-    const fetchBudgetData = async () => {
-      try {
-        setLoading(true);
-        // Fetch the budget data by ID
-        const budgetData = await budgetService.getBudgetById(budgetId);
+  // Add state for category details
+  const [categoryDetails, setCategoryDetails] = useState<
+    Record<string, Category>
+  >({});
 
-        // Set form values from existing budget
+  // Add temp state for custom date selection
+  const [tempStartDate, setTempStartDate] = useState<Date | null>(null);
+  const [tempEndDate, setTempEndDate] = useState<Date | null>(null);
+  const [showCustomDateModal, setShowCustomDateModal] = useState(false);
+
+  // Add wallet state
+  const [wallets, setWallets] = useState<any[]>([]);
+  const [loadingWallets, setLoadingWallets] = useState(false);
+  const [tempSelectedWallet, setTempSelectedWallet] = useState<any | null>(
+    null
+  );
+
+  // Store the original budget data for comparison
+  const [originalBudget, setOriginalBudget] = useState<any>(budget);
+
+  // Add state for delete confirmation modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+  const fetchBudgetData = async () => {
+    try {
+      setLoading(true);
+      const token = await AsyncStorage.getItem(config.auth.tokenKey);
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+      const response = await apiClient.get(`/api/budgets/${budget._id}`, {
+        headers,
+      });
+
+      // Log response API để debug
+      console.log("API budget nhận được:", response.data);
+
+      if (response.status === 200) {
+        const budgetData = response.data;
+        setOriginalBudget(budgetData);
+        setName(budgetData.name);
         setAmount(budgetData.amount.toString());
+        setStartDate(new Date(budgetData.startDate));
+        setEndDate(new Date(budgetData.endDate));
+        // Lọc lại categories chỉ lấy các ID hợp lệ
+        const filteredCategories = (budgetData.categories || []).filter(
+          (id: any) => typeof id === "string" && id && id !== "undefined"
+        );
+        setSelectedCategories(filteredCategories);
+        // Log selectedCategories sau khi set
+        console.log("selectedCategories sau khi set:", filteredCategories);
 
-        // Handle category
-        if (budgetData.categories && budgetData.categories.length > 0) {
-          // In a real app, you would fetch category details here
-          // For now, we're using mock data
-          const categoryId = budgetData.categories[0];
+        // Fetch wallet details
+        const walletResponse = await apiClient.get(
+          `/api/wallets/${budgetData.walletId}`,
+          {
+            headers,
+          }
+        );
 
-          // This would come from your category service in a real app
-          const category = {
-            _id: categoryId,
-            name: budgetData.category?.name || "Budget Category",
-            color: budgetData.category?.color || "#4CAF50",
-            icon: budgetData.category?.icon || "cash-outline",
-            type: "expense" as "expense" | "income" | "both",
-          };
-
-          setSelectedCategory(category);
+        if (walletResponse.status === 200) {
+          const walletData = walletResponse.data;
+          setSelectedWallet({
+            _id: walletData.walletId,
+            color: walletData.color,
+            icon: walletData.icon,
+            name: walletData.name,
+          });
+        } else {
+          // If wallet fetch fails, set selectedWallet to a default object with _id matching originalBudget.walletId
+          setSelectedWallet({
+            _id: budgetData.walletId,
+            color: "#F0F0F0",
+            icon: "wallet-outline",
+            name: "Unknown Wallet",
+          });
         }
 
-        // Set dates
-        if (budgetData.startDate) {
-          setStartDate(new Date(budgetData.startDate));
-        }
+        setRepeatBudget(budgetData.isRecurring || false);
 
-        if (budgetData.endDate) {
-          setEndDate(new Date(budgetData.endDate));
-        }
-
-        // Format and set period display
+        // Update period display
         const formattedStart = new Date(
           budgetData.startDate
         ).toLocaleDateString("en-GB", {
           day: "2-digit",
           month: "2-digit",
         });
-
         const formattedEnd = new Date(budgetData.endDate).toLocaleDateString(
           "en-GB",
           {
@@ -130,36 +195,43 @@ const EditBudgetScreen = () => {
             month: "2-digit",
           }
         );
-
-        setSelectedPeriod(`This month (${formattedStart} - ${formattedEnd})`);
-
-        // Set repeat
-        setRepeatBudget(budgetData.isRecurring || false);
-
-        // Set budget type
-        setSelectedType(
-          budgetData.categories.length > 1 ? "Total" : "Category"
-        );
-      } catch (error) {
-        console.error("Error fetching budget data:", error);
-        Alert.alert("Error", "Failed to load budget data. Please try again.");
-        navigation.goBack();
-      } finally {
-        setLoading(false);
+        setSelectedPeriod(`${formattedStart} - ${formattedEnd}`);
       }
+    } catch (error) {
+      console.error("Error fetching budget:", error);
+      Alert.alert("Error", "Failed to fetch budget data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load existing budget data
+  useEffect(() => {
+    const fetchData = async () => {
+      await fetchBudgetData();
+    };
+    fetchData();
+  }, [budget._id]);
+
+  // Add useEffect to fetch category details
+  useEffect(() => {
+    const fetchCategoryDetails = async () => {
+      const details: Record<string, Category> = {};
+      for (const id of selectedCategories) {
+        try {
+          const category = await categoryService.getCategoryById(id);
+          details[id] = category;
+        } catch (error) {
+          console.error(`Error fetching category ${id}:`, error);
+        }
+      }
+      setCategoryDetails(details);
     };
 
-    // Add listener for category selection events
-    const cleanup = addListener(
-      `${categorySelectEventKey}_${categoryListenerIdRef.current}`,
-      (category: Category) => handleSelectCategory(category)
-    );
-
-    fetchBudgetData();
-
-    // Clean up the listener when component unmounts
-    return cleanup;
-  }, [budgetId]);
+    if (selectedCategories.length > 0) {
+      fetchCategoryDetails();
+    }
+  }, [selectedCategories]);
 
   // Format amount with dots separator
   const formatAmountWithDots = (value: string): string => {
@@ -176,7 +248,11 @@ const EditBudgetScreen = () => {
 
   // Handle category selection
   const handleSelectCategory = (category: Category) => {
-    setSelectedCategory(category);
+    setSelectedCategories(
+      [category._id].filter(
+        (id) => typeof id === "string" && id && id !== "undefined"
+      )
+    );
   };
 
   // Navigate to select category screen
@@ -185,28 +261,31 @@ const EditBudgetScreen = () => {
     navigation.navigate("SelectCategory" as any, {
       type: "expense", // Default to expense type for budgets
       listenerId: categoryListenerIdRef.current,
+      onSelect: (category: Category) => {
+        handleSelectCategory(category);
+        navigation.goBack(); // Navigate back after selection
+      },
     });
   };
 
-  // Handle date selection
+  // Handle date picker actions
+  const handleDatePickerPress = (type: "start" | "end") => {
+    setDatePickerType(type);
+    setShowDatePicker(true);
+  };
+
+  // Handle date change
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
     if (selectedDate) {
       if (datePickerType === "start") {
         setStartDate(selectedDate);
-
-        // If start date is after end date, update end date too
-        if (selectedDate > endDate) {
-          const newEndDate = new Date(selectedDate);
-          newEndDate.setMonth(newEndDate.getMonth() + 1);
-          setEndDate(newEndDate);
-        }
       } else {
         setEndDate(selectedDate);
       }
+      setShowDatePicker(false);
 
       // Update period display
-      const formattedStart = startDate.toLocaleDateString("en-GB", {
+      const formattedStart = selectedDate.toLocaleDateString("en-GB", {
         day: "2-digit",
         month: "2-digit",
       });
@@ -214,19 +293,8 @@ const EditBudgetScreen = () => {
         day: "2-digit",
         month: "2-digit",
       });
-      setSelectedPeriod(`This month (${formattedStart} - ${formattedEnd})`);
+      setSelectedPeriod(`${formattedStart} - ${formattedEnd}`);
     }
-  };
-
-  // Show date picker
-  const showStartDatePicker = () => {
-    setDatePickerType("start");
-    setShowDatePicker(true);
-  };
-
-  const showEndDatePicker = () => {
-    setDatePickerType("end");
-    setShowDatePicker(true);
   };
 
   // Handle period selection
@@ -273,11 +341,11 @@ const EditBudgetScreen = () => {
       },
       {
         text: "Custom Start Date",
-        onPress: showStartDatePicker,
+        onPress: () => handleDatePickerPress("start"),
       },
       {
         text: "Custom End Date",
-        onPress: showEndDatePicker,
+        onPress: () => handleDatePickerPress("end"),
       },
       {
         text: "Cancel",
@@ -310,42 +378,82 @@ const EditBudgetScreen = () => {
     setRepeatBudget(!repeatBudget);
   };
 
-  // Handle save
-  const handleSave = async () => {
-    if (!amount || parseInt(amount, 10) <= 0) {
-      Alert.alert("Error", "Please enter a valid amount");
-      return;
-    }
+  // Helper to get current budget data in the same structure as originalBudget
+  const getCurrentBudgetData = () => ({
+    name,
+    amount: parseCurrency(amount),
+    startDate: startDate.toISOString(),
+    endDate: endDate.toISOString(),
+    categories: [...selectedCategories].sort(),
+    walletId: selectedWallet?._id || originalBudget.walletId,
+  });
 
-    if (!selectedCategory) {
-      Alert.alert("Error", "Please select a category");
+  const handleUpdateBudget = async () => {
+    const current = getCurrentBudgetData();
+    const original = {
+      name: originalBudget.name,
+      amount: originalBudget.amount,
+      startDate: new Date(originalBudget.startDate).toISOString(),
+      endDate: new Date(originalBudget.endDate).toISOString(),
+      categories: [...(originalBudget.categories || [])].sort(),
+      walletId: originalBudget.walletId,
+    };
+    const isUnchanged =
+      current.name === original.name &&
+      current.amount === original.amount &&
+      current.startDate === original.startDate &&
+      current.endDate === original.endDate &&
+      JSON.stringify(current.categories) ===
+        JSON.stringify(original.categories) &&
+      current.walletId === original.walletId;
+    if (isUnchanged) {
+      toast.showToast
+        ? toast.showToast("No changes to update", "info")
+        : Alert.alert("No changes", "No changes to update");
+      setSaving(false);
       return;
     }
 
     try {
+      if (
+        !name ||
+        !amount ||
+        !startDate ||
+        !endDate ||
+        selectedCategories.length === 0
+      ) {
+        Alert.alert("Error", "Please fill in all required fields");
+        return;
+      }
+
+      if (startDate > endDate) {
+        Alert.alert("Error", "Start date cannot be after end date");
+        return;
+      }
+
       setSaving(true);
+      const token = await AsyncStorage.getItem(config.auth.tokenKey);
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
-      // Create budget object
-      const budgetData = {
-        name: `Budget for ${selectedCategory.name}`, // Generate name from category
-        amount: parseInt(amount, 10),
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        categories: [selectedCategory._id],
-        walletId: "default-wallet-id", // Use default wallet ID
-        isRecurring: repeatBudget,
-        recurringFrequency: "monthly" as "weekly" | "monthly" | "yearly",
-        notificationThreshold: 80, // Default 80%
-        notes: `Budget for ${selectedCategory.name}`,
-      };
+      const response = await apiClient.put(
+        `/api/budgets/${budget._id}`,
+        {
+          name,
+          amount: parseCurrency(amount),
+          startDate,
+          endDate,
+          categories: selectedCategories,
+          walletId: selectedWallet?._id || "",
+        },
+        { headers }
+      );
 
-      // Call API to update budget
-      await budgetService.updateBudget(budgetId, budgetData);
-
-      // Show success message
-      Alert.alert("Success", "Budget updated successfully", [
-        { text: "OK", onPress: () => navigation.goBack() },
-      ]);
+      if (response.status === 200) {
+        toast.showToast
+          ? toast.showToast("Budget updated successfully", "success")
+          : Alert.alert("Success", "Budget updated successfully");
+        navigation.goBack();
+      }
     } catch (error) {
       console.error("Error updating budget:", error);
       Alert.alert("Error", "Failed to update budget. Please try again.");
@@ -354,71 +462,44 @@ const EditBudgetScreen = () => {
     }
   };
 
-  // Handle delete
-  const handleDelete = () => {
-    Alert.alert(
-      "Delete Budget",
-      "Are you sure you want to delete this budget?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              setDeleting(true);
-              // For recurring budgets, ask if user wants to delete all instances
-              if (repeatBudget) {
-                Alert.alert(
-                  "Delete Recurring Budget",
-                  "Do you want to delete all recurring instances of this budget?",
-                  [
-                    {
-                      text: "Cancel",
-                      style: "cancel",
-                      onPress: () => setDeleting(false),
-                    },
-                    {
-                      text: "This instance only",
-                      onPress: async () => {
-                        await budgetService.deleteBudget(budgetId, false);
-                        Alert.alert("Success", "Budget deleted successfully");
-                        navigation.goBack();
-                      },
-                    },
-                    {
-                      text: "All instances",
-                      style: "destructive",
-                      onPress: async () => {
-                        await budgetService.deleteBudget(budgetId, true);
-                        Alert.alert(
-                          "Success",
-                          "All recurring budgets deleted successfully"
-                        );
-                        navigation.goBack();
-                      },
-                    },
-                  ]
-                );
-              } else {
-                // Delete single budget
-                await budgetService.deleteBudget(budgetId);
-                Alert.alert("Success", "Budget deleted successfully");
-                navigation.goBack();
-              }
-            } catch (error) {
-              console.error("Error deleting budget:", error);
-              Alert.alert(
-                "Error",
-                "Failed to delete budget. Please try again."
-              );
-            } finally {
-              setDeleting(false);
-            }
-          },
-        },
-      ]
+  // Update the wallet selection logic
+  const handleSelectWallet = (wallet: {
+    _id: string;
+    color: string;
+    icon: string;
+    name: string;
+  }) => {
+    setSelectedWallet(wallet);
+  };
+
+  // Fetch wallets when modal opens
+  useEffect(() => {
+    if (showWalletModal) {
+      setLoadingWallets(true);
+      walletService
+        .fetchWallets()
+        .then((fetchedWallets) => {
+          setWallets(fetchedWallets);
+          // Set temp to current selected
+          setTempSelectedWallet(selectedWallet);
+        })
+        .catch((e) => setWallets([]))
+        .finally(() => setLoadingWallets(false));
+    }
+  }, [showWalletModal]);
+
+  useEffect(() => {
+    // Set up category selection listener
+    const cleanup = addListener(
+      `${categorySelectEventKey}_${categoryListenerIdRef.current}`,
+      (category: Category) => handleSelectCategory(category)
     );
+    return cleanup;
+  }, []);
+
+  // Update handleDelete to show the custom modal
+  const handleDelete = () => {
+    setShowDeleteModal(true);
   };
 
   if (loading) {
@@ -445,10 +526,12 @@ const EditBudgetScreen = () => {
             onPress={() => navigation.goBack()}
             style={styles.backButton}
           >
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Budget</Text>
-          <View style={{ width: 40 }} />
+          <TouchableOpacity style={styles.backButton} onPress={handleDelete}>
+            <Ionicons name="trash-outline" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
         </View>
 
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
@@ -460,166 +543,168 @@ const EditBudgetScreen = () => {
             >
               <View style={styles.mainContainer}>
                 <View style={styles.budgetCard}>
-                  {/* Category Selector */}
-                  <TouchableOpacity
-                    style={styles.itemRow}
-                    onPress={navigateToSelectCategory}
-                  >
-                    <View style={styles.itemLeft}>
-                      {selectedCategory ? (
-                        <>
-                          <View
-                            style={[
-                              styles.categoryIcon,
-                              {
-                                backgroundColor:
-                                  selectedCategory.color || "#CCCCCC",
-                              },
-                            ]}
-                          >
-                            <Ionicons
-                              name={
-                                (selectedCategory.icon as any) || "grid-outline"
-                              }
-                              size={20}
-                              color="#FFFFFF"
-                            />
-                          </View>
-                          <Text style={styles.itemText}>
-                            {selectedCategory.name}
-                          </Text>
-                        </>
-                      ) : (
-                        <>
-                          <View style={styles.emptyCategoryIcon}>
-                            <Ionicons
-                              name="grid-outline"
-                              size={20}
-                              color="#FFFFFF"
-                            />
-                          </View>
-                          <Text style={styles.placeholderText}>
-                            Select category
-                          </Text>
-                        </>
-                      )}
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="#CCCCCC"
-                    />
-                  </TouchableOpacity>
-                  <View style={styles.divider} />
-
-                  {/* Amount Input */}
-                  <View style={styles.amountContainer}>
-                    <Text style={styles.amountLabel}>Amount</Text>
-                    <View style={styles.amountInputRow}>
-                      <View style={styles.currencyContainer}>
-                        <Text style={styles.currencyText}>VND</Text>
-                      </View>
-                      <TextInput
-                        style={styles.amountInput}
-                        placeholder="0"
-                        value={formatAmountWithDots(amount)}
-                        onChangeText={handleAmountChange}
-                        keyboardType="numeric"
-                        placeholderTextColor="#000000"
+                  {/* Budget Name */}
+                  <View style={styles.cardRow}>
+                    <View
+                      style={[styles.cardIcon, { backgroundColor: "#F5F5F7" }]}
+                    >
+                      <Ionicons
+                        name="pricetag-outline"
+                        size={22}
+                        color="#636e72"
                       />
                     </View>
-                  </View>
-                  <View style={styles.divider} />
-
-                  {/* Period Selector */}
-                  <TouchableOpacity
-                    style={styles.itemRow}
-                    onPress={navigateToSelectPeriod}
-                  >
-                    <View style={styles.itemLeft}>
-                      <View style={styles.iconContainer}>
-                        <Ionicons
-                          name="calendar-outline"
-                          size={20}
-                          color="#333333"
+                    <View style={styles.nameInputGroup}>
+                      <Text style={styles.nameInputLabel}>Budget Name</Text>
+                      <View style={styles.nameInputBox}>
+                        <TextInput
+                          style={styles.nameInput}
+                          value={name}
+                          onChangeText={setName}
+                          placeholder="Enter budget name"
+                          placeholderTextColor="#BDBDBD"
                         />
                       </View>
-                      <Text style={styles.itemText}>{selectedPeriod}</Text>
                     </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="#CCCCCC"
-                    />
-                  </TouchableOpacity>
-                  <View style={styles.divider} />
-
-                  {/* Budget Type */}
-                  <TouchableOpacity
-                    style={styles.itemRow}
-                    onPress={navigateToSelectType}
-                  >
-                    <View style={styles.itemLeft}>
-                      <View style={styles.iconContainer}>
-                        <Ionicons
-                          name="earth-outline"
-                          size={20}
-                          color="#333333"
-                        />
-                      </View>
-                      <Text style={styles.itemText}>{selectedType}</Text>
-                    </View>
-                    <Ionicons
-                      name="chevron-forward"
-                      size={20}
-                      color="#CCCCCC"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Repeat Budget Toggle */}
-                <View style={styles.repeatContainer}>
-                  <View style={styles.repeatTextContainer}>
-                    <Text style={styles.repeatLabel}>Repeat this budget</Text>
-                    <Text style={styles.repeatDescription}>
-                      Budget will renew automatically.
-                    </Text>
                   </View>
+
+                  {/* Category Selection */}
                   <TouchableOpacity
-                    style={[
-                      styles.toggleButton,
-                      repeatBudget
-                        ? styles.toggleActive
-                        : styles.toggleInactive,
-                    ]}
-                    onPress={toggleRepeatBudget}
+                    style={styles.cardRow}
+                    onPress={navigateToSelectCategory}
                   >
                     <View
                       style={[
-                        styles.toggleHandle,
-                        repeatBudget
-                          ? styles.toggleHandleRight
-                          : styles.toggleHandleLeft,
+                        styles.cardIcon,
+                        categoryDetails[selectedCategories[0]]?.color
+                          ? {
+                              backgroundColor:
+                                categoryDetails[selectedCategories[0]].color,
+                            }
+                          : null,
                       ]}
+                    >
+                      <Ionicons
+                        name={
+                          (categoryDetails[selectedCategories[0]]
+                            ?.icon as any) || "grid-outline"
+                        }
+                        size={24}
+                        color={
+                          selectedCategories.length > 0 ? "#FFFFFF" : "#BDBDBD"
+                        }
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.cardText,
+                        selectedCategories.length === 0 && { color: "#BDBDBD" },
+                      ]}
+                    >
+                      {selectedCategories.length > 0
+                        ? categoryDetails[selectedCategories[0]]?.name
+                        : "Select category"}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#BDBDBD"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Amount Input */}
+                  <View style={styles.cardRow}>
+                    <View
+                      style={[styles.cardIcon, { backgroundColor: "#E8F8F3" }]}
+                    >
+                      <Ionicons name="cash-outline" size={24} color="#00B894" />
+                    </View>
+                    <View style={styles.amountInputGroup}>
+                      <Text style={styles.amountInputLabel}>Amount</Text>
+                      <View style={styles.amountInputBox}>
+                        <Text style={styles.currencyText}>VND</Text>
+                        <TextInput
+                          style={styles.amountInput}
+                          value={formatAmountWithDots(amount)}
+                          onChangeText={handleAmountChange}
+                          keyboardType="numeric"
+                          placeholder="0"
+                          placeholderTextColor="#BDBDBD"
+                        />
+                      </View>
+                    </View>
+                  </View>
+
+                  {/* Period Selection */}
+                  <TouchableOpacity
+                    style={styles.cardRow}
+                    onPress={() => setShowPeriodModal(true)}
+                  >
+                    <View
+                      style={[styles.cardIcon, { backgroundColor: "#F5F5F5" }]}
+                    >
+                      <Ionicons
+                        name="calendar-outline"
+                        size={24}
+                        color="#0984E3"
+                      />
+                    </View>
+                    <Text style={styles.cardText}>{selectedPeriod}</Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#BDBDBD"
+                    />
+                  </TouchableOpacity>
+
+                  {/* Wallet Selection */}
+                  <TouchableOpacity
+                    style={styles.cardRow}
+                    onPress={() =>
+                      navigation.navigate("SelectWallet", {
+                        selectedWalletId: selectedWallet?._id,
+                        onSelectWallet: (wallet: any) => {
+                          setSelectedWallet(wallet);
+                        },
+                      })
+                    }
+                  >
+                    <View
+                      style={[
+                        styles.cardIcon,
+                        selectedWallet
+                          ? { backgroundColor: selectedWallet.color }
+                          : { backgroundColor: "#F0F0F0" },
+                      ]}
+                    >
+                      <Ionicons
+                        name={
+                          selectedWallet
+                            ? (selectedWallet.icon as any)
+                            : "wallet-outline"
+                        }
+                        size={24}
+                        color={selectedWallet ? "#FFFFFF" : "#BDBDBD"}
+                      />
+                    </View>
+                    <Text
+                      style={[
+                        styles.cardText,
+                        !selectedWallet && { color: "#BDBDBD" },
+                      ]}
+                    >
+                      {selectedWallet ? selectedWallet.name : "Select wallet"}
+                    </Text>
+                    <Ionicons
+                      name="chevron-forward"
+                      size={22}
+                      color="#BDBDBD"
                     />
                   </TouchableOpacity>
                 </View>
 
                 {/* Action Buttons */}
                 <View style={styles.bottomContainer}>
-                  {/* Delete Button */}
-                  <TouchableOpacity
-                    style={styles.deleteButton}
-                    onPress={handleDelete}
-                    disabled={deleting}
-                  >
-                    {deleting ? (
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    ) : (
-                      <Text style={styles.deleteButtonText}>Delete</Text>
-                    )}
-                  </TouchableOpacity>
-
                   {/* Save Button */}
                   <TouchableOpacity
                     style={[
@@ -628,13 +713,13 @@ const EditBudgetScreen = () => {
                         ? styles.saveButtonActive
                         : styles.saveButtonInactive,
                     ]}
-                    onPress={handleSave}
+                    onPress={handleUpdateBudget}
                     disabled={!amount || parseInt(amount, 10) <= 0 || saving}
                   >
                     {saving ? (
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
+                      <Text style={styles.saveButtonText}>Update</Text>
                     )}
                   </TouchableOpacity>
                 </View>
@@ -689,6 +774,493 @@ const EditBudgetScreen = () => {
             onChange={handleDateChange}
           />
         )}
+
+        {showPeriodModal && (
+          <Modal
+            visible={showPeriodModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowPeriodModal(false)}
+          >
+            <TouchableWithoutFeedback onPress={() => setShowPeriodModal(false)}>
+              <View style={styles.modalBackdrop}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.datePickerModal}>
+                    <View style={styles.datePickerHeader}>
+                      <Text style={styles.datePickerTitle}>Select Period</Text>
+                      <TouchableOpacity
+                        onPress={() => setShowPeriodModal(false)}
+                        style={styles.datePickerButton}
+                      >
+                        <Ionicons name="close" size={24} color="#333333" />
+                      </TouchableOpacity>
+                    </View>
+                    <ScrollView style={{ padding: 16 }}>
+                      {/* This Month */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          const today = new Date();
+                          const startOfMonth = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            1
+                          );
+                          const endOfMonth = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 1,
+                            0
+                          );
+                          setStartDate(startOfMonth);
+                          setEndDate(endOfMonth);
+                          setSelectedPeriod(
+                            `This month (${startOfMonth.getDate()}/${
+                              startOfMonth.getMonth() + 1
+                            } - ${endOfMonth.getDate()}/${
+                              endOfMonth.getMonth() + 1
+                            })`
+                          );
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>This month</Text>
+                        {selectedPeriod.includes("This month") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      {/* Next Month */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          const today = new Date();
+                          const startOfNextMonth = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 1,
+                            1
+                          );
+                          const endOfNextMonth = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 2,
+                            0
+                          );
+                          setStartDate(startOfNextMonth);
+                          setEndDate(endOfNextMonth);
+                          setSelectedPeriod(
+                            `Next month (${startOfNextMonth.getDate()}/${
+                              startOfNextMonth.getMonth() + 1
+                            } - ${endOfNextMonth.getDate()}/${
+                              endOfNextMonth.getMonth() + 1
+                            })`
+                          );
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>Next month</Text>
+                        {selectedPeriod.includes("Next month") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      {/* Quarter */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          const today = new Date();
+                          const startOfQuarter = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            1
+                          );
+                          const endOfQuarter = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 3,
+                            0
+                          );
+                          setStartDate(startOfQuarter);
+                          setEndDate(endOfQuarter);
+                          setSelectedPeriod(
+                            `Quarter (${startOfQuarter.getDate()}/${
+                              startOfQuarter.getMonth() + 1
+                            } - ${endOfQuarter.getDate()}/${
+                              endOfQuarter.getMonth() + 1
+                            })`
+                          );
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>Quarter</Text>
+                        {selectedPeriod.includes("Quarter") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      {/* Half year */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          const today = new Date();
+                          const startOfHalfYear = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            1
+                          );
+                          const endOfHalfYear = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 6,
+                            0
+                          );
+                          setStartDate(startOfHalfYear);
+                          setEndDate(endOfHalfYear);
+                          setSelectedPeriod(
+                            `Half year (${startOfHalfYear.getDate()}/${
+                              startOfHalfYear.getMonth() + 1
+                            } - ${endOfHalfYear.getDate()}/${
+                              endOfHalfYear.getMonth() + 1
+                            })`
+                          );
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>Half year</Text>
+                        {selectedPeriod.includes("Half year") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      {/* Year */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          const today = new Date();
+                          const startOfYear = new Date(
+                            today.getFullYear(),
+                            today.getMonth(),
+                            1
+                          );
+                          const endOfYear = new Date(
+                            today.getFullYear(),
+                            today.getMonth() + 12,
+                            0
+                          );
+                          setStartDate(startOfYear);
+                          setEndDate(endOfYear);
+                          setSelectedPeriod(
+                            `Year (${startOfYear.getDate()}/${
+                              startOfYear.getMonth() + 1
+                            } - ${endOfYear.getDate()}/${
+                              endOfYear.getMonth() + 1
+                            })`
+                          );
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>Year</Text>
+                        {selectedPeriod.includes("Year") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                      {/* Custom */}
+                      <TouchableOpacity
+                        style={styles.selectButton}
+                        onPress={() => {
+                          setTempStartDate(startDate);
+                          setTempEndDate(endDate);
+                          setShowCustomDateModal(true);
+                          setShowPeriodModal(false);
+                        }}
+                      >
+                        <View style={styles.periodIcon}>
+                          <Ionicons
+                            name="calendar-outline"
+                            size={24}
+                            color="#666"
+                          />
+                        </View>
+                        <Text style={styles.selectButtonText}>Custom</Text>
+                        {selectedPeriod.includes("Custom") && (
+                          <View style={styles.periodItemCheck}>
+                            <Ionicons
+                              name="checkmark"
+                              size={16}
+                              color="#FFFFFF"
+                            />
+                          </View>
+                        )}
+                      </TouchableOpacity>
+                    </ScrollView>
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
+
+        {showCustomDateModal && (
+          <Modal
+            visible={showCustomDateModal}
+            transparent={true}
+            animationType="slide"
+            onRequestClose={() => setShowCustomDateModal(false)}
+          >
+            <TouchableWithoutFeedback
+              onPress={() => setShowCustomDateModal(false)}
+            >
+              <View style={styles.modalBackdrop}>
+                <TouchableWithoutFeedback>
+                  <View style={styles.datePickerModal}>
+                    <View style={styles.datePickerHeader}>
+                      <TouchableOpacity
+                        onPress={() => setShowCustomDateModal(false)}
+                        style={styles.datePickerButton}
+                      >
+                        <Text style={styles.datePickerButtonText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.datePickerTitle}>Custom Period</Text>
+                      <TouchableOpacity
+                        onPress={() => {
+                          if (tempStartDate && tempEndDate) {
+                            setStartDate(tempStartDate);
+                            setEndDate(tempEndDate);
+                            setSelectedPeriod(
+                              `Custom (${tempStartDate.toLocaleDateString()} - ${tempEndDate.toLocaleDateString()})`
+                            );
+                          }
+                          setShowCustomDateModal(false);
+                        }}
+                        style={styles.datePickerButton}
+                      >
+                        <Text style={styles.datePickerButtonText}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <View
+                      style={{
+                        flexDirection: "row",
+                        justifyContent: "space-between",
+                        marginTop: 16,
+                      }}
+                    >
+                      {/* Start Date */}
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "#F7F7F7",
+                          borderRadius: 12,
+                          paddingVertical: 12,
+                          paddingHorizontal: 14,
+                          marginRight: 8,
+                        }}
+                        onPress={() => setDatePickerType("start")}
+                      >
+                        <Ionicons
+                          name="calendar-outline"
+                          size={20}
+                          color="#0984E3"
+                          style={{ marginRight: 8 }}
+                        />
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#888",
+                              marginBottom: 2,
+                            }}
+                          >
+                            Start Date
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              color: "#222",
+                              fontWeight: "500",
+                            }}
+                          >
+                            {tempStartDate
+                              ? tempStartDate.toLocaleDateString()
+                              : "Select"}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                      {/* End Date */}
+                      <TouchableOpacity
+                        style={{
+                          flex: 1,
+                          flexDirection: "row",
+                          alignItems: "center",
+                          backgroundColor: "#F7F7F7",
+                          borderRadius: 12,
+                          paddingVertical: 12,
+                          paddingHorizontal: 14,
+                          marginLeft: 8,
+                        }}
+                        onPress={() => setDatePickerType("end")}
+                      >
+                        <Ionicons
+                          name="calendar-outline"
+                          size={20}
+                          color="#0984E3"
+                          style={{ marginRight: 8 }}
+                        />
+                        <View>
+                          <Text
+                            style={{
+                              fontSize: 12,
+                              color: "#888",
+                              marginBottom: 2,
+                            }}
+                          >
+                            End Date
+                          </Text>
+                          <Text
+                            style={{
+                              fontSize: 16,
+                              color: "#222",
+                              fontWeight: "500",
+                            }}
+                          >
+                            {tempEndDate
+                              ? tempEndDate.toLocaleDateString()
+                              : "Select"}
+                          </Text>
+                        </View>
+                      </TouchableOpacity>
+                    </View>
+                    {/* DateTimePicker for iOS/Android */}
+                    {(datePickerType === "start" ||
+                      datePickerType === "end") && (
+                      <DateTimePicker
+                        value={
+                          datePickerType === "start"
+                            ? tempStartDate || new Date()
+                            : tempEndDate || new Date()
+                        }
+                        mode="date"
+                        display={Platform.OS === "ios" ? "spinner" : "default"}
+                        onChange={(event, selectedDate) => {
+                          if (selectedDate) {
+                            if (datePickerType === "start") {
+                              setTempStartDate(selectedDate);
+                            } else {
+                              setTempEndDate(selectedDate);
+                            }
+                          }
+                        }}
+                        minimumDate={
+                          datePickerType === "end" && tempStartDate
+                            ? tempStartDate
+                            : undefined
+                        }
+                      />
+                    )}
+                  </View>
+                </TouchableWithoutFeedback>
+              </View>
+            </TouchableWithoutFeedback>
+          </Modal>
+        )}
+
+        <CustomAlert
+          visible={showDeleteModal}
+          type="warning"
+          title="Delete Budget"
+          message="Are you sure you want to delete this budget?"
+          onClose={() => setShowDeleteModal(false)}
+          showConfirmButton={true}
+          confirmText="Delete"
+          onConfirm={async () => {
+            setShowDeleteModal(false);
+            try {
+              setDeleting(true);
+              const token = await AsyncStorage.getItem(config.auth.tokenKey);
+              const headers = token ? { Authorization: `Bearer ${token}` } : {};
+              const response = await apiClient.delete(
+                `/api/budgets/${budget._id}`,
+                { headers }
+              );
+              if (response.status === 200) {
+                toast.showToast
+                  ? toast.showToast("Budget deleted successfully", "success")
+                  : null;
+                navigation.goBack();
+              }
+            } catch (error) {
+              console.error("Error deleting budget:", error);
+              toast.showToast
+                ? toast.showToast(
+                    "Failed to delete budget. Please try again.",
+                    "error"
+                  )
+                : null;
+            } finally {
+              setDeleting(false);
+            }
+          }}
+          showCancelButton={true}
+          cancelText="Cancel"
+        />
       </SafeAreaView>
     </>
   );
@@ -699,39 +1271,41 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.primary,
   },
-  contentContainer: {
-    flex: 1,
-    backgroundColor: "#F5F5F5",
-    borderTopLeftRadius: 25,
-    borderTopRightRadius: 25,
-    overflow: "hidden",
-    marginTop: 10,
-  },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
     backgroundColor: colors.primary,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    paddingTop: 0,
+    borderBottomLeftRadius: 30,
+    borderBottomRightRadius: 30,
   },
   backButton: {
+    padding: 8,
+    height: 56,
     justifyContent: "center",
-    alignItems: "flex-start",
-  },
-  cancelText: {
-    fontSize: 17,
-    color: "#FFFFFF",
-    fontWeight: "500",
+    alignItems: "center",
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
     color: "#FFFFFF",
-    textAlign: "center",
+    lineHeight: 40,
+  },
+  headerRight: {
+    width: 40,
+  },
+  contentContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
+    marginTop: -24,
+  },
+  keyboardAvoidingView: {
+    flex: 1,
   },
   mainContainer: {
     flex: 1,
@@ -740,175 +1314,101 @@ const styles = StyleSheet.create({
   budgetCard: {
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-    marginBottom: 20,
+    padding: 20,
+    marginBottom: 24,
+    width: "98%",
+    alignSelf: "center",
+    marginTop: 8,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 6,
+      },
+    }),
   },
-  itemRow: {
+  cardRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    marginBottom: 24,
   },
-  itemLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  categoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  emptyCategoryIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#CCCCCC",
-    justifyContent: "center",
-    alignItems: "center",
-    marginRight: 12,
-  },
-  iconContainer: {
+  cardIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: "#F0F0F0",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 16,
   },
-  itemText: {
+  cardText: {
     fontSize: 16,
     color: "#333333",
+    flex: 1,
   },
-  placeholderText: {
-    fontSize: 16,
-    color: "#AAAAAA",
+  amountInputGroup: {
+    flex: 1,
+    flexDirection: "column",
+    marginLeft: 8,
   },
-  divider: {
-    height: 1,
-    backgroundColor: "#F0F0F0",
-    marginHorizontal: 16,
+  amountInputLabel: {
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 4,
+    fontWeight: "500",
   },
-  amountContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  amountLabel: {
-    fontSize: 14,
-    color: "#999999",
-    marginBottom: 8,
-  },
-  amountInputRow: {
+  amountInputBox: {
     flexDirection: "row",
     alignItems: "center",
-  },
-  currencyContainer: {
-    backgroundColor: "#F0F0F0",
+    backgroundColor: "#F7F7F7",
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 8,
-    marginRight: 12,
-  },
-  currencyText: {
-    fontSize: 16,
-    fontWeight: "500",
-    color: "#333333",
   },
   amountInput: {
     flex: 1,
     fontSize: 24,
+    color: "#222",
     fontWeight: "bold",
-    color: "#333333",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
   },
-  repeatContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  repeatTextContainer: {
-    flex: 1,
-  },
-  repeatLabel: {
+  currencyText: {
     fontSize: 16,
+    color: "#00B894",
     fontWeight: "600",
-    color: "#333333",
-    marginBottom: 4,
-  },
-  repeatDescription: {
-    fontSize: 13,
-    color: "#888888",
-  },
-  toggleButton: {
-    width: 50,
-    height: 30,
-    borderRadius: 15,
-    padding: 2,
-  },
-  toggleActive: {
-    backgroundColor: colors.primary,
-  },
-  toggleInactive: {
-    backgroundColor: "#CCCCCC",
-  },
-  toggleHandle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#FFFFFF",
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.5,
-  },
-  toggleHandleLeft: {
-    alignSelf: "flex-start",
-  },
-  toggleHandleRight: {
-    alignSelf: "flex-end",
+    marginRight: 8,
   },
   bottomContainer: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "center",
     alignItems: "center",
     padding: 16,
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
     marginTop: "auto",
     marginBottom: 20,
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    width: "100%",
+    backgroundColor: "#FFFFFF",
   },
   saveButton: {
     height: 56,
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    width: "48%",
+    width: "100%",
+    maxWidth: 340,
+    alignSelf: "center",
     paddingHorizontal: 24,
+    marginLeft: 32,
   },
   saveButtonText: {
     color: "#FFFFFF",
@@ -922,13 +1422,13 @@ const styles = StyleSheet.create({
     backgroundColor: "#CCCCCC",
   },
   deleteButton: {
-    height: 56,
+    backgroundColor: "#FF5252",
     borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
-    width: "48%",
+    height: 56,
     paddingHorizontal: 24,
-    backgroundColor: "#FF3B30",
+    marginRight: 12,
   },
   deleteButtonText: {
     color: "#FFFFFF",
@@ -976,6 +1476,85 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: "#F5F5F5",
+  },
+  selectButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
+  },
+  selectButtonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1,
+  },
+  selectButtonText: {
+    fontSize: 16,
+    color: "#333333",
+    flex: 1,
+  },
+  periodIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#F5F5F5",
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  periodInfo: {
+    fontSize: 14,
+    color: "#666666",
+    marginTop: 4,
+  },
+  nameInputGroup: {
+    flex: 1,
+    flexDirection: "column",
+    marginLeft: 8,
+    marginBottom: 24,
+  },
+  nameInputLabel: {
+    fontSize: 13,
+    color: "#888",
+    marginBottom: 4,
+    fontWeight: "500",
+  },
+  nameInputBox: {
+    backgroundColor: "#F7F7F7",
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  nameInput: {
+    fontSize: 16,
+    color: "#222",
+    fontWeight: "500",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+  },
+  periodItemCheck: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+    justifyContent: "center",
+    alignItems: "center",
+    marginLeft: 8,
   },
 });
 

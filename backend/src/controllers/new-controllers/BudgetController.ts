@@ -1,80 +1,6 @@
 import { Request, Response } from "express";
 import { AuthenticatedRequest } from "../../types/AuthenticatedRequest";
-
-// Dữ liệu mẫu cho ngân sách
-const sampleBudgets = [
-  {
-    id: "budget-001",
-    name: "Monthly Food Budget",
-    amount: 500000,
-    currentAmount: 250000,
-    startDate: new Date("2023-06-01"),
-    endDate: new Date("2023-06-30"),
-    categories: ["cat-001", "cat-004"], // Food & Drink, Groceries
-    userId: "user-001",
-    walletId: "wallet-001",
-    isRecurring: true,
-    recurringFrequency: "monthly",
-    status: "in_progress",
-    notificationThreshold: 80, // Phần trăm khi cần thông báo
-    notes: "Budget for all food expenses",
-    createdAt: new Date("2023-05-25"),
-    updatedAt: new Date("2023-06-15"),
-  },
-  {
-    id: "budget-002",
-    name: "Entertainment Budget",
-    amount: 200000,
-    currentAmount: 150000,
-    startDate: new Date("2023-06-01"),
-    endDate: new Date("2023-06-30"),
-    categories: ["cat-005"], // Entertainment
-    userId: "user-001",
-    walletId: "wallet-001",
-    isRecurring: true,
-    recurringFrequency: "monthly",
-    status: "in_progress",
-    notificationThreshold: 90,
-    notes: "Movies, games, etc.",
-    createdAt: new Date("2023-05-25"),
-    updatedAt: new Date("2023-06-15"),
-  },
-  {
-    id: "budget-003",
-    name: "Transport Budget",
-    amount: 300000,
-    currentAmount: 200000,
-    startDate: new Date("2023-06-01"),
-    endDate: new Date("2023-06-30"),
-    categories: ["cat-002"], // Transport
-    userId: "user-001",
-    walletId: "wallet-001",
-    isRecurring: true,
-    recurringFrequency: "monthly",
-    status: "in_progress",
-    notificationThreshold: 80,
-    notes: "Public transport and ride sharing",
-    createdAt: new Date("2023-05-25"),
-    updatedAt: new Date("2023-06-15"),
-  },
-  {
-    id: "budget-004",
-    name: "Shopping Trip",
-    amount: 1000000,
-    currentAmount: 500000,
-    startDate: new Date("2023-06-10"),
-    endDate: new Date("2023-06-15"),
-    categories: ["cat-003"], // Shopping
-    userId: "user-001",
-    walletId: "wallet-001",
-    isRecurring: false,
-    status: "in_progress",
-    notificationThreshold: 75,
-    notes: "Budget for summer shopping trip",
-    createdAt: new Date("2023-06-01"),
-    updatedAt: new Date("2023-06-12"),
-  },
-];
+import Budget from "../../models/new-models/Budget";
 
 /**
  * Lấy danh sách ngân sách
@@ -98,68 +24,65 @@ export const getBudgets = async (
     // Lọc ngân sách
     const { status, isRecurring, walletId, startDate, endDate } = req.query;
 
-    let filteredBudgets = [...sampleBudgets];
+    // Xây dựng query filter
+    const filter: any = { userId };
 
     // Lọc theo trạng thái
     if (status) {
-      filteredBudgets = filteredBudgets.filter((b) => b.status === status);
+      filter.status = status;
     }
 
     // Lọc theo loại (định kỳ hoặc một lần)
     if (isRecurring !== undefined) {
-      const recurring = isRecurring === "true";
-      filteredBudgets = filteredBudgets.filter(
-        (b) => b.isRecurring === recurring
-      );
+      filter.isRecurring = isRecurring === "true";
     }
 
     // Lọc theo ví
-    if (walletId) {
-      filteredBudgets = filteredBudgets.filter((b) => b.walletId === walletId);
+    if (walletId && walletId !== "all") {
+      filter.walletId = walletId;
     }
 
     // Lọc theo ngày bắt đầu
     if (startDate) {
-      const start = new Date(startDate as string);
-      filteredBudgets = filteredBudgets.filter((b) => b.startDate >= start);
+      filter.startDate = { $gte: new Date(startDate as string) };
     }
 
     // Lọc theo ngày kết thúc
     if (endDate) {
-      const end = new Date(endDate as string);
-      filteredBudgets = filteredBudgets.filter((b) => b.endDate <= end);
+      filter.endDate = { $lte: new Date(endDate as string) };
     }
 
+    // Lấy danh sách ngân sách từ database
+    const budgets = await Budget.find(filter)
+      .populate("categories", "name icon color")
+      .sort({ createdAt: -1 });
+
     // Tính toán số liệu tổng hợp
-    const totalBudgeted = filteredBudgets.reduce(
+    const totalBudgeted = budgets.reduce(
       (sum, budget) => sum + budget.amount,
       0
     );
-    const totalSpent = filteredBudgets.reduce(
+    const totalSpent = budgets.reduce(
       (sum, budget) => sum + budget.currentAmount,
       0
     );
-    const averageUsagePercentage = Math.round(
-      (totalSpent / totalBudgeted) * 100
-    );
+    const averageUsagePercentage =
+      totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0;
 
     // Phân loại theo trạng thái
     const budgetsSummary = {
       totalBudgeted,
       totalSpent,
       averageUsagePercentage,
-      totalBudgets: filteredBudgets.length,
-      inProgressBudgets: filteredBudgets.filter(
-        (b) => b.status === "in_progress"
-      ).length,
-      completedBudgets: filteredBudgets.filter((b) => b.status === "completed")
-        .length,
-      exceededBudgets: filteredBudgets.filter((b) => b.currentAmount > b.amount)
-        .length,
+      totalBudgets: budgets.length,
+      inProgressBudgets: budgets.filter((b) => b.status === "active").length,
+      completedBudgets: budgets.filter((b) => b.status === "completed").length,
+      exceededBudgets: budgets.filter((b) => b.currentAmount > b.amount).length,
     };
 
+    // Trả về luôn mảng budgets đã populate
     res.json({
-      budgets: filteredBudgets,
+      budgets,
       summary: budgetsSummary,
     });
   } catch (error) {
@@ -189,8 +112,8 @@ export const getBudgetById = async (
       return;
     }
 
-    // Tìm ngân sách trong dữ liệu mẫu
-    const budget = sampleBudgets.find((b) => b.id === budgetId);
+    // Lấy ngân sách từ database, KHÔNG populate categories
+    const budget = await Budget.findOne({ _id: budgetId, userId });
 
     if (!budget) {
       res.status(404).json({ message: "Budget not found" });
@@ -211,38 +134,17 @@ export const getBudgetById = async (
       )
     );
 
-    // Tạo dữ liệu giao dịch mẫu cho ngân sách
-    const sampleTransactions = [
-      {
-        id: "trans-001",
-        amount: 50000,
-        description: "Lunch",
-        date: new Date("2023-06-05"),
-        categoryId: "cat-001",
-        walletId: "wallet-001",
-      },
-      {
-        id: "trans-002",
-        amount: 100000,
-        description: "Groceries",
-        date: new Date("2023-06-10"),
-        categoryId: "cat-004",
-        walletId: "wallet-001",
-      },
-      {
-        id: "trans-003",
-        amount: 80000,
-        description: "Dinner",
-        date: new Date("2023-06-12"),
-        categoryId: "cat-001",
-        walletId: "wallet-001",
-      },
-    ];
-
-    // Trả về thông tin chi tiết kèm phân tích
+    // Trả về thông tin chi tiết kèm phân tích, categories là mảng id
+    const budgetObj = budget.toObject();
+    budgetObj.categories = budgetObj.categories
+      .map((cat: any) =>
+        typeof cat === "object" && cat !== null && cat._id
+          ? cat._id.toString()
+          : cat
+      )
+      .filter((id: any) => typeof id === "string" && id && id !== "undefined");
     res.json({
-      ...budget,
-      transactions: sampleTransactions,
+      ...budgetObj,
       analytics: {
         usagePercentage,
         remainingAmount,
@@ -331,32 +233,39 @@ export const createBudget = async (
       return;
     }
 
-    if (!Array.isArray(categories) || categories.length === 0) {
+    // Làm sạch mảng categories
+    let cleanedCategories = Array.isArray(categories)
+      ? categories.filter(
+          (id) => typeof id === "string" && id && id !== "undefined"
+        )
+      : [];
+
+    if (!Array.isArray(cleanedCategories) || cleanedCategories.length === 0) {
       res.status(400).json({
-        message: "At least one category must be selected",
+        message: "At least one valid category must be selected",
       });
       return;
     }
 
     // Tạo ngân sách mới
-    const newBudget = {
-      id: `budget-${Date.now()}`,
+    const newBudget = new Budget({
       name,
       amount: Number(amount),
       currentAmount: 0,
       startDate: new Date(startDate),
       endDate: new Date(endDate),
-      categories,
+      categories: cleanedCategories,
       userId,
       walletId,
       isRecurring: Boolean(isRecurring),
       recurringFrequency: recurringFrequency || "monthly",
-      status: "in_progress",
+      status: "active",
       notificationThreshold: notificationThreshold || 80,
       notes: notes || "",
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+    });
+
+    // Lưu vào database
+    await newBudget.save();
 
     res.status(201).json({
       message: "Budget created successfully",
@@ -392,9 +301,8 @@ export const updateBudget = async (
       return;
     }
 
-    // Tìm ngân sách cần cập nhật
-    const budget = sampleBudgets.find((b) => b.id === budgetId);
-
+    // Lấy ngân sách từ database
+    const budget = await Budget.findOne({ _id: budgetId, userId });
     if (!budget) {
       res.status(404).json({ message: "Budget not found" });
       return;
@@ -413,35 +321,41 @@ export const updateBudget = async (
       notes,
     } = req.body;
 
+    // Làm sạch mảng categories nếu có
+    let updatedCategories = Array.isArray(categories)
+      ? categories.filter(
+          (id) => typeof id === "string" && id && id !== "undefined"
+        )
+      : budget.categories;
+
     // Cập nhật ngân sách
-    const updatedBudget = {
-      ...budget,
-      name: name || budget.name,
-      amount: amount ? Number(amount) : budget.amount,
-      startDate: startDate ? new Date(startDate) : budget.startDate,
-      endDate: endDate ? new Date(endDate) : budget.endDate,
-      categories: categories || budget.categories,
-      walletId: walletId || budget.walletId,
-      isRecurring:
-        isRecurring !== undefined ? Boolean(isRecurring) : budget.isRecurring,
-      recurringFrequency: recurringFrequency || budget.recurringFrequency,
-      notificationThreshold:
-        notificationThreshold || budget.notificationThreshold,
-      notes: notes !== undefined ? notes : budget.notes,
-      updatedAt: new Date(),
-    };
+    budget.name = name || budget.name;
+    budget.amount = amount ? Number(amount) : budget.amount;
+    budget.startDate = startDate ? new Date(startDate) : budget.startDate;
+    budget.endDate = endDate ? new Date(endDate) : budget.endDate;
+    budget.categories = updatedCategories;
+    budget.walletId = walletId || budget.walletId;
+    budget.isRecurring =
+      isRecurring !== undefined ? Boolean(isRecurring) : budget.isRecurring;
+    budget.recurringFrequency = recurringFrequency || budget.recurringFrequency;
+    budget.notificationThreshold =
+      notificationThreshold || budget.notificationThreshold;
+    budget.notes = notes !== undefined ? notes : budget.notes;
+    budget.updatedAt = new Date();
 
     // Kiểm tra logic ngày tháng
-    if (updatedBudget.startDate >= updatedBudget.endDate) {
+    if (budget.startDate >= budget.endDate) {
       res.status(400).json({
         message: "End date must be after start date",
       });
       return;
     }
 
+    await budget.save();
+
     res.json({
       message: "Budget updated successfully",
-      budget: updatedBudget,
+      budget,
     });
   } catch (error) {
     console.error("Error updating budget:", error);
@@ -470,22 +384,10 @@ export const deleteBudget = async (
       return;
     }
 
-    // Tìm ngân sách cần xóa
-    const budget = sampleBudgets.find((b) => b.id === budgetId);
-
-    if (!budget) {
+    // Xóa ngân sách từ database
+    const result = await Budget.deleteOne({ _id: budgetId, userId });
+    if (result.deletedCount === 0) {
       res.status(404).json({ message: "Budget not found" });
-      return;
-    }
-
-    // Xác nhận xóa tất cả ngân sách định kỳ trong tương lai?
-    const { deleteAllRecurring } = req.query;
-
-    if (budget.isRecurring && deleteAllRecurring === "true") {
-      res.json({
-        message: "Budget and all future recurring budgets deleted successfully",
-        budgetId,
-      });
       return;
     }
 
@@ -541,26 +443,18 @@ export const getBudgetReport = async (
       return;
     }
 
-    // Lọc ngân sách theo tháng/năm
-    let relevantBudgets = [...sampleBudgets].filter((budget) => {
-      const startMonth = budget.startDate.getMonth() + 1;
-      const startYear = budget.startDate.getFullYear();
-      const endMonth = budget.endDate.getMonth() + 1;
-      const endYear = budget.endDate.getFullYear();
-
-      // Kiểm tra xem ngân sách có nằm trong tháng báo cáo không
-      return (
-        (startYear < reportYear ||
-          (startYear === reportYear && startMonth <= reportMonth)) &&
-        (endYear > reportYear ||
-          (endYear === reportYear && endMonth >= reportMonth))
-      );
-    });
-
-    // Lọc theo ví nếu cần
+    // Lọc ngân sách theo tháng/năm từ MongoDB
+    const startOfMonth = new Date(reportYear, reportMonth - 1, 1);
+    const endOfMonth = new Date(reportYear, reportMonth, 0, 23, 59, 59, 999);
+    let filter: any = {
+      userId,
+      startDate: { $lte: endOfMonth },
+      endDate: { $gte: startOfMonth },
+    };
     if (walletId) {
-      relevantBudgets = relevantBudgets.filter((b) => b.walletId === walletId);
+      filter.walletId = walletId;
     }
+    let relevantBudgets = await Budget.find(filter);
 
     // Tính toán số liệu tổng hợp
     const totalBudgeted = relevantBudgets.reduce(

@@ -65,3 +65,18 @@ export const formatDate = (date: Date): string => {
 export const formatPercentage = (value: number): string => {
   return `${Math.round(value * 100)}%`;
 };
+
+export const formatCurrency = (amount: number): string => {
+  return new Intl.NumberFormat("vi-VN", {
+    style: "currency",
+    currency: "VND",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+};
+
+export const parseCurrency = (value: string): number => {
+  // Remove all non-numeric characters
+  const numericValue = value.replace(/[^0-9]/g, "");
+  return parseInt(numericValue || "0");
+};

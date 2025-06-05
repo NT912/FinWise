@@ -13,7 +13,6 @@ import SecurityPinScreen from "../screens/Auth/SecurityPinScreen";
 import ResetPasswordScreen from "../screens/Auth/ResetPasswordScreen";
 import HomeScreen from "../screens/Home/HomeScreen";
 import TransactionScreen from "../screens/Transaction/TransactionScreen";
-import ChartsScreen from "../screens/ChartsScreen";
 import ProfileScreen from "../screens/Profile/ProfileScreen";
 import CategoriesScreen from "../screens/CategoriesScreen";
 import SettingsScreen from "../screens/Profile/SettingsScreen";
@@ -39,6 +38,8 @@ import CreateWalletScreen from "../screens/Wallet/CreateWalletScreen";
 import EditWalletScreen from "../screens/Wallet/EditWalletScreen";
 import IncomeExpenseReportScreen from "../screens/Reports/IncomeExpenseReportScreen";
 import BudgetScreen from "../screens/Budget/BudgetScreen";
+import CreateBudgetScreen from "../screens/Budget/CreateBudgetScreen";
+import EditBudgetScreen from "../screens/Budget/EditBudgetScreen";
 import { colors } from "../theme";
 import {
   RootStackParamList,
@@ -46,8 +47,8 @@ import {
   ProfileStackParamList,
   SavingStackParamList,
   TransactionStackParamList,
-  ChartsStackParamList,
   TabParamList,
+  BudgetStackParamList,
 } from "./types";
 import CreateCategoryScreen from "../screens/Category/CreateCategoryScreen";
 import AddNoteScreen from "../screens/Transaction/AddNoteScreen";
@@ -61,10 +62,10 @@ interface AppNavigatorProps {
 const Stack = createStackNavigator<RootStackParamList>();
 const HomeStack = createStackNavigator<HomeStackParamList>();
 const TransactionStack = createStackNavigator<TransactionStackParamList>();
-const ChartsStack = createStackNavigator<ChartsStackParamList>();
 const ProfileStack = createStackNavigator<ProfileStackParamList>();
 const SavingStack = createStackNavigator<SavingStackParamList>();
 const Tab = createBottomTabNavigator();
+const BudgetStack = createStackNavigator<BudgetStackParamList>();
 
 // Home Stack
 const HomeStackNavigator = () => (
@@ -99,13 +100,6 @@ const TransactionStackNavigator = () => (
   </TransactionStack.Navigator>
 );
 
-// Charts Stack
-const ChartsStackNavigator = () => (
-  <ChartsStack.Navigator screenOptions={{ headerShown: false }}>
-    <ChartsStack.Screen name="Charts" component={ChartsScreen} />
-  </ChartsStack.Navigator>
-);
-
 // Saving Stack
 const SavingStackNavigator = () => (
   <SavingStack.Navigator screenOptions={{ headerShown: false }}>
@@ -133,6 +127,20 @@ const ProfileStackNavigator = () => (
     <ProfileStack.Screen name="DeleteAccount" component={DeleteAccountScreen} />
     <ProfileStack.Screen name="Logout" component={LogoutScreen} />
   </ProfileStack.Navigator>
+);
+
+// Add BudgetStack Navigator
+const BudgetStackNavigator = () => (
+  <BudgetStack.Navigator screenOptions={{ headerShown: false }}>
+    <BudgetStack.Screen name="BudgetMain" component={BudgetScreen} />
+    <BudgetStack.Screen name="CreateBudget" component={CreateBudgetScreen} />
+    <BudgetStack.Screen name="EditBudget" component={EditBudgetScreen} />
+    <BudgetStack.Screen
+      name="SelectCategory"
+      component={SelectCategoryScreen}
+    />
+    <BudgetStack.Screen name="SelectWallet" component={SelectWalletScreen} />
+  </BudgetStack.Navigator>
 );
 
 // Tab Navigator - This is where our TabBar lives
@@ -196,14 +204,14 @@ const TabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="ChartsTab"
-        component={ChartsStackNavigator}
+        name="BudgetTab"
+        component={BudgetStackNavigator}
         options={{
-          tabBarLabel: "Charts",
+          tabBarLabel: "Budget",
           tabBarIcon: ({ focused }) => (
             <View style={styles.tabIconContainer}>
               <Ionicons
-                name={focused ? "bar-chart" : "bar-chart-outline"}
+                name={focused ? "pie-chart" : "pie-chart-outline"}
                 size={24}
                 color={focused ? colors.primary : colors.textSecondary}
               />

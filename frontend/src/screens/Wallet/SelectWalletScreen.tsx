@@ -40,6 +40,20 @@ const SelectWalletScreen = () => {
     selectedWalletId
   );
 
+  // Calculate total balance for all wallets
+  const totalBalance = wallets.reduce((sum, w) => sum + (w.balance || 0), 0);
+
+  // Special 'All Wallets' object
+  const allWalletsObj: ExtendedWallet = {
+    _id: "all",
+    name: "All Wallets",
+    balance: totalBalance,
+    icon: "wallet-outline",
+    color: colors.primary,
+    isDefault: false,
+    isIncludedInTotal: false,
+  };
+
   useEffect(() => {
     getWallets();
   }, []);
@@ -149,7 +163,7 @@ const SelectWalletScreen = () => {
       {/* Wallet List */}
       <View style={styles.walletsContainer}>
         <FlatList
-          data={wallets}
+          data={[allWalletsObj, ...wallets]}
           renderItem={renderWalletItem}
           keyExtractor={(item) => item._id}
           ItemSeparatorComponent={renderSeparator}

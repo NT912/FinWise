@@ -69,7 +69,15 @@ const EditBudget = () => {
       try {
         if (!budget.categories || budget.categories.length === 0) return;
 
-        const categoryPromises = budget.categories.map(
+        // Debug: log giá trị thực tế của budget.categories
+        console.log("DEBUG budget.categories:", budget.categories);
+
+        // Lọc bỏ các categoryId không hợp lệ (object thì lấy _id, string thì giữ nguyên)
+        const validCategoryIds = budget.categories
+          .map((cat: any) => (typeof cat === "string" ? cat : cat?._id))
+          .filter((id: any) => typeof id === "string" && id.trim() !== "");
+        console.log("DEBUG validCategoryIds:", validCategoryIds);
+        const categoryPromises = validCategoryIds.map(
           async (categoryId: string) => {
             const response = await apiClient.get(
               `/api/categories/${categoryId}`

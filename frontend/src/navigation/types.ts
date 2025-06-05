@@ -1,82 +1,110 @@
 import { NavigatorScreenParams } from "@react-navigation/native";
 import Wallet from "../screens/Wallet/WalletScreen";
 import { User } from "../types";
+import { Budget } from "../services/budgetService";
 
-export type RootStackParamList = {
-  Launch: undefined;
-  Login: undefined;
-  Register: undefined;
-  Onboarding: undefined;
-  ForgotPassword: undefined;
-  SecurityPin: { email: string };
-  ResetPassword: { email: string; resetCode: string };
-  PrivacyPolicy: undefined;
-  TermsOfUse: undefined;
-  TabNavigator: NavigatorScreenParams<TabParamList>;
-  AddTransaction: { type?: "income" | "expense" };
-  EditTransaction: { transactionId: string };
-  AddNote: {
-    note: string;
-    onSaveNote: (note: string) => void;
-  };
-  CreateWalletScreen: undefined;
-  WalletScreen:
-    | {
-        onSelectWallet?: (walletId: string) => void;
-        selectedWalletId?: string | null;
-        showAllWalletsOption?: boolean;
-        refresh?: boolean;
-      }
-    | undefined;
-  NotificationScreen: undefined;
-  IncomeExpenseReportScreen: undefined;
+export type TabParamList = {
   Home: undefined;
-  ProfileScreen: undefined;
-  EditProfileScreen: undefined;
-  EditWalletScreen: { walletId: string; wallet?: any };
-  BudgetScreen: undefined;
-  SettingScreen: undefined;
-  AboutScreen: undefined;
-  HelpScreen: undefined;
-  ContactScreen: undefined;
-  TermsOfServiceScreen: undefined;
-  Transaction: undefined;
-  Charts: undefined;
-  Categories: undefined;
-  Settings: undefined;
-  Notifications: undefined;
-  PrivacyPolicyScreen: undefined;
-  SettingsScreen: undefined;
-  EditProfile: { user: User };
-  SecurityScreen: undefined;
-  NotificationSettingsScreen: undefined;
-  LogoutScreen: undefined;
-  DeleteAccountScreen: undefined;
-  TermsAndConditionsScreen: undefined;
-  ChangePasswordScreen: undefined;
-  Security: undefined;
-  ChangePin: undefined;
-  TermsAndConditions: undefined;
+  Transactions: undefined;
+  Budget: undefined;
+  Profile: undefined;
+};
+
+export type BudgetStackParamList = {
+  BudgetMain: undefined;
+  CreateBudget: undefined;
+  EditBudget: {
+    budget: {
+      _id: string;
+      name: string;
+      amount: number;
+      startDate: string;
+      endDate: string;
+      categories: string[];
+      walletId: string;
+    };
+  };
+  SelectCategory: {
+    type: "expense" | "income" | "debt_loan";
+    selectedCategoryId?: string;
+    listenerId?: string;
+    onSelectCategory?: (category: any) => void;
+  };
   SelectWallet: {
     selectedWalletId?: string;
     onSelectWallet?: (wallet: any) => void;
   };
-  SelectCategory: {
-    selectedCategoryId?: string;
-    onSelectCategory?: (category: any) => void;
-    type?: "expense" | "income" | "debt_loan";
+};
+
+export type RootStackParamList = {
+  // Auth Screens
+  Launch: undefined;
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
+  SecurityPin: { email: string };
+  ResetPassword: { email: string; resetCode: string };
+
+  // Main Navigation
+  TabNavigator: NavigatorScreenParams<TabParamList>;
+  MainApp: undefined;
+
+  // Budget Stack
+  BudgetStack: NavigatorScreenParams<BudgetStackParamList>;
+
+  // Wallet Screens
+  CreateWallet: undefined;
+  EditWallet: { walletId: string };
+  SelectWallet: {
+    selectedWalletId?: string;
+    onSelectWallet?: (wallet: any) => void;
   };
+
+  // Category Screens
+  Categories: undefined;
   CreateCategory: {
     type: "expense" | "income" | "debt_loan";
     parentCategory?: any;
   };
-};
+  EditCategory: { categoryId: string };
+  SelectCategory: {
+    type: "expense" | "income" | "debt_loan";
+    selectedCategoryId?: string;
+    onSelectCategory?: (category: any) => void;
+  };
 
-export type TabParamList = {
-  HomeTab: undefined;
-  TransactionTab: undefined;
-  ChartsTab: undefined;
-  ProfileTab: undefined;
+  // Transaction Screens
+  AddTransaction: { type?: "income" | "expense" };
+  EditTransaction: { transactionId: string };
+
+  // Profile & Settings
+  EditProfile: { user: User };
+  Settings: undefined;
+  SecurityScreen: undefined;
+
+  // Notifications
+  NotificationSettings: undefined;
+
+  // Other Screens
+  About: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfUse: undefined;
+
+  // Account Management
+  Logout: undefined;
+  DeleteAccount: undefined;
+
+  // Additional screens
+  Onboarding: undefined;
+  Security: undefined;
+  ChangePin: undefined;
+  TermsAndConditions: undefined;
+  NotificationScreen: undefined;
+  WalletScreen: undefined;
+  CreateWalletScreen: undefined;
+  EditWalletScreen: { wallet: any };
+  IncomeExpenseReportScreen: undefined;
+  AddNote: undefined;
 };
 
 export type HomeStackParamList = {
@@ -111,10 +139,6 @@ export type TransactionStackParamList = {
     preSelectedCategory?: string;
   };
   EditTransaction: { transactionId: string };
-};
-
-export type ChartsStackParamList = {
-  Charts: undefined;
 };
 
 export type ProfileStackParamList = {

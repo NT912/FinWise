@@ -3,6 +3,7 @@ import { AuthenticatedRequest } from "../../types/AuthenticatedRequest";
 import Transaction from "../../models/new-models/Transaction";
 import mongoose from "mongoose";
 import { FilterQuery } from "mongoose";
+import Budget from "../../models/new-models/Budget";
 
 // Dữ liệu mẫu cho các giao dịch
 const sampleTransactions = [
@@ -296,6 +297,21 @@ export const createTransaction = async (
     });
 
     await newTransaction.save();
+
+    // Đồng bộ với budget nếu là expense
+    if (type === "expense") {
+      await Budget.updateMany(
+        {
+          userId,
+          categories: category,
+          walletId,
+          status: "active",
+          startDate: { $lte: date || new Date() },
+          endDate: { $gte: date || new Date() },
+        },
+        { $inc: { currentAmount: amount } }
+      );
+    }
 
     // Fetch the transaction with populated fields
     const populatedTransaction = await Transaction.findById(newTransaction._id)

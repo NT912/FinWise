@@ -12,7 +12,7 @@ const FALLBACK_IPS = [
   "http://localhost:3002",
   "http://127.0.0.1:3002",
   "http://10.0.2.2:3002", // Địa chỉ localhost cho Android Emulator
-  "http://192.168.2.5:3002",
+  "http://192.168.2.15:3002",
 ];
 
 // Lấy API URL đã lưu từ AsyncStorage

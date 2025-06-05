@@ -67,6 +67,7 @@ type RouteParams = {
     selectedCategoryId?: string;
     listenerId?: string;
     type?: CategoryType;
+    onSelectCategory?: (category: Category) => void;
   };
 };
 
@@ -77,6 +78,7 @@ const SelectCategoryScreen = () => {
     selectedCategoryId,
     listenerId,
     type: initialType,
+    onSelectCategory,
   } = route.params || {};
 
   const [selectedCategory, setSelectedCategory] = useState<string | undefined>(
@@ -198,12 +200,16 @@ const SelectCategoryScreen = () => {
   }, [searchQuery, categories]);
 
   const handleCategorySelect = (category: Category) => {
+    if (!category || !category._id || category._id === "undefined") return;
     setSelectedCategory(category._id);
-    // If we have a listener ID, use that to notify the correct component
-    if (listenerId) {
+    // If we have a callback, use that
+    if (onSelectCategory) {
+      onSelectCategory(category);
+    } else if (listenerId) {
+      // Otherwise use the event system if we have a listener ID
       emitEvent(`${categorySelectEventKey}_${listenerId}`, category);
     } else {
-      // Otherwise use the default event
+      // Finally fall back to the default event
       emitEvent(categorySelectEventKey, category);
     }
     // Navigate back
@@ -745,13 +751,13 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
+    justifyContent: "space-between",
     backgroundColor: colors.primary,
-    height: Platform.OS === "ios" ? 50 : 60,
-    paddingTop: Platform.OS === "ios" ? 0 : 10,
-    paddingBottom: 10,
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === "android" ? StatusBar.currentHeight : 0,
+    height:
+      Platform.OS === "android" ? 56 + (StatusBar.currentHeight || 0) : 56,
   },
   titleContainer: {
     flex: 1,
@@ -761,10 +767,9 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: "#FFFFFF",
-    textAlign: "center",
   },
   headerControls: {
     flexDirection: "row",
