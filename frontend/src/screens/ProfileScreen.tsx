@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import LoadingIndicator from "../components/LoadingIndicator";
 import api from "../services/apiService";
 import { NavigationProp, ParamListBase } from "@react-navigation/native";

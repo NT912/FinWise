@@ -192,22 +192,12 @@ export const fetchMonthlyReport = async (
 
     const response = await axios.get(url, {
       headers: { Authorization: `Bearer ${token}` },
+      timeout: 30000, // Tăng timeout lên 30 giây
     });
 
     return response.data;
   } catch (error) {
     console.error("Error fetching monthly report:", error);
-    return {
-      summary: {
-        totalIncome: 0,
-        totalExpense: 0,
-        balance: 0,
-      },
-      periods: [],
-      categories: {
-        income: [],
-        expense: [],
-      },
-    };
+    throw error; // Throw error để frontend có thể xử lý
   }
 };

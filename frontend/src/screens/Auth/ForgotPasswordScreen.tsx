@@ -104,24 +104,6 @@ const ForgotPasswordScreen = () => {
               )}
             </TouchableOpacity>
 
-            <View style={styles.socialContainer}>
-              <Text style={styles.orText}>or sign up with</Text>
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/facebook-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/google-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
             <View style={styles.signUpContainer}>
               <Text style={styles.signUpText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Register")}>
@@ -221,41 +203,6 @@ const styles = StyleSheet.create({
     color: "#00D09E",
     fontSize: 14,
     fontWeight: "600",
-  },
-  socialContainer: {
-    marginTop: 20,
-    marginBottom: 100,
-  },
-  orText: {
-    color: "#666666",
-    fontSize: 14,
-    textAlign: "center",
-    marginBottom: 24,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 20,
-  },
-  socialButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  socialIcon: {
-    width: 24,
-    height: 24,
   },
   disabledButton: {
     opacity: 0.7,

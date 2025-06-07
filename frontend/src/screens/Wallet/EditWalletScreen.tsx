@@ -11,7 +11,7 @@ import {
   ScrollView,
   Switch,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { colors } from "../../theme";
 import { updateWallet, Wallet } from "../../services/walletService";

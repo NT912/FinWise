@@ -12,10 +12,10 @@ import {
   TouchableWithoutFeedback,
 } from "react-native";
 import { useNavigation, useRoute } from "@react-navigation/native";
-import { updatePassword } from "../../services/authService";
+import { resetPassword } from "../../services/authService";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../../types/navigation";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { showSuccess, showError } from "../../services/alertService";
 
 // Định nghĩa kiểu cho navigation
@@ -85,7 +85,7 @@ export default function ResetPasswordScreen() {
 
     setLoading(true);
     try {
-      await updatePassword(email!, resetCode!, newPassword);
+      await resetPassword(email!, resetCode!, newPassword);
 
       showSuccess(
         "Success!",

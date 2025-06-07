@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Dimensions,
   RefreshControl,
+  Alert,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { useNavigation, useIsFocused } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { LineChart, BarChart } from "react-native-chart-kit";
@@ -93,7 +94,11 @@ const IncomeExpenseReportScreen = () => {
       console.log("API Response Data:", data);
       console.log("Current Period Filter:", periodFilter);
 
-      if (data && data.periods) {
+      if (!data) {
+        throw new Error("No data received from API");
+      }
+
+      if (data.periods && data.periods.length > 0) {
         console.log(
           "Raw periods data from API:",
           data.periods.map((p: Period) => ({
@@ -104,109 +109,41 @@ const IncomeExpenseReportScreen = () => {
           }))
         );
 
-        // Tạo thủ công dữ liệu cho 6 tháng gần đây nếu là monthly
-        if (periodFilter === "monthly") {
-          const monthOrder = [
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
-          ];
-
-          // Lấy thời gian hiện tại
-          const currentDate = new Date();
-          const currentMonth = currentDate.getMonth(); // 0-11
-          const currentYear = currentDate.getFullYear();
-
-          // Tạo danh sách 6 tháng gần đây
-          const last6Months: Period[] = [];
-
-          for (let i = 5; i >= 0; i--) {
-            const date = new Date(currentYear, currentMonth - i, 1);
-            const month = date.getMonth(); // 0-11
-            const year = date.getFullYear();
-            const monthStr = `${year}-${(month + 1)
-              .toString()
-              .padStart(2, "0")}`;
-
-            // Tìm dữ liệu cho tháng này từ API
-            const existingData = data.periods.find((p: Period) => {
-              // Chuẩn hóa định dạng key nếu cần
-              let periodKey = p.key;
-              if (p.key.match(/^(\d{2})-(\d{4})$/)) {
-                // Chuyển từ MM-YYYY sang YYYY-MM
-                const [month, year] = p.key.split("-");
-                periodKey = `${year}-${month}`;
-              }
-
-              // So sánh tháng hiện tại với tháng từ API
-              return periodKey === monthStr || p.label === monthOrder[month];
-            });
-
-            // Nếu không tìm thấy, tạo dữ liệu trống
-            if (existingData) {
-              // Đảm bảo key đúng định dạng
-              existingData.key = monthStr;
-              // Đảm bảo label đúng tên tháng
-              existingData.label = monthOrder[month];
-              last6Months.push(existingData);
-            } else {
-              last6Months.push({
-                key: monthStr,
-                label: monthOrder[month],
-                income: 0,
-                expense: 0,
-                balance: 0,
-              });
-            }
+        // Sắp xếp dữ liệu theo thời gian
+        data.periods.sort((a: Period, b: Period) => {
+          if (periodFilter === "weekly") {
+            return new Date(a.key).getTime() - new Date(b.key).getTime();
+          } else if (periodFilter === "monthly") {
+            const [yearA, monthA] = a.key.split("-").map(Number);
+            const [yearB, monthB] = b.key.split("-").map(Number);
+            return yearA === yearB ? monthA - monthB : yearA - yearB;
+          } else {
+            return Number(a.key) - Number(b.key);
           }
+        });
 
-          // Sắp xếp từ tháng xa nhất đến tháng gần nhất
-          last6Months.sort((a, b) => a.key.localeCompare(b.key));
-
-          // Ghi đè danh sách tháng
-          data.periods = last6Months;
-
-          console.log(
-            "Generated 6 months data:",
-            data.periods.map((p: Period) => `${p.label} (${p.key})`)
-          );
-        } else if (periodFilter === "weekly") {
-          // Đảm bảo key có định dạng YYYY-MM-DD cho weekly
-          data.periods = data.periods.filter((period: Period) => {
-            // Kiểm tra xem key có đúng định dạng không
-            return /^\d{4}-\d{2}-\d{2}$/.test(period.key);
-          });
-
-          // Sắp xếp theo thời gian tăng dần
-          data.periods.sort((a: Period, b: Period) =>
-            a.key.localeCompare(b.key)
-          );
-        } else if (periodFilter === "yearly") {
-          // Đảm bảo key có định dạng YYYY cho yearly
-          data.periods = data.periods.filter((period: Period) => {
-            // Kiểm tra xem key có đúng định dạng không
-            return /^\d{4}$/.test(period.key);
-          });
-
-          // Sắp xếp theo thời gian tăng dần
-          data.periods.sort((a: Period, b: Period) =>
-            a.key.localeCompare(b.key)
-          );
-        }
+        console.log(
+          "Sorted periods data:",
+          data.periods.map((p: Period) => ({
+            key: p.key,
+            label: p.label,
+            income: p.income,
+            expense: p.expense,
+          }))
+        );
+      } else {
+        console.warn("No periods data available");
       }
 
       setReportData(data);
     } catch (error) {
       console.error("Error loading report data:", error);
+      // Hiển thị thông báo lỗi cho người dùng
+      Alert.alert(
+        "Error",
+        "Failed to load report data. Please try again later.",
+        [{ text: "OK" }]
+      );
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -649,7 +586,7 @@ const IncomeExpenseReportScreen = () => {
   const handleSelectWallet = () => {
     navigation.navigate("WalletScreen", {
       onSelectWallet: (walletId: string) => setSelectedWalletId(walletId),
-      selectedWalletId: selectedWalletId,
+      selectedWalletId: selectedWalletId || undefined,
       showAllWalletsOption: true,
     });
   };

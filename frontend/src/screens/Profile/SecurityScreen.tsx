@@ -7,7 +7,7 @@ import {
   SafeAreaView,
   RefreshControl,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { getUserProfile } from "../../services/profileService";
 import commonProfileStyles from "../../styles/profile/commonProfileStyles";
 

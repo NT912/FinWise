@@ -15,7 +15,7 @@ import {
   Alert,
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { useAuth } from "../../hooks/useAuth";
 import { RootStackParamList } from "../../types/navigation";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -183,27 +183,6 @@ const LoginScreen = () => {
                   <Text style={styles.signUpButtonText}>Sign Up</Text>
                 </TouchableOpacity>
               </View>
-
-              <View style={styles.dividerContainer}>
-                <View style={styles.divider} />
-                <Text style={styles.dividerText}>or sign up with</Text>
-                <View style={styles.divider} />
-              </View>
-
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/facebook-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/google-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-              </View>
             </View>
           </KeyboardAvoidingView>
         </View>
@@ -329,60 +308,6 @@ const styles = StyleSheet.create({
     color: "#00D09E",
     fontSize: 16,
     fontWeight: "600",
-  },
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 24,
-    marginBottom: 24,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#E5E5E5",
-  },
-  dividerText: {
-    color: "#666666",
-    paddingHorizontal: 16,
-    fontSize: 14,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    gap: 16,
-  },
-  socialButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  socialIcon: {
-    width: 24,
-    height: 24,
-  },
-  signUpPrompt: {
-    flexDirection: "row",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-  signUpPromptText: {
-    color: "#666666",
-    fontSize: 14,
-  },
-  signUpLink: {
-    color: "#00D09E",
-    fontSize: 14,
   },
   errorContainer: {
     backgroundColor: "#FFE8E8",

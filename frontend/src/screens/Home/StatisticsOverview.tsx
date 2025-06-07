@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import Svg, { Circle } from "react-native-svg";
 import { formatVND } from "../../utils/formatters";
 import { colors } from "../../theme";

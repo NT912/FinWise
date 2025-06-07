@@ -18,7 +18,7 @@ import {
   Animated,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { colors } from "../../theme";
 import { useTransaction } from "../../hooks/useTransaction";

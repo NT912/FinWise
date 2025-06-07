@@ -1,7 +1,7 @@
 import React, { useEffect, useState, ReactNode } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
 import NetInfo from "@react-native-community/netinfo";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 
 interface NetworkStatusMonitorProps {
   children?: ReactNode;

@@ -15,7 +15,7 @@ import {
   Easing,
   Dimensions,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import {
   useNavigation,
   useIsFocused,
@@ -36,6 +36,8 @@ import { fetchWallets } from "../../services/walletService";
 import { Transaction } from "../../services/transactionService";
 import apiClient from "../../services/apiClient";
 import { LineChart } from "react-native-chart-kit";
+import { fetchMonthlyReport } from "../../services/transactionService";
+import { BarChart } from "react-native-chart-kit";
 
 interface TopSpending {
   category: string;
@@ -84,6 +86,43 @@ interface DataPoint {
   x: number;
   y: number;
 }
+
+interface Period {
+  key: string;
+  label: string;
+  income: number;
+  expense: number;
+  balance: number;
+}
+
+interface Category {
+  categoryId: string;
+  name: string;
+  icon: string;
+  color: string;
+  total: number;
+  count: number;
+}
+
+interface ReportData {
+  period: "weekly" | "monthly" | "yearly";
+  summary: {
+    totalIncome: number;
+    totalExpense: number;
+    balance: number;
+  };
+  timeRange: {
+    start: string;
+    end: string;
+  };
+  periods: Period[];
+  categories: {
+    income: Category[];
+    expense: Category[];
+  };
+}
+
+type PeriodFilter = "weekly" | "monthly" | "yearly";
 
 const TransactionList: React.FC<TransactionListProps> = ({
   timeFilter,
@@ -289,6 +328,9 @@ const HomeScreen = () => {
   const isFocused = useIsFocused();
   const [hideBalance, setHideBalance] = useState(false);
   const [timeRange, setTimeRange] = useState<"week" | "month">("month");
+  const [topSpendingRange, setTopSpendingRange] = useState<"week" | "month">(
+    "month"
+  );
   const [timeFilter, setTimeFilter] = useState<"week" | "month">("week");
   const [currentReport, setCurrentReport] = useState<"trending" | "spending">(
     "trending"
@@ -321,6 +363,13 @@ const HomeScreen = () => {
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
   const heightAnim = useRef(new Animated.Value(350)).current; // Chiều cao cố định ban đầu cho khối báo cáo
+
+  // State cho báo cáo
+  const [periodFilter, setPeriodFilter] = useState<PeriodFilter>("monthly");
+  const [viewType, setViewType] = useState<"chart" | "summary">("chart");
+  const [reportData, setReportData] = useState<ReportData | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const [reportError, setReportError] = useState<string | null>(null);
 
   const loadHomeData = async () => {
     try {
@@ -549,11 +598,11 @@ const HomeScreen = () => {
   };
 
   const handleAddTransaction = (type: "income" | "expense") => {
-    navigation.navigate("AddTransaction", { type });
+    navigation.navigate("AddTransaction", { preSelectedWalletId: undefined });
   };
 
   const handleSeeAllTransactions = () => {
-    navigation.navigate("TransactionTab");
+    navigation.navigate("TransactionTab", { screen: "Transaction" });
   };
 
   const handleSeeReports = () => {
@@ -947,6 +996,346 @@ const HomeScreen = () => {
     }).format(value);
   };
 
+  // 1. Thêm hàm fetchTopSpending
+  const fetchTopSpending = async (range: "week" | "month") => {
+    try {
+      // Lấy ngày bắt đầu và kết thúc cho tuần/tháng hiện tại
+      const now = new Date();
+      let startDate: Date;
+      let endDate: Date;
+      if (range === "week") {
+        startDate = new Date(now);
+        startDate.setHours(0, 0, 0, 0);
+        startDate.setDate(
+          now.getDate() - now.getDay() + (now.getDay() === 0 ? -6 : 1)
+        );
+        endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
+      } else {
+        startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        endDate.setHours(23, 59, 59, 999);
+      }
+      // Gọi API lấy transactions cho khoảng thời gian này
+      const transactionsData = await fetchTransactions(
+        range,
+        startDate,
+        endDate
+      );
+      // Tính toán top spending
+      const categorySpending = calculateCategorySpending(transactionsData);
+      const topCategories = Object.entries(categorySpending)
+        .map(([category, amount]) => ({ category, amount: Number(amount) }))
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 3);
+      setTopSpending(topCategories);
+    } catch (error) {
+      setTopSpending([]);
+      console.error("Error fetching top spending:", error);
+    }
+  };
+
+  // 3. useEffect: khi HomeScreen mount, gọi fetchTopSpending(timeRange) để load mặc định
+  useEffect(() => {
+    fetchTopSpending(topSpendingRange);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topSpendingRange]);
+
+  // Hàm load báo cáo
+  const loadReportData = useCallback(async () => {
+    try {
+      setReportLoading(true);
+      setReportError(null);
+
+      // Get current date in UTC
+      const now = new Date();
+      const startOfMonth = new Date(now.getUTCFullYear(), now.getUTCMonth(), 1);
+      const endOfMonth = new Date(
+        now.getUTCFullYear(),
+        now.getUTCMonth() + 1,
+        0
+      );
+
+      // Format dates to ISO string
+      const startDate = startOfMonth.toISOString();
+      const endDate = endOfMonth.toISOString();
+
+      console.log("[HomeScreen] Fetching report data with params:", {
+        periodFilter,
+        startDate,
+        endDate,
+      });
+
+      // Call API with proper parameters
+      const response = await apiClient.get("/api/transactions/report", {
+        params: {
+          period: periodFilter,
+          startDate,
+          endDate,
+          walletId: "all",
+        },
+      });
+
+      console.log("[HomeScreen] API Response:", response.data);
+
+      if (!response.data) {
+        throw new Error("No data received from API");
+      }
+
+      // Process the data
+      const data = response.data;
+
+      // Ensure periods are sorted correctly
+      if (data.periods && data.periods.length > 0) {
+        data.periods.sort((a: Period, b: Period) => {
+          if (periodFilter === "weekly") {
+            return new Date(a.key).getTime() - new Date(b.key).getTime();
+          } else if (periodFilter === "monthly") {
+            const [yearA, monthA] = a.key.split("-").map(Number);
+            const [yearB, monthB] = b.key.split("-").map(Number);
+            return yearA === yearB ? monthA - monthB : yearA - yearB;
+          } else {
+            return Number(a.key) - Number(b.key);
+          }
+        });
+      }
+
+      // Calculate summary if not provided
+      if (!data.summary) {
+        data.summary = {
+          totalIncome: data.periods.reduce(
+            (sum: number, period: Period) => sum + period.income,
+            0
+          ),
+          totalExpense: data.periods.reduce(
+            (sum: number, period: Period) => sum + period.expense,
+            0
+          ),
+          balance: 0,
+        };
+        data.summary.balance =
+          data.summary.totalIncome - data.summary.totalExpense;
+      }
+
+      console.log("[HomeScreen] Processed report data:", data);
+      setReportData(data);
+    } catch (error: any) {
+      console.error("[HomeScreen] Error loading report data:", error);
+      if (error.response) {
+        console.error("[HomeScreen] Error response:", error.response.data);
+      }
+      setReportError(error.message || "Failed to load report data");
+    } finally {
+      setReportLoading(false);
+    }
+  }, [periodFilter]);
+
+  useEffect(() => {
+    loadReportData();
+  }, [periodFilter, loadReportData]);
+
+  // Hàm renderChart và renderSummary lấy từ IncomeExpenseReportScreen
+  const renderChart = () => {
+    if (reportLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+    if (!reportData || !reportData.periods || reportData.periods.length === 0) {
+      return (
+        <View style={styles.emptyTransactionsContainer}>
+          <Ionicons name="analytics-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyText}>
+            No data available for this period
+          </Text>
+        </View>
+      );
+    }
+    // Xử lý labels và dữ liệu theo periodFilter
+    let labels: string[] = [];
+    let incomeData: number[] = [];
+    let expenseData: number[] = [];
+    if (periodFilter === "weekly") {
+      // Hiển thị các thứ trong tuần
+      labels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+      const incomeArr = Array(7).fill(0);
+      const expenseArr = Array(7).fill(0);
+      reportData.periods.forEach((period) => {
+        let date = new Date(period.key);
+        let day = date.getDay();
+        let idx = day === 0 ? 6 : day - 1;
+        if (idx !== undefined) {
+          incomeArr[idx] = period.income;
+          expenseArr[idx] = period.expense;
+        }
+      });
+      incomeData = incomeArr;
+      expenseData = expenseArr;
+    } else if (periodFilter === "monthly") {
+      // Hiển thị các tháng trong năm bằng tiếng Việt
+      labels = [
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12",
+      ];
+      const incomeArr = Array(12).fill(0);
+      const expenseArr = Array(12).fill(0);
+      reportData.periods.forEach((period) => {
+        const parts = period.key.split("-");
+        const monthIdx = parseInt(parts[1], 10) - 1;
+        if (monthIdx >= 0 && monthIdx < 12) {
+          incomeArr[monthIdx] = period.income;
+          expenseArr[monthIdx] = period.expense;
+        }
+      });
+      incomeData = incomeArr;
+      expenseData = expenseArr;
+    } else if (periodFilter === "yearly") {
+      // Hiển thị 5 năm gần nhất (bao gồm năm hiện tại)
+      const currentYear = new Date().getFullYear();
+      labels = [
+        (currentYear - 4).toString(),
+        (currentYear - 3).toString(),
+        (currentYear - 2).toString(),
+        (currentYear - 1).toString(),
+        currentYear.toString(),
+      ];
+      const incomeArr = Array(5).fill(0);
+      const expenseArr = Array(5).fill(0);
+      reportData.periods.forEach((period) => {
+        const yearIdx = labels.indexOf(period.key);
+        if (yearIdx !== -1) {
+          incomeArr[yearIdx] = period.income;
+          expenseArr[yearIdx] = period.expense;
+        }
+      });
+      incomeData = incomeArr;
+      expenseData = expenseArr;
+    }
+    return (
+      <View style={styles.chartContainer}>
+        <View style={styles.chartWrapper}>
+          <BarChart
+            data={{
+              labels,
+              datasets: [
+                {
+                  data: incomeData,
+                  color: () => "rgba(0, 200, 151, 1)",
+                },
+                {
+                  data: expenseData,
+                  color: () => "rgba(255, 107, 107, 1)",
+                },
+              ],
+            }}
+            width={
+              periodFilter === "yearly" ? screenWidth - 16 : screenWidth - 32
+            }
+            height={220}
+            yAxisLabel={""}
+            yAxisSuffix={""}
+            chartConfig={{
+              backgroundGradientFrom: "#ffffff",
+              backgroundGradientTo: "#ffffff",
+              decimalPlaces: 0,
+              color: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              labelColor: (opacity = 1) => `rgba(0, 0, 0, ${opacity})`,
+              barPercentage: 0.7,
+              propsForLabels: {
+                fontSize: 13,
+                fontWeight: "600",
+              },
+              style: {
+                borderRadius: 16,
+              },
+              formatYLabel: (y) => {
+                const num = Number(y);
+                if (num >= 1000000) {
+                  return (num / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+                } else if (num >= 1000) {
+                  return (num / 1000).toFixed(0) + "K";
+                }
+                return num.toLocaleString("vi-VN");
+              },
+            }}
+            fromZero
+            showBarTops
+            withVerticalLabels={true}
+            style={{
+              marginVertical: 8,
+              borderRadius: 16,
+              marginLeft: periodFilter === "yearly" ? 0 : -32,
+              paddingBottom: 16,
+            }}
+          />
+        </View>
+      </View>
+    );
+  };
+
+  const renderSummary = () => {
+    if (reportLoading) {
+      return (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+        </View>
+      );
+    }
+    if (!reportData || !reportData.periods || reportData.periods.length === 0) {
+      return (
+        <View style={styles.emptyTransactionsContainer}>
+          <Ionicons name="analytics-outline" size={48} color="#ccc" />
+          <Text style={styles.emptyText}>
+            No data available for this period
+          </Text>
+        </View>
+      );
+    }
+    return (
+      <View style={{ width: "100%" }}>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <Text style={styles.summaryLabel}>Total Income</Text>
+          <Text style={[styles.summaryAmount, styles.incomeAmount]}>
+            {formatVND(reportData.summary.totalIncome)}
+          </Text>
+        </View>
+        <View style={{ alignItems: "center", marginBottom: 16 }}>
+          <Text style={styles.summaryLabel}>Total Expense</Text>
+          <Text style={[styles.summaryAmount, styles.expenseAmount]}>
+            {formatVND(reportData.summary.totalExpense)}
+          </Text>
+        </View>
+        <View style={{ alignItems: "center" }}>
+          <Text style={styles.summaryLabel}>Balance</Text>
+          <Text
+            style={[
+              styles.summaryAmount,
+              reportData.summary.balance >= 0
+                ? styles.incomeAmount
+                : styles.expenseAmount,
+            ]}
+          >
+            {formatVND(Math.abs(reportData.summary.balance))}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -1054,390 +1443,110 @@ const HomeScreen = () => {
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Report this month</Text>
-            <TouchableOpacity onPress={handleSeeReports}>
-              <Text style={styles.seeAllText}>See reports</Text>
-            </TouchableOpacity>
           </View>
           <View style={styles.reportCard}>
-            {/* Khối báo cáo với kích thước cố định và hiệu ứng animation */}
-            <Animated.View
-              style={[
-                styles.reportContentContainer,
-                {
-                  opacity: fadeAnim,
-                  transform: [{ translateX: slideAnim }],
-                  height: heightAnim,
-                },
-              ]}
-            >
-              {/* Trending Report - Đồ thị đường thu nhập và chi tiêu */}
-              {currentReport === "trending" && (
-                <>
-                  {/* Total spent and income */}
-                  <View style={styles.summaryContainer}>
-                    <TouchableOpacity
-                      style={styles.summaryColumn}
-                      onPress={() => setSelectedChartType("expense")}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.summaryLabel}>Total spent</Text>
-                      <Text
-                        style={[styles.summaryAmount, styles.expenseAmount]}
-                      >
-                        {formatVND(userData.monthlyExpense)}
-                      </Text>
-                      <View
-                        style={[
-                          styles.summaryBar,
-                          styles.expenseBar,
-                          selectedChartType === "expense" &&
-                            styles.summaryBarSelected,
-                        ]}
-                      />
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.summaryColumn}
-                      onPress={() => setSelectedChartType("income")}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={styles.summaryLabel}>Total income</Text>
-                      <Text style={[styles.summaryAmount, styles.incomeAmount]}>
-                        {formatVND(userData.monthlyIncome)}
-                      </Text>
-                      <View
-                        style={[
-                          styles.summaryBar,
-                          styles.incomeBar,
-                          selectedChartType === "income" &&
-                            styles.summaryBarSelected,
-                        ]}
-                      />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Chart container with maximum value label */}
-                  <View style={styles.chartContainerWithMax}>
-                    {/* Chart display */}
-                    <View style={styles.chartWrapper}>
-                      {/* Real line chart with gradient background */}
-                      <LineChart
-                        data={generateChartData(
-                          transactions,
-                          dateRange,
-                          selectedChartType
-                        )}
-                        width={screenWidth - 60}
-                        height={150}
-                        chartConfig={{
-                          backgroundColor: "#ffffff",
-                          backgroundGradientFrom: "#ffffff",
-                          backgroundGradientTo: "#ffffff",
-                          decimalPlaces: 0,
-                          color: (opacity = 1) =>
-                            selectedChartType === "income"
-                              ? `rgba(0, 200, 151, ${opacity})`
-                              : `rgba(255, 107, 107, ${opacity})`,
-                          labelColor: (opacity = 0.5) =>
-                            `rgba(128, 128, 128, ${opacity})`,
-                          style: {
-                            borderRadius: 16,
-                          },
-                          propsForDots: {
-                            r: "6",
-                            strokeWidth: "2",
-                            stroke:
-                              selectedChartType === "income"
-                                ? "#00C897"
-                                : "#FF6B6B",
-                          },
-                          propsForBackgroundLines: {
-                            stroke: "#F0F0F0",
-                            strokeDasharray: "5, 5",
-                          },
-                          propsForLabels: {
-                            fontSize: 0, // Hide all labels
-                          },
-                          fillShadowGradient:
-                            selectedChartType === "income"
-                              ? "#00C897"
-                              : "#FF6B6B",
-                          fillShadowGradientOpacity: 0.3,
-                          useShadowColorFromDataset: false,
-                        }}
-                        bezier
-                        style={styles.lineChart}
-                        fromZero
-                        withInnerLines={false}
-                        withOuterLines={false}
-                        withHorizontalLines={true}
-                        withVerticalLines={false}
-                        withHorizontalLabels={false}
-                        withVerticalLabels={false}
-                        withDots={true}
-                        segments={0}
-                      />
-                    </View>
-
-                    {/* Maximum value positioned above the highest point (end of chart) */}
-                    <View style={styles.maxValueContainer}>
-                      <Text
-                        style={[
-                          styles.maxValueLabelText,
-                          {
-                            color:
-                              selectedChartType === "income"
-                                ? "#00C897"
-                                : "#FF6B6B",
-                          },
-                        ]}
-                      >
-                        {formatCompact(
-                          selectedChartType === "income"
-                            ? userData.monthlyIncome
-                            : userData.monthlyExpense
-                        )}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Date display */}
-                  <View style={styles.chartDateContainer}>
-                    <Text style={styles.chartDateLabel}>01/04</Text>
-                    <Text style={styles.chartDateLabel}>30/04</Text>
-                  </View>
-
-                  {/* Legend */}
-                  <View style={styles.legendContainer}>
-                    <View style={styles.legendItem}>
-                      <View
-                        style={[
-                          styles.legendDot,
-                          selectedChartType === "income"
-                            ? styles.incomeDot
-                            : styles.expenseDot,
-                        ]}
-                      />
-                      <Text style={styles.legendText}>This month</Text>
-                    </View>
-                    <View style={styles.legendItem}>
-                      <View style={styles.legendDotInactive} />
-                      <Text style={styles.legendText}>
-                        Previous 3-month average
-                      </Text>
-                    </View>
-                    <TouchableOpacity style={styles.helpIcon}>
-                      <Ionicons
-                        name="help-circle-outline"
-                        size={16}
-                        color="#888"
-                      />
-                    </TouchableOpacity>
-                  </View>
-                </>
-              )}
-
-              {/* Spending Report - Biểu đồ cột so sánh chi tiêu */}
-              {currentReport === "spending" && (
-                <>
-                  {/* Tab selector (Week/Month) */}
-                  <View style={styles.tabSelector}>
-                    <TouchableOpacity
-                      style={[
-                        styles.tabButton,
-                        timeFilter === "week" && styles.tabButtonActive,
-                      ]}
-                      onPress={() => handleTimeFilterChange("week")}
-                    >
-                      <Text
-                        style={[
-                          styles.tabButtonText,
-                          timeFilter === "week" && styles.tabButtonTextActive,
-                        ]}
-                      >
-                        Week
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[
-                        styles.tabButton,
-                        timeFilter === "month" && styles.tabButtonActive,
-                      ]}
-                      onPress={() => handleTimeFilterChange("month")}
-                    >
-                      <Text
-                        style={[
-                          styles.tabButtonText,
-                          timeFilter === "month" && styles.tabButtonTextActive,
-                        ]}
-                      >
-                        Month
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Chi tiêu hiện tại so với kỳ trước */}
-                  <View style={styles.spendingReportContainer}>
-                    {/* Header với thông tin tổng chi tiêu và tỷ lệ thay đổi */}
-                    <View style={styles.spendingHeaderContainer}>
-                      <View>
-                        <Text style={styles.spendingReportAmountText}>
-                          {formatSimpleCurrency(userData.monthlyExpense)} đ
-                        </Text>
-                        <View style={styles.spendingTitleContainer}>
-                          <Text style={styles.spendingTitleText}>
-                            Total spent this {timeFilter}
-                          </Text>
-                          {userData.lastMonthExpense > 0 && (
-                            <View style={styles.changePercentageWrapper}>
-                              <Ionicons
-                                name={
-                                  isDecreased
-                                    ? "arrow-down-outline"
-                                    : "arrow-up-outline"
-                                }
-                                size={18}
-                                color={isDecreased ? "#4CAF50" : "#FF6B6B"}
-                              />
-                              <Text
-                                style={[
-                                  styles.percentageChangeText,
-                                  {
-                                    color: isDecreased ? "#4CAF50" : "#FF6B6B",
-                                  },
-                                ]}
-                              >
-                                {Math.abs(changePercentage)}%
-                              </Text>
-                            </View>
-                          )}
-                        </View>
-                      </View>
-                    </View>
-
-                    {/* Bar Chart Container */}
-                    <View style={styles.barChartMainContainer}>
-                      {/* Y-axis maximum value */}
-                      <Text style={styles.barChartMaxValue}>
-                        {formatCompact(
-                          userData.lastMonthExpense > userData.monthlyExpense
-                            ? userData.lastMonthExpense
-                            : userData.monthlyExpense
-                        )}
-                      </Text>
-
-                      {/* Bar Chart với đường ngang và các cột */}
-                      <View style={styles.barChartContent}>
-                        <View style={styles.barChartHorizontalLine} />
-
-                        <View style={styles.barChartColumns}>
-                          {/* Previous period bar - Kỳ trước */}
-                          <View style={styles.barChartColumnWrapper}>
-                            {userData.lastMonthExpense > 0 && (
-                              <View
-                                style={[
-                                  styles.barChartBar,
-                                  styles.barChartPrevious,
-                                  {
-                                    height: Math.min(
-                                      (userData.lastMonthExpense /
-                                        Math.max(
-                                          userData.lastMonthExpense,
-                                          userData.monthlyExpense,
-                                          1000 // Giá trị tối thiểu để tránh chia cột quá nhỏ
-                                        )) *
-                                        160,
-                                      160
-                                    ),
-                                  },
-                                ]}
-                              />
-                            )}
-                            <Text style={styles.barChartLabel}>
-                              Last {timeFilter}
-                            </Text>
-                            {userData.lastMonthExpense > 0 && (
-                              <Text style={styles.barChartValue}>
-                                {formatCompact(userData.lastMonthExpense)}
-                              </Text>
-                            )}
-                          </View>
-
-                          {/* Current period bar - Kỳ này */}
-                          <View style={styles.barChartColumnWrapper}>
-                            {userData.monthlyExpense > 0 && (
-                              <View
-                                style={[
-                                  styles.barChartBar,
-                                  styles.barChartCurrent,
-                                  {
-                                    height: Math.min(
-                                      (userData.monthlyExpense /
-                                        Math.max(
-                                          userData.lastMonthExpense,
-                                          userData.monthlyExpense,
-                                          1000 // Giá trị tối thiểu để tránh chia cột quá nhỏ
-                                        )) *
-                                        160,
-                                      160
-                                    ),
-                                  },
-                                ]}
-                              />
-                            )}
-                            <Text style={styles.barChartLabel}>
-                              This {timeFilter}
-                            </Text>
-                            {userData.monthlyExpense > 0 && (
-                              <Text style={styles.barChartValue}>
-                                {formatCompact(userData.monthlyExpense)}
-                              </Text>
-                            )}
-                          </View>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-                </>
-              )}
-            </Animated.View>
-
-            {/* Report navigation */}
-            <View style={styles.reportNavigation}>
-              <TouchableOpacity onPress={() => handleNavigateReport("prev")}>
-                <Ionicons
-                  name="chevron-back-outline"
-                  size={24}
-                  color="#4CAF50"
-                />
-              </TouchableOpacity>
-              <Text style={styles.reportTitle}>
-                {currentReport === "trending"
-                  ? "Trending Report"
-                  : "Spending Report"}
-              </Text>
-              <TouchableOpacity onPress={() => handleNavigateReport("next")}>
-                <Ionicons
-                  name="chevron-forward-outline"
-                  size={24}
-                  color="#4CAF50"
-                />
-              </TouchableOpacity>
-            </View>
-
-            {/* Report indicator dots */}
-            <View style={styles.indicatorContainer}>
-              <View
-                style={[
-                  styles.indicator,
-                  currentReport === "trending" && styles.indicatorActive,
-                ]}
-              />
-              <View
-                style={[
-                  styles.indicator,
-                  currentReport === "spending" && styles.indicatorActive,
-                ]}
-              />
+            {/* TẤT CẢ NỘI DUNG BÊN TRONG CARD */}
+            <View style={styles.reportContentContainer}>
+              {/* Period Filter */}
+              <View style={styles.filterContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    periodFilter === "weekly" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setPeriodFilter("weekly")}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      periodFilter === "weekly" && styles.activeFilterText,
+                    ]}
+                  >
+                    Week
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    periodFilter === "monthly" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setPeriodFilter("monthly")}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      periodFilter === "monthly" && styles.activeFilterText,
+                    ]}
+                  >
+                    Month
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.filterButton,
+                    periodFilter === "yearly" && styles.activeFilterButton,
+                  ]}
+                  onPress={() => setPeriodFilter("yearly")}
+                >
+                  <Text
+                    style={[
+                      styles.filterText,
+                      periodFilter === "yearly" && styles.activeFilterText,
+                    ]}
+                  >
+                    Year
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {/* View Type Selector */}
+              <View style={styles.viewTypeContainer}>
+                <TouchableOpacity
+                  style={[
+                    styles.viewTypeButton,
+                    viewType === "chart" && styles.activeViewTypeButton,
+                  ]}
+                  onPress={() => setViewType("chart")}
+                >
+                  <Ionicons
+                    name="bar-chart-outline"
+                    size={20}
+                    color={viewType === "chart" ? "#fff" : "#000"}
+                  />
+                  <Text
+                    style={[
+                      styles.viewTypeText,
+                      viewType === "chart" && styles.activeViewTypeText,
+                    ]}
+                  >
+                    Chart
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.viewTypeButton,
+                    viewType === "summary" && styles.activeViewTypeButton,
+                  ]}
+                  onPress={() => setViewType("summary")}
+                >
+                  <Ionicons
+                    name="list-outline"
+                    size={20}
+                    color={viewType === "summary" ? "#fff" : "#000"}
+                  />
+                  <Text
+                    style={[
+                      styles.viewTypeText,
+                      viewType === "summary" && styles.activeViewTypeText,
+                    ]}
+                  >
+                    Summary
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              {/* Chart or Summary */}
+              <View style={{ flex: 1 }}>
+                {viewType === "chart" ? renderChart() : renderSummary()}
+              </View>
             </View>
           </View>
         </View>
@@ -1452,14 +1561,14 @@ const HomeScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.timeRangeButton,
-                  timeRange === "week" && styles.timeRangeButtonActive,
+                  topSpendingRange === "week" && styles.timeRangeButtonActive,
                 ]}
-                onPress={() => setTimeRange("week")}
+                onPress={() => setTopSpendingRange("week")}
               >
                 <Text
                   style={[
                     styles.timeRangeText,
-                    timeRange === "week" && styles.timeRangeTextActive,
+                    topSpendingRange === "week" && styles.timeRangeTextActive,
                   ]}
                 >
                   Week
@@ -1468,14 +1577,14 @@ const HomeScreen = () => {
               <TouchableOpacity
                 style={[
                   styles.timeRangeButton,
-                  timeRange === "month" && styles.timeRangeButtonActive,
+                  topSpendingRange === "month" && styles.timeRangeButtonActive,
                 ]}
-                onPress={() => setTimeRange("month")}
+                onPress={() => setTopSpendingRange("month")}
               >
                 <Text
                   style={[
                     styles.timeRangeText,
-                    timeRange === "month" && styles.timeRangeTextActive,
+                    topSpendingRange === "month" && styles.timeRangeTextActive,
                   ]}
                 >
                   Month
@@ -1600,7 +1709,7 @@ const styles = StyleSheet.create({
   reportCard: {
     backgroundColor: "#FFFFFF",
     marginHorizontal: 20,
-    padding: 15,
+    marginVertical: 20,
     borderRadius: 15,
     shadowColor: "#000",
     shadowOffset: {
@@ -1610,47 +1719,78 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 3,
     elevation: 3,
+    overflow: "hidden",
+    marginBottom: 24,
   },
-  tabSelector: {
+  reportContentContainer: {
+    width: "100%",
+    padding: 15,
+    height: 400,
+  },
+  filterContainer: {
     flexDirection: "row",
     backgroundColor: "#F5F5F5",
     borderRadius: 20,
     padding: 4,
-    marginBottom: 15,
+    marginBottom: 12,
+    alignSelf: "center",
+    paddingHorizontal: 16,
+  },
+  viewTypeContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 16,
     alignSelf: "center",
   },
-  tabButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginHorizontal: 2,
+  chartContainer: {
+    minHeight: 220,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 10,
+    marginBottom: 0,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingVertical: 5,
   },
-  tabButtonActive: {
-    backgroundColor: colors.primary,
+  chartWrapper: {
+    width: "100%",
+    alignItems: "flex-start",
   },
-  tabButtonText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "500",
+  chartHeader: {
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 0,
+    marginBottom: 12,
   },
-  tabButtonTextActive: {
-    color: "#FFFFFF",
+  chartTitle: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333333",
   },
   summaryContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 15,
+    paddingHorizontal: 15,
+  },
+  summaryCard: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F0F0F0",
     marginBottom: 10,
   },
-  summaryColumn: {
-    flex: 1,
-  },
   summaryLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: "#666666",
   },
   summaryAmount: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "bold",
     color: "#333333",
   },
@@ -1660,104 +1800,71 @@ const styles = StyleSheet.create({
   incomeAmount: {
     color: "#00C897",
   },
-  summaryBar: {
-    height: 4,
-    width: "50%",
-    backgroundColor: "#F0F0F0",
-    borderRadius: 2,
-    marginTop: 5,
-  },
-  summaryBarSelected: {
-    width: "70%",
-    height: 5,
-  },
-  expenseBar: {
-    backgroundColor: "#FF6B6B",
-  },
-  incomeBar: {
-    backgroundColor: "#00C897",
-  },
-  amountDisplayContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  dateText: {
-    color: "#888888",
-    fontSize: 14,
-  },
-  chartContainer: {
-    height: 200,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 10,
-    marginBottom: 10,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 10,
-  },
-  lineChart: {
-    borderRadius: 10,
-  },
-  legendContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 5,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  legendDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginRight: 5,
-  },
-  expenseDot: {
-    backgroundColor: "#FF6B6B",
-  },
-  incomeDot: {
-    backgroundColor: "#00C897",
-  },
-  legendDotInactive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#CCCCCC",
-    marginRight: 5,
-  },
-  legendText: {
-    color: "#666666",
-    fontSize: 10,
-  },
-  reportNavigation: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: 5,
-  },
-  reportTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#333333",
-  },
-  indicatorContainer: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    marginTop: 10,
-  },
-  indicator: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#F0F0F0",
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
     marginHorizontal: 2,
+    minWidth: 90,
   },
-  indicatorActive: {
+  filterText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  activeFilterButton: {
     backgroundColor: colors.primary,
+  },
+  activeFilterText: {
+    color: "#FFFFFF",
+  },
+  viewTypeButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 16,
+    marginHorizontal: 4,
+    minWidth: 130,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  viewTypeText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+    marginLeft: 8,
+  },
+  activeViewTypeButton: {
+    backgroundColor: colors.primary,
+  },
+  activeViewTypeText: {
+    color: "#FFFFFF",
+  },
+  timeFilterContainer: {
+    flexDirection: "row",
+    backgroundColor: "#F5F5F5",
+    borderRadius: 20,
+    padding: 4,
+    marginBottom: 15,
+    alignSelf: "center",
+  },
+  timeFilterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    marginHorizontal: 2,
+    minWidth: 90,
+  },
+  timeFilterButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  timeFilterText: {
+    color: colors.text,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  timeFilterTextActive: {
+    color: "#FFFFFF",
   },
   topSpendingCard: {
     backgroundColor: "#FFFFFF",
@@ -1782,10 +1889,14 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   timeRangeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 16,
-    marginHorizontal: 2,
+    marginHorizontal: 4,
+    minWidth: 130,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
   },
   timeRangeButtonActive: {
     backgroundColor: colors.primary,
@@ -1794,6 +1905,7 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
     fontWeight: "500",
+    marginLeft: 8,
   },
   timeRangeTextActive: {
     color: "#FFFFFF",
@@ -1804,33 +1916,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 10,
   },
-  timeFilterContainer: {
-    flexDirection: "row",
-    backgroundColor: "#F5F5F5",
-    borderRadius: 20,
-    padding: 4,
-    marginBottom: 15,
-    alignSelf: "center",
-  },
-  timeFilterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 16,
-    marginHorizontal: 2,
-  },
-  timeFilterButtonActive: {
-    backgroundColor: colors.primary,
-  },
-  timeFilterText: {
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: "500",
-  },
-  timeFilterTextActive: {
-    color: "#FFFFFF",
-  },
   transactionsList: {
-    maxHeight: 400, // Giới hạn chiều cao của danh sách
+    maxHeight: 400,
   },
   walletsCard: {
     backgroundColor: "#FFFFFF",
@@ -2091,23 +2178,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontWeight: "500",
   },
-  reportContentContainer: {
-    width: "100%",
-    minHeight: 350,
-    padding: 10,
-  },
   helpIcon: {
     padding: 5,
   },
   chartContainerWithMax: {
     marginVertical: 15,
     paddingVertical: 5,
-  },
-  chartWrapper: {
-    position: "relative",
-    alignItems: "center",
-    justifyContent: "center",
-    height: 170,
   },
   maxValueContainer: {
     position: "absolute",
@@ -2203,7 +2279,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 8,
   },
   barChartCurrent: {
-    backgroundColor: "#FF6B6B", // Darker red for current period
+    backgroundColor: "#FF6B6B",
     width: "100%",
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,

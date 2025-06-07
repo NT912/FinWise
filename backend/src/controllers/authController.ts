@@ -2,8 +2,6 @@ import { Request, Response } from "express";
 import {
   registerUser,
   loginUser,
-  loginWithGoogle,
-  loginWithFacebook,
   sendResetPasswordEmail,
   resetUserPassword,
   generateResetToken,
@@ -178,45 +176,6 @@ const login = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-// 📌 Đăng nhập bằng Google
-const googleLogin = async (req: Request, res: Response): Promise<void> => {
-  try {
-    console.log("🔍 Google login request body:", req.body);
-    const { idToken } = req.body;
-
-    if (!idToken) {
-      res.status(400).json({ error: "Google ID token is required!" });
-      return;
-    }
-
-    const token = await loginWithGoogle(idToken);
-    res.json({ token });
-  } catch (error) {
-    console.error("❌ Google login error:", error);
-    res.status(400).json({
-      error:
-        error instanceof Error ? error.message : "Google authentication failed",
-    });
-  }
-};
-
-// 📌 Đăng nhập bằng Facebook
-const facebookLogin = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { accessToken } = req.body;
-    const token = await loginWithFacebook(accessToken);
-    res.json({ token });
-  } catch (error) {
-    console.error("❌ Facebook login error:", error);
-    res.status(400).json({
-      error:
-        error instanceof Error
-          ? error.message
-          : "Facebook authentication failed",
-    });
-  }
-};
-
 // 📌 Quên mật khẩu
 const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -297,12 +256,4 @@ const verifyResetCode = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-export {
-  register,
-  login,
-  googleLogin,
-  facebookLogin,
-  forgotPassword,
-  resetPassword,
-  verifyResetCode,
-};
+export { register, login, forgotPassword, resetPassword, verifyResetCode };

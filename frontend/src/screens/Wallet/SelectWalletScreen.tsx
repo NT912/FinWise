@@ -12,7 +12,7 @@ import {
   ImageURISource,
 } from "react-native";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { formatCurrency } from "../../utils/currency";
 import { useWallet, Wallet } from "../../hooks/useWallet";
 import { NavigationProp, ParamListBase } from "@react-navigation/native";

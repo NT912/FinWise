@@ -24,7 +24,7 @@ import {
   ProfileStackParamList,
   RootStackParamList,
 } from "../../navigation/AppNavigator";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons   } from "react-native-vector-icons/Ionicons";
 import { User } from "../../types";
 import TabBar from "../../components/TabBar";
 import { StackNavigationProp } from "@react-navigation/stack";

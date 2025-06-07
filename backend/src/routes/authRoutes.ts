@@ -2,8 +2,6 @@ import express, { RequestHandler } from "express";
 import {
   register,
   login,
-  googleLogin,
-  facebookLogin,
   forgotPassword,
   resetPassword,
   verifyResetCode,
@@ -76,10 +74,6 @@ router.post("/register", register as RequestHandler);
  */
 // @ts-ignore
 router.post("/login", login as RequestHandler);
-// @ts-ignore
-router.post("/google", googleLogin as RequestHandler);
-// @ts-ignore
-router.post("/facebook", facebookLogin as RequestHandler);
 // @ts-ignore
 router.post("/forgot-password", forgotPassword as RequestHandler);
 // @ts-ignore

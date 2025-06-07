@@ -666,6 +666,7 @@ export const getMonthlyReport = async (
   res: Response
 ): Promise<void> => {
   try {
+    console.log("[getMonthlyReport] API called");
     const userId = req.user?.userId;
     if (!userId) {
       res.status(401).json({ message: "Unauthorized" });
@@ -673,6 +674,9 @@ export const getMonthlyReport = async (
     }
 
     const { period = "monthly", walletId } = req.query;
+    console.log(
+      `[getMonthlyReport] Generating report for period: ${period}, walletId: ${walletId}`
+    );
 
     // Xác định khoảng thời gian dựa vào period
     const now = new Date();
@@ -682,13 +686,25 @@ export const getMonthlyReport = async (
     let numberOfPeriods: number = 6; // Mặc định số lượng khoảng thời gian hiển thị
 
     switch (period) {
-      case "weekly":
-        // Lấy 7 ngày gần nhất
-        startDate.setDate(now.getDate() - 6);
+      case "weekly": {
+        // Lấy ngày đầu tuần (thứ 2) và cuối tuần (chủ nhật) của tuần hiện tại
+        const dayOfWeek = now.getDay(); // 0 (CN) -> 6 (T7)
+        // Tính offset để ra thứ 2
+        const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+        startDate = new Date(now);
+        startDate.setDate(now.getDate() + diffToMonday);
+        startDate.setHours(0, 0, 0, 0);
+        // Ngày cuối tuần (chủ nhật)
+        const endDate = new Date(startDate);
+        endDate.setDate(startDate.getDate() + 6);
+        endDate.setHours(23, 59, 59, 999);
         dateFormat = "%Y-%m-%d";
         groupByFormat = "$dateStr";
         numberOfPeriods = 7;
+        // Ghi đè biến now để dùng cho filter và periodsData
+        now.setTime(endDate.getTime());
         break;
+      }
       case "monthly":
         // Lấy 6 tháng gần nhất
         startDate.setMonth(now.getMonth() - 5);
@@ -716,6 +732,9 @@ export const getMonthlyReport = async (
 
     // Set start date to beginning of day
     startDate.setHours(0, 0, 0, 0);
+    console.log(
+      `[getMonthlyReport] Date range: ${startDate.toISOString()} to ${now.toISOString()}`
+    );
 
     // Build filter
     const matchFilter: any = {
@@ -727,6 +746,10 @@ export const getMonthlyReport = async (
     if (walletId && walletId !== "all") {
       matchFilter.walletId = new mongoose.Types.ObjectId(walletId as string);
     }
+    console.log(
+      `[getMonthlyReport] Match filter:`,
+      JSON.stringify(matchFilter, null, 2)
+    );
 
     // Tạo các pipeline aggregation tổng hợp
     const pipeline = [
@@ -804,11 +827,29 @@ export const getMonthlyReport = async (
       },
     ] as any[];
 
-    // Thực hiện các aggregation
+    // Thêm index cho các trường thường xuyên query
+    await Transaction.collection.createIndex({ userId: 1, date: 1 });
+    await Transaction.collection.createIndex({ userId: 1, type: 1 });
+    await Transaction.collection.createIndex({ userId: 1, category: 1 });
+
+    const startTime = Date.now();
+    // Thực hiện các aggregation với timeout
+    const aggStart = Date.now();
     const [periodResults, categoryResults] = await Promise.all([
-      Transaction.aggregate(pipeline),
-      Transaction.aggregate(categoryPipeline),
+      Transaction.aggregate(pipeline, { allowDiskUse: true }),
+      Transaction.aggregate(categoryPipeline, { allowDiskUse: true }),
     ]);
+    const aggEnd = Date.now();
+    console.log(`[getMonthlyReport] Aggregation time: ${aggEnd - aggStart}ms`);
+
+    console.log(
+      `[getMonthlyReport] Period results:`,
+      JSON.stringify(periodResults, null, 2)
+    );
+    console.log(
+      `[getMonthlyReport] Category results:`,
+      JSON.stringify(categoryResults, null, 2)
+    );
 
     // Xử lý dữ liệu theo khoảng thời gian để đảm bảo có đủ data cho biểu đồ
     const periodsData: {
@@ -817,10 +858,10 @@ export const getMonthlyReport = async (
 
     // Tạo các khoảng thời gian trống trước
     if (period === "weekly") {
-      // Tạo mảng 7 ngày gần nhất
+      // Tạo mảng 7 ngày trong tuần hiện tại (thứ 2 -> CN)
       for (let i = 0; i < numberOfPeriods; i++) {
-        const date = new Date();
-        date.setDate(now.getDate() - (numberOfPeriods - 1 - i));
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
         date.setHours(0, 0, 0, 0);
         const dateStr = date.toISOString().split("T")[0];
         periodsData[dateStr] = { income: 0, expense: 0, balance: 0 };
@@ -842,6 +883,11 @@ export const getMonthlyReport = async (
         periodsData[year.toString()] = { income: 0, expense: 0, balance: 0 };
       }
     }
+
+    console.log(
+      `[getMonthlyReport] Initial periods data:`,
+      JSON.stringify(periodsData, null, 2)
+    );
 
     // Điền dữ liệu từ kết quả aggregation
     periodResults.forEach((item) => {
@@ -865,8 +911,32 @@ export const getMonthlyReport = async (
         periodsData[periodKey].income - periodsData[periodKey].expense;
     });
 
+    console.log(
+      `[getMonthlyReport] Final periods data:`,
+      JSON.stringify(periodsData, null, 2)
+    );
+
     // Phân loại danh mục theo loại
-    const categories = {
+    const categories: {
+      income: Array<{
+        categoryId: string;
+        type: string;
+        total: number;
+        count: number;
+        name: string;
+        icon: string;
+        color: string;
+      }>;
+      expense: Array<{
+        categoryId: string;
+        type: string;
+        total: number;
+        count: number;
+        name: string;
+        icon: string;
+        color: string;
+      }>;
+    } = {
       income: categoryResults.filter((c) => c.type === "income"),
       expense: categoryResults.filter((c) => c.type === "expense"),
     };
@@ -880,8 +950,16 @@ export const getMonthlyReport = async (
       totalExpense += data.expense;
     });
 
+    const balance = totalIncome - totalExpense;
+
     // Tạo format hiển thị cho nhãn thời gian
-    const formattedPeriods = Object.keys(periodsData).map((key) => {
+    const formattedPeriods: Array<{
+      key: string;
+      label: string;
+      income: number;
+      expense: number;
+      balance: number;
+    }> = Object.keys(periodsData).map((key) => {
       let label: string;
 
       if (period === "weekly") {
@@ -905,25 +983,18 @@ export const getMonthlyReport = async (
       };
     });
 
-    // Trả về dữ liệu báo cáo
     res.json({
       period,
-      summary: {
-        totalIncome,
-        totalExpense,
-        balance: totalIncome - totalExpense,
-      },
-      timeRange: {
-        start: startDate,
-        end: now,
-      },
-      periods: formattedPeriods,
+      totalIncome,
+      totalExpense,
+      balance,
       categories,
+      periods: formattedPeriods,
     });
   } catch (error) {
-    console.error("Error generating monthly report:", error);
+    console.error("Error fetching monthly report:", error);
     res.status(500).json({
-      message: "Error generating monthly report",
+      message: "Error fetching monthly report",
       error: error instanceof Error ? error.message : String(error),
     });
   }

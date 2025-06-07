@@ -7,7 +7,7 @@ import {
   Animated,
   Easing,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import Toast from "react-native-toast-message";
 import { colors } from "../theme";
 

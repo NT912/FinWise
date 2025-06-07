@@ -24,7 +24,7 @@ import {
 } from "@react-navigation/native";
 import { RootStackParamList } from "../../navigation/AppNavigator";
 import { User } from "../../types";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons   } from "react-native-vector-icons/Ionicons";
 import * as ImagePicker from "expo-image-picker";
 import { updateUserProfile } from "../../services/profileService";
 import LoadingIndicator from "../../components/LoadingIndicator";

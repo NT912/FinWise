@@ -8,7 +8,7 @@ import {
   FlatList,
   TouchableWithoutFeedback,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { colors } from "../../theme";
 
 // Bảng màu cho danh mục

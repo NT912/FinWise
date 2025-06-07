@@ -61,35 +61,6 @@ export const login = async (
   return response.data;
 };
 
-// Đăng nhập bằng Google
-export const loginWithGoogle = async (idToken: string) => {
-  const response = await apiClient.post("/api/auth/google", { idToken });
-  await AsyncStorage.setItem("token", response.data.token);
-  return response.data.token;
-};
-
-// Đăng nhập bằng Facebook
-export const loginWithFacebook = async (accessToken: string) => {
-  try {
-    console.log("📤 Gửi token Facebook đến server...");
-    const response = await apiClient.post("/api/auth/facebook", {
-      accessToken,
-    });
-
-    if (response.data.token) {
-      await AsyncStorage.setItem("token", response.data.token);
-      console.log("✅ Token Facebook được lưu:", response.data.token);
-    } else {
-      console.warn("⚠️ Không tìm thấy token từ Facebook API!");
-    }
-
-    return response.data.token;
-  } catch (error) {
-    console.error("❌ Facebook login error:", error);
-    throw new Error("Facebook authentication failed");
-  }
-};
-
 // Forgot password - request reset code
 export const forgotPassword = async (email: string): Promise<any> => {
   const response = await apiClient.post("/api/auth/forgot-password", { email });
@@ -99,12 +70,12 @@ export const forgotPassword = async (email: string): Promise<any> => {
 // Reset password with code
 export const resetPassword = async (
   email: string,
-  code: string,
+  resetCode: string,
   newPassword: string
 ): Promise<any> => {
   const response = await apiClient.post("/api/auth/reset-password", {
     email,
-    code,
+    resetCode,
     newPassword,
   });
   return response.data;
@@ -165,8 +136,6 @@ export default {
   register,
   login,
   logout,
-  loginWithGoogle,
-  loginWithFacebook,
   forgotPassword,
   resetPassword,
   verifyEmail,

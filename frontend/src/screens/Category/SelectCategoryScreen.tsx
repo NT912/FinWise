@@ -20,7 +20,7 @@ import {
   useFocusEffect,
   ParamListBase,
 } from "@react-navigation/native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
 import { NavigationProp } from "@react-navigation/native";
 import { colors, shadow } from "../../theme";
 import {

@@ -11,9 +11,10 @@ import {
 import { useNavigation, useRoute } from "@react-navigation/native";
 import { StackNavigationProp } from "@react-navigation/stack";
 import { RootStackParamList } from "../../types/navigation";
-import { Ionicons } from "@expo/vector-icons";
-import { forgotPassword, resetPassword } from "../../services/authService";
+import { Ionicons   } from "react-native-vector-icons/Ionicons";
+import { forgotPassword } from "../../services/authService";
 import { showSuccess, showError } from "../../services/alertService";
+import apiClient from "../../services/apiClient";
 
 type SecurityPinScreenNavigationProp = StackNavigationProp<
   RootStackParamList,
@@ -38,10 +39,11 @@ const SecurityPinScreen = () => {
           const pinString = newPin.join("");
           console.log("Sending pin:", pinString);
 
-          const response = await resetPassword(email, pinString);
-          console.log("Verification response:", response);
-
-          if (response.success) {
+          const response = await apiClient.post("/api/auth/verify-reset-code", {
+            email,
+            resetCode: pinString,
+          });
+          if (response.data && response.data.success) {
             navigation.navigate("ResetPassword", {
               email,
               resetCode: pinString,
@@ -49,7 +51,7 @@ const SecurityPinScreen = () => {
           } else {
             showError(
               "Invalid Code",
-              response.message || "Please check your code and try again.",
+              response.data?.message || "Please check your code and try again.",
               { duration: 3000 }
             );
             setPin([]);
@@ -193,24 +195,6 @@ const SecurityPinScreen = () => {
               <Text style={styles.resendText}>Send Again</Text>
             </TouchableOpacity>
 
-            <View style={styles.socialContainer}>
-              <Text style={styles.socialText}>or sign up with</Text>
-              <View style={styles.socialButtons}>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/facebook-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.socialButton}>
-                  <Image
-                    source={require("../../../assets/google-logo.png")}
-                    style={styles.socialIcon}
-                  />
-                </TouchableOpacity>
-              </View>
-            </View>
-
             <View style={styles.footer}>
               <Text style={styles.footerText}>Don't have an account? </Text>
               <TouchableOpacity onPress={() => navigation.navigate("Register")}>
@@ -325,38 +309,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
   },
-  socialContainer: {
-    alignItems: "center",
-    marginTop: 0,
-    marginBottom: 15,
-  },
-  socialText: {
-    color: "#666",
-    fontSize: 14,
-    marginBottom: 10,
-  },
-  socialButtons: {
-    flexDirection: "row",
-    gap: 20,
-  },
-  socialButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: "#fff",
-    borderWidth: 1,
-    borderColor: "#E8E8E8",
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
   footer: {
     flexDirection: "row",
     marginTop: 0,
@@ -411,10 +363,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: "#333333",
     fontWeight: "500",
-  },
-  socialIcon: {
-    width: 24,
-    height: 24,
   },
   loadingContainer: {
     height: 60,
