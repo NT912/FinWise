@@ -6,9 +6,9 @@ import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
 import walletRoutes from "./routes/walletRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
-import categoryRoutes from "./routes/categoryRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
 import savingRoutes from "./routes/savingRoutes";
+import { hardCodeDBString } from "./app";
 
 dotenv.config();
 
@@ -34,7 +34,7 @@ app.get("/api/health", (req, res) => {
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI || "mongodb://localhost:27017/finwise")
+  .connect(process.env.MONGODB_URI || hardCodeDBString)
   .then(() => {
     console.log("Connected to MongoDB");
   })

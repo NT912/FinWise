@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import CategoryModel from "../models/Category";
+import { hardCodeDBString } from "../app";
 
 // Load environment variables
 dotenv.config();
@@ -97,7 +98,7 @@ const categories = [
 const connectDB = async () => {
   try {
     await mongoose.connect(
-      process.env.MONGODB_URI || "mongodb://localhost:27017/finance-manager"
+   process.env.MONGODB_URI || hardCodeDBString
     );
     console.log("MongoDB connected");
   } catch (error) {

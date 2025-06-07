@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import UserModel from "../models/User";
+import { hardCodeDBString } from "../app";
 
 // Load environment variables
 dotenv.config();
@@ -8,9 +9,7 @@ dotenv.config();
 // Kết nối MongoDB
 const connectDB = async () => {
   try {
-    await mongoose.connect(
-      process.env.MONGODB_URI || "mongodb://localhost:27017/finance-manager"
-    );
+    await mongoose.connect(process.env.MONGODB_URI || hardCodeDBString);
     console.log("MongoDB connected");
   } catch (error) {
     console.error("MongoDB connection error:", error);

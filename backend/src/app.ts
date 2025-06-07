@@ -4,13 +4,12 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import authRoutes from "./routes/authRoutes";
 import userRoutes from "./routes/userRoutes";
-import categoryRoutes from "./routes/categoryRoutes";
 import transactionRoutes from "./routes/transactionRoutes";
 import budgetRoutes from "./routes/budgetRoutes";
-import goalRoutes from "./routes/goalRoutes";
-import savingsRoutes from "./routes/savingsRoutes";
 import walletRoutes from "./routes/walletRoutes";
 import { errorHandler } from "./middleware/errorHandler";
+
+export const hardCodeDBString = "mongodb+srv://tt912002:truong912002@finwise.fjrw7.mongodb.net/?retryWrites=true&w=majority&appName=FinWise"
 
 dotenv.config();
 
@@ -26,11 +25,8 @@ app.use("/uploads", express.static("uploads"));
 // Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/user", userRoutes);
-app.use("/api/categories", categoryRoutes);
 app.use("/api/transactions", transactionRoutes);
 app.use("/api/budgets", budgetRoutes);
-app.use("/api/goals", goalRoutes);
-app.use("/api/savings", savingsRoutes);
 app.use("/api/wallets", walletRoutes);
 
 // Error handling
@@ -38,7 +34,7 @@ app.use(errorHandler);
 
 // Connect to MongoDB
 mongoose
-  .connect(process.env.MONGODB_URI as string)
+  .connect(process.env.MONGODB_URI || hardCodeDBString)
   .then(() => {
     console.log("✅ Connected to MongoDB");
   })

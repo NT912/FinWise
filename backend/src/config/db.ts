@@ -1,42 +1,27 @@
-import mongoose from "mongoose";
-import dotenv from "dotenv";
-
-dotenv.config();
-
-// Biến để theo dõi trạng thái kết nối
+const mongoose = require("mongoose");
 let isConnected = false;
 
 const connectDB = async () => {
   if (isConnected) {
-    console.log("MongoDB đã được kết nối trước đó");
+    console.log("✅ MongoDB đã được kết nối trước đó");
     return;
   }
 
+  const mongoURI = "mongodb+srv://tt912002:truong912002@finwise.fjrw7.mongodb.net/finance_manager_db?retryWrites=true&w=majority";
+
   try {
-    const mongoURI = process.env.MONGODB_URI;
-    if (!mongoURI) {
-      throw new Error("MongoDB URI is not defined in environment variables");
-    }
-
-    // Thêm tên database vào URI nếu chưa có
-    const uriWithDB = mongoURI.includes("finance_manager_db")
-      ? mongoURI
-      : `${mongoURI.split("?")[0]}finance_manager_db?${mongoURI.split("?")[1]}`;
-
-    console.log("Đang kết nối tới MongoDB...");
-    const conn = await mongoose.connect(uriWithDB);
+    console.log("🔌 Đang kết nối tới MongoDB...");
+    const conn = await mongoose.connect(mongoURI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
 
     isConnected = true;
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-
-    // Thêm kiểm tra null và sử dụng name trực tiếp từ connection
-    const dbName = conn.connection.name || "unknown";
-    console.log(`Database Name: ${dbName}`);
-    console.log(`Connection State: ${conn.connection.readyState}`);
+    console.log(`✅ MongoDB đã kết nối: ${conn.connection.host}`);
+    console.log(`📦 Database Name: ${conn.connection.name}`);
+    console.log(`📶 Connection State: ${conn.connection.readyState}`);
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
-    console.error("Chi tiết kết nối:");
-    console.error("- URI:", process.env.MONGODB_URI?.split("@")[1]);
+    console.error("❌ MongoDB connection error:", error.message);
     process.exit(1);
   }
 };
